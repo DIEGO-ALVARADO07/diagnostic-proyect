@@ -6,7 +6,7 @@ El planteamiento inicial, recogido en [`documentation.md`](../documentation.md),
 
 ## Qué hace actualmente el software
 
-La implementación actual es una API REST denominada **Diagnostic API** (versión declarada `1.0.0`). Proporciona:
+La implementación actual consta de la API REST **Diagnostic API** (versión declarada `1.0.0`) y una interfaz web PHP. La API proporciona:
 
 - Inicio y cierre de sesión mediante tokens Bearer.
 - Administración de cuentas con roles `superadmin`, `instructor` y `estudiante`.
@@ -15,12 +15,13 @@ La implementación actual es una API REST denominada **Diagnostic API** (versió
 
 La API recibe el Excel y responde con los datos leídos; no guarda el archivo ni los resultados. El módulo tampoco clasifica estudiantes, calcula niveles de desempeño ni asigna cursos automáticamente.
 
+El frontend ofrece una pantalla de inicio con un espacio reservado para futuros gráficos y vistas separadas para administrar cuentas, consultar estudiantes, leer reportes de Excel y editar el perfil. Los gráficos aún no muestran métricas porque el backend no persiste los resultados de los archivos.
+
 ## A quién sirve
 
-- El frontend puede autenticar usuarios, administrar perfiles según permisos y solicitar la lectura de una hoja de un Excel.
-- Los instructores y superadmins pueden usar el endpoint de lectura Excel.
-- Los estudiantes pueden consultar y editar solo la información permitida de su propio perfil.
-- El superadmin administra las cuentas.
+- El superadmin dispone de vistas para listar, crear y desactivar cuentas.
+- El instructor dispone de vistas para consultar estudiantes y procesar archivos Excel.
+- El estudiante dispone de vistas para consultar y actualizar su propio perfil.
 
 ## Objetivo arquitectónico
 
