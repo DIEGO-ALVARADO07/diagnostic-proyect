@@ -1,0 +1,9 @@
+.create-user-panel { margin: 0 auto; max-width: 860px; padding: 27px; }
+.form-intro { align-items: center; border-bottom: 1px solid var(--line); display: flex; gap: 12px; margin-bottom: 21px; padding-bottom: 18px; }
+.form-intro-icon { align-items: center; background: var(--green-soft); border-radius: 9px; color: var(--green-dark); display: inline-flex; font-size: 19px; height: 39px; justify-content: center; width: 39px; }
+.form-intro h2 { font-size: 15px; margin-bottom: 3px; }
+.form-intro p { color: var(--muted); font-size: 10px; margin: 0; }
+
+@media (max-width: 760px) {
+    .create-user-panel { padding: 17px; }
+}

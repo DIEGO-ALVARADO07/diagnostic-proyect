@@ -1,0 +1,8 @@
+.module-heading { align-items: center; margin-top: 5px; }
+.module-heading .profile-avatar { margin-left: 12px; }
+.profile-panel { margin: 0 auto; max-width: 930px; }
+.profile-meta { border-bottom: 1px solid var(--line); margin-bottom: 21px; padding-bottom: 17px; }
+
+@media (max-width: 420px) {
+    .module-heading .profile-avatar { margin: -4px 0 0; }
+}

@@ -2,6 +2,8 @@
 
 La API está organizada como un monolito modular: `modules/security` contiene autenticación, roles, permisos y gestión de usuarios; `modules/excel` contiene el procesamiento de hojas de cálculo. `core` conserva la configuración y persistencia compartidas, mientras `api` ensambla los routers y `app` crea la aplicación. Esta separación permite añadir módulos sin convertirlos todavía en servicios independientes.
 
+La guía de integración de la aplicación PHP está en [`front/README.md`](../../front/README.md). Este documento se concentra en el backend, sus rutas, configuración, migraciones y pruebas.
+
 ## Capas por módulo
 
 - `routes.py` adapta HTTP: recibe DTOs, invoca servicios y declara los DTOs de respuesta.
@@ -55,7 +57,7 @@ La API usa `core.database.SessionLocal`. El `.env` debe estar en `core/` porque 
 Abre PowerShell en la raíz del proyecto:
 
 ```powershell
-Set-Location C:\Users\USUARIO\Desktop\diagnostic-proyect\code\api-reader-excel
+Set-Location C:\Users\USUARIO\Desktop\diagnostic-proyect\back\api-reader-excel
 .\venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 ```
@@ -67,7 +69,7 @@ Si todavía no existe `venv`, créalo primero con `python -m venv venv` y luego 
 El bootstrap aplica la migración de seguridad y crea el primer superadmin. Ejecuta una sola vez. En la misma terminal:
 
 ```powershell
-Set-Location C:\Users\USUARIO\Desktop\diagnostic-proyect\code\api-reader-excel\core
+Set-Location C:\Users\USUARIO\Desktop\diagnostic-proyect\back\api-reader-excel\core
 $env:APP_MASTER_KEY = "<clave-maestra-entregada-por-el-equipo>"
 $env:PYTHONPATH = (Resolve-Path ..).Path
 
@@ -102,7 +104,7 @@ Deja Uvicorn ejecutándose en primer plano y abre `http://127.0.0.1:8000/docs`. 
 No repitas el bootstrap. Para iniciar en una terminal nueva, define solo `APP_MASTER_KEY` y `PYTHONPATH`, desde `core/`, y ejecuta Uvicorn:
 
 ```powershell
-Set-Location C:\Users\USUARIO\Desktop\diagnostic-proyect\code\api-reader-excel\core
+Set-Location C:\Users\USUARIO\Desktop\diagnostic-proyect\back\api-reader-excel\core
 $env:APP_MASTER_KEY = "<clave-maestra-entregada-por-el-equipo>"
 $env:PYTHONPATH = (Resolve-Path ..).Path
 ..\venv\Scripts\python.exe -m uvicorn app:app --app-dir .. --reload --reload-dir ..

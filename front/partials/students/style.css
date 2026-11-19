@@ -1,0 +1,6 @@
+.module-heading { margin-top: 5px; }
+.module-heading > .count-pill { margin-bottom: 4px; }
+
+@media (max-width: 760px) {
+    .module-heading > .count-pill { align-self: flex-start; }
+}

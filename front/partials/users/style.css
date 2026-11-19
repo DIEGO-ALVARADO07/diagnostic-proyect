@@ -1,0 +1,11 @@
+.module-heading { margin-top: 5px; }
+.module-heading > .button { margin-bottom: 3px; }
+.list-summary { align-items: center; border-bottom: 1px solid var(--line); display: flex; gap: 42px; margin-bottom: 17px; padding: 2px 0 17px; }
+.list-summary strong, .list-summary span { display: block; }
+.list-summary strong { color: var(--navy); font: 700 20px 'Manrope', sans-serif; }
+.list-summary span { color: var(--muted); font-size: 10px; margin-top: 1px; }
+
+@media (max-width: 760px) {
+    .list-summary { gap: 20px; justify-content: space-between; }
+    .list-summary strong { font-size: 18px; }
+}
