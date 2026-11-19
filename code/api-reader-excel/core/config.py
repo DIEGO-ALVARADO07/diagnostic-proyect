@@ -30,8 +30,8 @@ class Settings(BaseSettings):
         return value
 
     @property
-    def database_url(config_url) -> str:
-        return f"mysql+pymysql://{config_url.DB_USER}:{config_url.DB_PASSWORD}@{config_url.DB_HOST}:{config_url.DB_PORT}/{config_url.DB_NAME}"
+    def database_url(self) -> str:
+        return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

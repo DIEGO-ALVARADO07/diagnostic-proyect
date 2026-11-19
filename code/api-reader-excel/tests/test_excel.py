@@ -4,7 +4,12 @@ import zipfile
 
 import fastexcel
 
-from excel_provider.service import SheetSelectionError, read_first_sheet
+from core.exceptions import ApplicationError
+from modules.excel.dtos.requests.read_workbook import ReadWorkbookRequest
+from modules.excel.services.excel_service import ExcelService
+from modules.excel.service import SheetSelectionError, read_first_sheet
+from modules.security.models import Account
+from modules.security.role import Role
 
 
 def make_workbook() -> bytes:
@@ -68,6 +73,17 @@ def make_workbook() -> bytes:
 
 
 class ExcelServiceTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.instructor = Account(
+            id=1,
+            username="instructor",
+            email="instructor@example.com",
+            full_name="Instructor",
+            password_hash="unused",
+            role=Role.INSTRUCTOR.value,
+            is_active=True,
+        )
+
     def test_reads_first_sheet_and_reports_its_rows(self) -> None:
         result = read_first_sheet(make_workbook(), "scores.xlsx")
 
@@ -91,3 +107,41 @@ class ExcelServiceTests(unittest.TestCase):
     def test_rejects_invalid_workbook(self) -> None:
         with self.assertRaises(fastexcel.FastExcelError):
             read_first_sheet(b"not an Excel file", "scores.xlsx")
+
+    def test_service_returns_only_the_excel_response_dto(self) -> None:
+        response = ExcelService().read(
+            ReadWorkbookRequest(
+                filename="scores.xlsx",
+                content=make_workbook(),
+            ),
+            self.instructor,
+        )
+
+        self.assertEqual(response.sheet_read, "First")
+        self.assertEqual(response.total_rows, 1)
+        self.assertEqual(
+            set(response.model_dump()),
+            {"filename", "available_sheets", "sheet_read", "total_rows", "data"},
+        )
+
+    def test_service_rejects_student_uploads(self) -> None:
+        student = Account(
+            id=2,
+            username="student",
+            email="student@example.com",
+            full_name="Student",
+            password_hash="unused",
+            role=Role.ESTUDIANTE.value,
+            is_active=True,
+        )
+
+        with self.assertRaises(ApplicationError) as error:
+            ExcelService().read(
+                ReadWorkbookRequest(
+                    filename="scores.xlsx",
+                    content=make_workbook(),
+                ),
+                student,
+            )
+
+        self.assertEqual(error.exception.status_code, 403)

@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 
-from auth.routes import router as auth_router
-from excel_provider.routes import router as excel_router
-from users.routes import router as users_router
+from modules.excel.routes import router as excel_router
+from modules.security.routes import router as auth_router
+from modules.security.users.routes import router as users_router
 
 router = APIRouter()
 router.include_router(auth_router)
