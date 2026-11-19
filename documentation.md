@@ -1,4 +1,7 @@
 # Diagnóstico de pruebas de primer año
+
+> Este documento conserva el planteamiento académico inicial. La descripción de lo que ya está construido, su arquitectura, instalación, API y dependencias se encuentra en la [documentación técnica](docs/README.md).
+
 En este documento se expone claramente la necesidad que se busca abordar en el área solicitada. Esta consiste en identificar los aspectos que deben mejorar los estudiantes de nuevo ingreso (primer semestre), con el fin de ayudarlos a obtener un mejor rendimiento en las pruebas Saber Pro. Para ello, se propone una ruta complementaria de aprendizaje virtual, en la que encontrarán los cursos necesarios según los resultados de la prueba inicial. De esta manera, se busca ayudar a los estudiantes a mejorar sus resultados mediante el desarrollo de estos cursos.
 
 En el documento se presentan las ideas principales que se buscan implementar para dar solución a esta necesidad, siguiendo una serie de pasos para desarrollar la propuesta.
