@@ -11,14 +11,14 @@ La guía de integración de la aplicación PHP está en [`front/README.md`](../.
 - `services` contiene los casos de uso y reglas de negocio.
 - `repositories` concentra las consultas y el acceso a datos o al lector de archivos.
 - `entities` contiene los modelos ORM (`Account`, `AccessToken`, `AuthBase`) y los tipos del dominio (`Role`, `Permission`). Los módulos anteriores `models.py`, `role.py` y `permission.py` se conservan como fachadas de compatibilidad; las tablas y columnas no cambian.
-- `modules/security/migrations` guarda las migraciones Alembic de las tablas de seguridad. Excel no persiste información y por eso su carpeta de migraciones no contiene versiones de esquema.
+- `modules/security/migrations` conserva las migraciones Alembic de seguridad y del dashboard académico; ambas comparten `AuthBase` y se aplican en orden.
 
 ## Pasos realizados
 
 1. **Separar la composición de los módulos.** `api` reúne los routers de seguridad y Excel; cada módulo conserva sus propias rutas y lógica. `app` expone `create_app()` y `app` sin incorporar reglas de negocio.
 2. **Definir roles y permisos explícitos.** Se modelaron `superadmin`, `instructor` y `estudiante`. Instructor puede consultar/editar perfiles y subir Excel, pero no crear cuentas ni desactivar usuarios; tampoco puede cambiar la contraseña, usuario o rol de otras cuentas. Estudiante solo consulta y edita su propio perfil. Superadmin puede gestionar cuentas y desactivarlas; no se permite desactivar al último superadmin activo.
 3. **Añadir autenticación sin registro público.** El login entrega un token opaco aleatorio de 8 horas; solo se guarda su hash en `api_access_tokens`. Las contraseñas se guardan como PBKDF2-HMAC-SHA256 con salt aleatorio, nunca en texto claro. No se agrega una biblioteca de autenticación ni se expone el alta de superadmins.
-4. **Aislar las tablas de la API.** `api_users` y `api_access_tokens` conservan su `DeclarativeBase` propio. Alembic versiona esas tablas sin alterar el `Base` de `core`; el servidor no crea tablas al iniciar.
+4. **Aislar las tablas de la API.** `api_users`, `api_access_tokens` y el esquema académico conservan su `DeclarativeBase` propio. Alembic versiona esas tablas sin alterar el `Base` de `core`; el servidor no crea tablas al iniciar.
 5. **Incorporar procesamiento Excel protegido.** `POST /excel/read` requiere instructor o superadmin, mantiene los formatos intentados en el código original, valida extensión, limita el archivo a 30 MB y permite elegir la hoja por nombre. Si no se indica, lee la primera. El parseo corre fuera del event loop.
 6. **Documentar la operación.** Se añadieron pasos de inicialización, ejecución y rutas para que el frontend consuma la API sin acceso directo a MySQL.
 
@@ -33,7 +33,7 @@ La guía de integración de la aplicación PHP está en [`front/README.md`](../.
 | Editar perfiles de otros | Sí | Sí (sin cambiar usuario, rol ni contraseña) | No |
 | Crear instructor/estudiante | Sí | No | No |
 | Desactivar cuentas | Sí | No | No |
-| Subir y leer Excel | Sí | Sí | No |
+| Subir, leer y consultar Excel/dashboard | Sí | Sí | No |
 
 - `POST /auth/login`: recibe `username` y `password`; devuelve `access_token`, `expires_in` y perfil.
 - `POST /auth/logout`: revoca el token actual.
@@ -116,7 +116,28 @@ Si se despliega una versión que añade migraciones, aplica primero las pendient
 ..\venv\Scripts\python.exe -m modules.security.migrations
 ```
 
-El comando reconoce una base antigua sin historial Alembic solo si encuentra ambas tablas de seguridad y verifica que coincidan con los modelos; si están incompletas o distintas, se detiene sin marcarlas como migradas. El servidor no crea ni migra tablas automáticamente.
+El comando reconoce una base antigua sin historial Alembic solo si encuentra ambas tablas de seguridad y verifica que coincidan con los modelos. En ese caso marca la revisión inicial de seguridad (`0001`) y aplica las siguientes, incluida la persistencia académica; si el esquema de seguridad está incompleto o distinto, o ya existen tablas académicas sin historial, se detiene sin marcarlas como migradas. El servidor no crea ni migra tablas automáticamente.
+
+## Dashboard histórico de TD PROGRAMAS
+
+La importación histórica mantiene intacto `POST /excel/read` y agrega estas rutas, todas protegidas para `instructor` y `superadmin` con Bearer:
+
+- `POST /excel/dashboard/import`: recibe `file` en los formatos permitidos por el servicio Excel. Abre el libro una vez y procesa únicamente `BD GEN` y `TD PROGRAMAS`.
+- `GET /excel/dashboard/active`: devuelve el snapshot activo.
+- `GET /excel/dashboard/imports?limit=20`: devuelve importaciones activas, históricas y fallidas, con el identificador activo.
+- `GET /excel/dashboard/{import_id}`: devuelve filtros, indicadores globales y programas paginados. La importación inicial incluye la primera página; el tamaño predeterminado y máximo es **50 programas**.
+- `GET /excel/dashboard/{import_id}/programs/{program_id}`: devuelve métricas del programa, comparación institucional y filas de resultados. Admite `year`, `simulation`, `group`, `semester`, `test_type`, `presented`, `search`, `page` y `page_size`.
+- `GET /excel/dashboard/{import_id}/students/{document}`: devuelve el historial del documento y su comparación con el promedio de programa de cada intento.
+
+El dashboard guarda snapshots normalizados en MySQL y no guarda el archivo binario. El SHA-256 del contenido evita duplicar una importación idéntica. La carga registra `PROCESSING`, inserta resultados y referencia visible de `TD PROGRAMAS` en una transacción y solo activa el snapshot después de validarlo; una carga fallida se registra como `FAILED` sin activar ni dejar resultados parciales. La tabla `excel_dashboard_state` serializa el cambio del snapshot activo. Los snapshots previos se conservan como `HISTORICAL`.
+
+Cada intento de `BD GEN` conserva su fila de origen; las filas no se deduplican por documento o simulacro. Los programas se distinguen por su etiqueta original; no se fusionan automáticamente por tildes, mayúsculas ni espacios. Se preservan los niveles fuente Q:U. El puntaje GLOBAL principal se obtiene de J; queda nulo si J no es numérica y los agregados históricos omiten esos valores. El cálculo alternativo desde E:I se conserva separado y nunca sustituye a J. Las métricas se calculan sobre registros `APLICA SIMULACRO = Si`; las desviaciones son poblacionales y requieren dos o más valores. Los niveles fuente faltantes se presentan como `Sin resultado`.
+
+### Auditoría del libro CORHUILA revisado
+
+En el archivo revisado, `TD PROGRAMAS` es una tabla dinámica cuyo filtro de página usa `AÑO`; la selección guardada es `2026`. Su caché de pivote tiene como origen `BD GEN` y contiene los años 2024, 2025 y 2026. El importador no depende de recalcular esa tabla dinámica: reconstruye los tres años desde `BD GEN` y contrasta los bloques visibles del año guardado. No ejecuta macros ni usa las hojas auxiliares, fórmulas externas o vínculos externos.
+
+La respuesta de importación incluye `source_audit`, con los años de `BD GEN`, el año visible de `TD PROGRAMAS` y las métricas que pueden compararse por etiqueta exacta de programa y simulacro. Las diferencias se reportan y no se corrigen ni se mezclan automáticamente. Las filas sin documento siguen siendo intentos y cuentan en presentaciones si aplican, pero no se incluyen en estudiantes únicos ni en búsquedas por documento.
 
 ### Pruebas
 
@@ -156,7 +177,7 @@ python -m unittest discover -s tests -v
 2. La ruta lee como máximo 30 MB más un byte para detectar exceso y arma `ReadWorkbookRequest` con archivo y hoja solicitada.
 3. `ExcelService` aplica las reglas de tamaño, formato y autorización; mueve el parseo fuera del event loop.
 4. `WorkbookRepository` usa fastexcel para cargar la hoja elegida (o la primera si se omite) y produce la entidad `WorkbookRead`.
-5. `ReadWorkbookResponse` limita y tipa los datos devueltos al frontend. El módulo Excel es actualmente sin estado: no guarda el archivo ni los resultados.
+5. `ReadWorkbookResponse` limita y tipa los datos devueltos al frontend. `POST /excel/read` no persiste; la importación histórica del dashboard sí guarda los resultados y su referencia en tablas académicas versionadas por Alembic.
 
 ### Errores
 

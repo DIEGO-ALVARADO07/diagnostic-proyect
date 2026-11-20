@@ -2,11 +2,38 @@ from alembic import context
 
 from core.database import engine
 from modules.security.entities.base import AuthBase
+from modules.security.entities.access_token import AccessToken
+from modules.security.entities.account import Account
+from modules.excel.entities.academic import (
+    AcademicProgram,
+    AcademicProgramAlias,
+    AcademicResult,
+    AcademicStudent,
+    DashboardState,
+    ExcelImport,
+    TdProgramasReference,
+)
 
+_IMPORTED_MODELS = (
+    AccessToken,
+    Account,
+    AcademicProgram,
+    AcademicProgramAlias,
+    AcademicResult,
+    AcademicStudent,
+    DashboardState,
+    ExcelImport,
+    TdProgramasReference,
+)
 target_metadata = AuthBase.metadata
+if any(
+    model.__tablename__ not in target_metadata.tables
+    for model in _IMPORTED_MODELS
+):
+    raise RuntimeError("No se registraron todos los modelos para Alembic.")
 
 
-def include_security_tables(
+def include_application_tables(
     name: str | None, object_type: str, parent_names: dict[str, str]
 ) -> bool:
     if object_type == "schema":
@@ -23,7 +50,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
-        include_name=include_security_tables,
+        include_name=include_application_tables,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -35,7 +62,7 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
-            include_name=include_security_tables,
+            include_name=include_application_tables,
         )
         with context.begin_transaction():
             context.run_migrations()
