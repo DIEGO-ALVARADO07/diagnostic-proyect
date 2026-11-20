@@ -2,7 +2,7 @@
 
 ## Pruebas automatizadas
 
-Desde `code/api-reader-excel`, con el entorno virtual activo:
+Desde `back/api-reader-excel`, con el entorno virtual activo:
 
 ```powershell
 python -m unittest discover -s tests -v
@@ -15,14 +15,15 @@ Las pruebas cubren:
 - DTOs de respuesta, incluyendo la ausencia de hashes.
 - Login y almacenamiento de solo el hash del token.
 - Selección de la primera hoja o de una hoja indicada y errores Excel.
+- Lectura de `BD GEN` y `TD PROGRAMAS`, importación idempotente, persistencia de intentos, auditoría de GLOBAL desde J, historial y activación de snapshots.
 - Contrato de configuración de DB.
-- Migración inicial: coincidencia con metadatos ORM, aplicación/reversión en SQLite y cuidado con esquemas parciales.
+- Migraciones Alembic `0001` y `0002`: coincidencia del esquema con los modelos, aplicación/reversión en SQLite y manejo seguro de esquemas legacy parciales.
 
 No se requiere un servidor MySQL para esta suite; las pruebas de persistencia usan SQLite temporal en memoria. La prueba de migración sobre SQLite no reemplaza una validación de despliegue sobre MySQL.
 
 ## Ejecutar para desarrollo
 
-Arranca el servidor desde `code/api-reader-excel/core` con las variables de configuración:
+Arranca el servidor desde `back/api-reader-excel/core` con las variables de configuración:
 
 ```powershell
 $env:PYTHONPATH = (Resolve-Path ..).Path
@@ -43,6 +44,7 @@ La documentación OpenAPI queda en `http://127.0.0.1:8000/docs`.
 
 ## Limitaciones conocidas
 
-- El módulo Excel responde con todos los registros de la hoja; todavía no expone paginación, procesamiento por lotes ni persistencia.
+- El endpoint simple `/excel/read` responde con los datos de la hoja y no persiste; el dashboard histórico tiene su flujo independiente y páginas de hasta 50 programas o intentos.
 - La API aplica límite de carga de 30 MB, pero un archivo bajo ese límite todavía puede producir una respuesta JSON grande.
+- La pantalla PHP aún no consume los endpoints persistentes del dashboard.
 - Python 3.15.2 es la versión del entorno inspeccionado; el proyecto no publica aún un rango oficial de versiones soportadas.

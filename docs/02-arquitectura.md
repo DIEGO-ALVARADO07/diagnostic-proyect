@@ -60,14 +60,36 @@ El servicio aplica los límites de rol y de cuenta propia, cifra las contraseña
 
 ## Flujo de Excel
 
-1. La ruta autentica la solicitud, valida rol y extensión y limita la lectura a 30 MB más un byte de control.
-2. Construye el DTO interno `ReadWorkbookRequest`.
-3. `ExcelService` valida reglas de carga y traslada el procesamiento síncrono a un thread pool para no bloquear el event loop.
-4. `WorkbookRepository` usa fastexcel para abrir el libro y Polars para convertir la hoja seleccionada a filas Python.
-5. La entidad `WorkbookRead` representa el resultado interno y `ReadWorkbookResponse` define la respuesta JSON.
-6. El Excel y las filas no se guardan en la base de datos.
+`POST /excel/read` y `POST /excel/dashboard/import` tienen propósitos diferentes:
 
-El repositorio registra tiempos de apertura, conversión, materialización de filas y duración de la respuesta HTTP sin registrar contenido del archivo.
+- **Lectura/previsualización:** `/excel/read` abre la hoja seleccionada y devuelve sus filas como JSON. No guarda el archivo ni los datos.
+- **Dashboard persistente:** `/excel/dashboard/import` lee únicamente `BD GEN` y `TD PROGRAMAS`, normaliza las filas, persiste resultados y referencia dinámica, y activa una versión del conjunto de datos.
+
+Ambos validan el rol y tamaño máximo de 30 MB y ejecutan el parseo fuera del event loop. Ninguno procesa macros o guarda el archivo binario.
+
+## Flujo de importación persistente
+
+```text
+Instructor/superadmin
+  → POST /excel/dashboard/import (Bearer + archivo)
+  → validación de archivo y hojas requeridas
+  → SHA-256 e idempotencia
+  → lectura de BD GEN + referencia visible de TD PROGRAMAS
+  → validación y normalización por fila
+  → transacción: estudiantes/programas/resultados/referencias
+  → cambio atómico de snapshot activo
+  → respuesta con filtros, auditoría, métricas y página 1 (máximo 50 programas)
+```
+
+1. Se registra una importación `PROCESSING` con hash y datos de auditoría. Un hash ya conocido no crea una segunda carga.
+2. `DashboardWorkbookRepository` valida encabezados y extrae las dos hojas requeridas; `DashboardProcessor` convierte cada intento de origen en un registro listo para persistir.
+3. La transacción inserta resultados con unicidad `(import_id, source_row_number)`, la referencia visible de `TD PROGRAMAS` y las dimensiones reutilizables de estudiante/programa.
+4. `excel_dashboard_state` es una fila de coordinación bloqueada al activar: el snapshot anterior pasa a `HISTORICAL` y el nuevo a `ACTIVE` en el mismo commit. Si falla el procesamiento, el lote de resultados se revierte y la importación queda `FAILED`.
+5. El servicio consulta la versión activa o histórica desde MySQL. No depende de una caché local de un worker, por lo que varios procesos pueden atender las lecturas.
+
+El GLOBAL principal procede de la columna J original. El valor bruto y su versión numérica se conservan; valores no numéricos quedan nulos. E:I alimenta solo un cálculo alternativo y Q:U conserva los niveles fuente. Los nombres de programa se identifican por texto original, sin fusionar etiquetas por normalización.
+
+`TD PROGRAMAS` es una tabla dinámica guardada en el libro. Se persiste la selección de año y los valores que están visibles al momento de importar; no se intenta recalcular la tabla dinámica ni se toma como reemplazo del histórico de `BD GEN`.
 
 ## Razones de esta construcción
 

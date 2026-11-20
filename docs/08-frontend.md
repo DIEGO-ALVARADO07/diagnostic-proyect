@@ -6,7 +6,7 @@ El frontend ofrece la interfaz web para iniciar sesión y consumir la API Diagno
 
 La pantalla de inicio muestra el saludo del usuario y un espacio reservado para futuros gráficos. Las demás opciones del menú abren una pantalla por separado. Actualmente el frontend puede administrar cuentas, consultar estudiantes, leer un archivo Excel y actualizar el perfil según el rol autenticado.
 
-Los resultados de Excel no se guardan en la base de datos. Por eso el espacio de gráficos todavía no presenta métricas reales; la persistencia y el análisis pedagógico pertenecen a una fase futura.
+La API ya dispone de importación persistente y consultas para el dashboard académico, pero esta interfaz PHP aún no consume esos endpoints. Por eso el espacio de gráficos todavía no presenta métricas reales. El reporte Excel que sí está conectado usa `POST /excel/read`, que solo devuelve una vista previa.
 
 ## Estructura del frontend
 
@@ -71,7 +71,7 @@ La API es la autoridad para los permisos. Ocultar una opción o restringir una v
 
 ### Inicio
 
-`partials/dashboard/` muestra el saludo y una zona amplia para los gráficos que se incorporarán en otra etapa. La pantalla no solicita el listado de usuarios ni datos de reportes. La API actual no persiste los resultados que harían falta para poblar esos gráficos.
+`partials/dashboard/` muestra el saludo y una zona amplia reservada para gráficos. La pantalla no solicita datos de reportes. Para poblarla, el frontend deberá integrar `GET /excel/dashboard/active` y las consultas escalonadas de programas/estudiantes documentadas en [Flujo completo del dashboard académico](09-flujo-dashboard-academico.md).
 
 ### Usuarios y estudiantes
 
@@ -89,7 +89,7 @@ La API es la autoridad para los permisos. Ocultar una opción o restringir una v
 5. Si la API devuelve `422` con `available_sheets`, se muestra un modal con el nombre ingresado y las hojas disponibles.
 6. El resultado o el error de selección de hoja se conserva en la sesión PHP solo para completar el redireccionamiento y mostrar esa respuesta. No constituye un historial de cargas.
 
-La lectura no almacena el archivo ni los resultados. Para que el inicio muestre indicadores será necesario persistir los datos o exponer desde el backend una fuente agregada de resultados.
+La pantalla de reporte sigue sin almacenar el archivo ni los resultados porque utiliza `/excel/read`. Para persistir y consultar el dashboard se debe implementar una pantalla/flujo separado que llame a `/excel/dashboard/import`, `/excel/dashboard/active`, `/excel/dashboard/{import_id}` y las rutas de programa y estudiante. La API exige el mismo token Bearer.
 
 ### Perfil
 

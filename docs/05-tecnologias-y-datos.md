@@ -57,9 +57,22 @@ uvicorn==0.54.0
 ## Bases de datos
 
 - **MySQL** es el motor configurado para la ejecución de la API. La URL se construye con `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` y `DB_NAME`; PyMySQL implementa la conexión.
-- La API crea/gestiona las tablas de seguridad `api_users` y `api_access_tokens`. El esquema de seguridad tiene `AuthBase` propio y no reutiliza el `Base` de `core`.
+- `AuthBase` reúne las tablas `api_users`, `api_access_tokens` y el esquema relacional del dashboard académico; no reutiliza el `Base` de `core`.
+- El dashboard persiste metadatos de importación (`excel_imports`), estudiantes (`academic_students`), etiquetas originales de programas (`academic_programs`), equivalencias de programa confirmables (`academic_program_aliases`), intentos por fila (`academic_results`), referencias visibles de TD (`td_programas_reference`) y el ID del snapshot activo (`excel_dashboard_state`).
+- Cada intento BD GEN se identifica por `(import_id, source_row_number)`, no por documento o simulacro. El archivo binario no se conserva; sí se guarda el contenido estructurado requerido para consultas, incluido el payload de origen.
 - **SQLite** se usa en pruebas automatizadas con una base temporal en memoria. No es el motor configurado para el despliegue.
-- Excel no persiste archivos, filas, resultados ni históricos, así que no hay tablas ni migraciones de datos Excel actualmente.
+- `POST /excel/read` sigue siendo una operación temporal de lectura; `POST /excel/dashboard/import` sí persiste snapshots de resultados e historial.
+
+### Regla de origen de las métricas
+
+- La columna J de `BD GEN` es el puntaje GLOBAL principal. Se almacena su representación original y su valor numérico; si la celda no es numérica, el puntaje numérico queda `NULL` y no participa en los promedios globales.
+- Los puntajes de competencia E:I se guardan por separado. Su suma dividida por cinco es solo un cálculo alternativo y no reemplaza J.
+- Los niveles Q:U se conservan desde el Excel; no se reconstruyen a partir de los puntajes.
+- Los programas mantienen etiquetas exactas. La clave normalizada apoya filtros/búsqueda, pero no combina automáticamente nombres que difieran por tildes, espacios o mayúsculas.
+- Existe una tabla para alias confirmados de programa, pero la importación actual no crea ni aplica alias automáticamente.
+- `TD PROGRAMAS` es una tabla dinámica: se persiste el año seleccionado y la referencia visible de esa importación. Los históricos se consultan desde BD GEN.
+
+El detalle de columnas, estados e invariantes está en [flujo del dashboard académico](09-flujo-dashboard-academico.md).
 
 ## Por qué se eligieron
 

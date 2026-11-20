@@ -70,6 +70,25 @@ La respuesta contiene:
 
 La hoja inválida responde `422` con las hojas disponibles; archivo no válido `415`; archivo mayor a 30 MB `413`; usuario sin permiso `403`. El endpoint procesa en memoria y no almacena el archivo ni el JSON.
 
+## Dashboard académico persistente
+
+Estas rutas requieren rol `instructor` o `superadmin` y `Authorization: Bearer <access_token>`. A diferencia de `/excel/read`, importan resultados a MySQL. No guardan el Excel binario. El flujo explicado paso a paso está en la [guía del dashboard](09-flujo-dashboard-academico.md).
+
+| Método y ruta | Función |
+|---|---|
+| `POST /excel/dashboard/import` | Recibe `file` como `multipart/form-data`, valida `BD GEN` y `TD PROGRAMAS`, crea un snapshot y lo activa si todo termina correctamente. Devuelve filtros, auditoría, métricas y la primera página de programas. |
+| `GET /excel/dashboard/active` | Devuelve la importación activa con su resumen y primera página. Responde `404` si todavía no hay snapshot activo. |
+| `GET /excel/dashboard/imports?limit=20` | Lista snapshots activos e históricos y cargas fallidas. `limit` va de 1 a 100. Incluye `active_import_id`. |
+| `GET /excel/dashboard/{import_id}` | Devuelve filtros, indicadores y programas de una importación activa o histórica. |
+| `GET /excel/dashboard/{import_id}/programs/{program_id}` | Devuelve métricas del programa y estudiantes paginados. |
+| `GET /excel/dashboard/{import_id}/students/{document}` | Devuelve los intentos históricos del documento dentro de esa importación. |
+
+`POST /excel/dashboard/import` acepta archivos de hasta 30 MB en las extensiones que permite el servicio Excel. El mismo contenido identificado por SHA-256 no se vuelve a insertar; si ya existe una importación válida, la respuesta vuelve a identificarla. La vista global pagina hasta 50 programas por petición (`page` empieza en 1; `page_size` de 1 a 50).
+
+Los endpoints de programa y vista global aceptan `year`, `simulation`, `group`, `semester`, `test_type` y `presented`; el endpoint de programa también admite `search`, `page` y `page_size`. `program_id` se obtiene de `filters.programs` o de la lista `overview.programs` de la respuesta de importación. En búsquedas y filtros se conserva el identificador de importación para que las consultas lean siempre el mismo snapshot.
+
+El estado de cada carga puede ser `PROCESSING`, `VALIDATED`, `ACTIVE`, `HISTORICAL` o `FAILED`. `PROCESSING`/`VALIDATED` son estados internos transitorios; normalmente la respuesta exitosa será `ACTIVE`. Si la validación del libro falla se responde `422` y la carga queda registrada como `FAILED`; ningún resultado parcial reemplaza el snapshot activo.
+
 ## Estado
 
 ### `GET /health`

@@ -11,11 +11,12 @@ La implementación actual consta de la API REST **Diagnostic API** (versión dec
 - Inicio y cierre de sesión mediante tokens Bearer.
 - Administración de cuentas con roles `superadmin`, `instructor` y `estudiante`.
 - Lectura de archivos Excel y entrega de las filas de una hoja como JSON.
+- Importación persistente de resultados históricos para el dashboard académico.
 - Documentación interactiva de endpoints mediante OpenAPI en `/docs`.
 
-La API recibe el Excel y responde con los datos leídos; no guarda el archivo ni los resultados. El módulo tampoco clasifica estudiantes, calcula niveles de desempeño ni asigna cursos automáticamente.
+Hay dos operaciones Excel distintas: `POST /excel/read` es una vista previa sin persistencia; `POST /excel/dashboard/import` valida e importa los datos de las hojas `BD GEN` y `TD PROGRAMAS` a MySQL. Ninguna guarda el archivo binario. El dashboard calcula métricas de los resultados importados, pero no asigna cursos ni recomendaciones pedagógicas automáticamente.
 
-El frontend ofrece una pantalla de inicio con un espacio reservado para futuros gráficos y vistas separadas para administrar cuentas, consultar estudiantes, leer reportes de Excel y editar el perfil. Los gráficos aún no muestran métricas porque el backend no persiste los resultados de los archivos.
+El frontend ofrece una pantalla de inicio con un espacio reservado para gráficos y vistas separadas para administrar cuentas, consultar estudiantes, leer reportes y editar el perfil. Aunque la API ya expone el dashboard persistente, el frontend PHP todavía no está conectado a esos endpoints; por eso su pantalla inicial sigue siendo un espacio reservado.
 
 ## A quién sirve
 
@@ -29,4 +30,4 @@ El sistema se construyó como un **monolito modular**: seguridad y lectura Excel
 
 ## Alcance futuro, no implementado
 
-La propuesta académica puede evolucionar hacia validación de plantillas de resultados, clasificación por áreas y niveles, recomendaciones de cursos y persistencia de reportes. Esas capacidades no deben considerarse disponibles hasta que se implementen y documenten expresamente.
+La propuesta académica puede evolucionar hacia clasificación pedagógica por áreas y niveles, recomendaciones de cursos e integración del dashboard en la interfaz PHP. Esas capacidades no deben considerarse disponibles hasta que se implementen y documenten expresamente.

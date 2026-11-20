@@ -5,17 +5,17 @@
 - Windows y PowerShell (los comandos siguientes usan rutas de Windows).
 - Python disponible. El entorno revisado para esta documentación usa Python `3.15.2`; el proyecto no declara formalmente un rango mínimo/máximo de Python.
 - MySQL accesible y una base/schema creada antes de ejecutar migraciones.
-- Credenciales `DB_*` en `code/api-reader-excel/core/.env`.
+- Credenciales `DB_*` en `back/api-reader-excel/core/.env`.
 - `APP_MASTER_KEY` cuando el usuario o contraseña de base de datos en `.env` estén cifrados con Fernet.
 
 No se deben guardar llaves, contraseñas ni credenciales de bootstrap en el repositorio.
 
 ## Instalar dependencias
 
-Abre PowerShell en `code/api-reader-excel`:
+Abre PowerShell en `back/api-reader-excel`:
 
 ```powershell
-Set-Location <ruta-del-repositorio>\code\api-reader-excel
+Set-Location <ruta-del-repositorio>\back\api-reader-excel
 
 # Solo si el entorno virtual aún no existe:
 python -m venv venv
@@ -28,7 +28,7 @@ python -m pip install -r requirements.txt
 
 ## Variables de entorno
 
-`core/.env` se lee usando una ruta relativa. Por eso los comandos que cargan configuración de base de datos se ejecutan desde `code/api-reader-excel/core`.
+`core/.env` se lee usando una ruta relativa. Por eso los comandos que cargan configuración de base de datos se ejecutan desde `back/api-reader-excel/core`.
 
 | Variable | Uso |
 |---|---|
@@ -38,7 +38,7 @@ python -m pip install -r requirements.txt
 | `DB_PORT` | Puerto MySQL. |
 | `DB_NAME` | Nombre de una base/schema ya creada. |
 | `APP_MASTER_KEY` | Clave Fernet para descifrar credenciales cifradas, si aplica. |
-| `PYTHONPATH` | Raíz de `code/api-reader-excel`, para importar `core` y `modules` ejecutando desde `core`. |
+| `PYTHONPATH` | Raíz de `back/api-reader-excel`, para importar `core` y `modules` ejecutando desde `core`. |
 
 ## Primera instalación en una base nueva
 
@@ -47,7 +47,7 @@ python -m pip install -r requirements.txt
 3. Desde PowerShell, ejecuta el bootstrap en `core/`:
 
 ```powershell
-Set-Location <ruta-del-repositorio>\code\api-reader-excel\core
+Set-Location <ruta-del-repositorio>\back\api-reader-excel\core
 $env:APP_MASTER_KEY = "<clave-entregada-por-el-equipo>"
 $env:PYTHONPATH = (Resolve-Path ..).Path
 
@@ -60,7 +60,7 @@ $env:BOOTSTRAP_SUPERADMIN_PASSWORD = "<contraseña-de-12-caracteres-o-mas>"
 if ($LASTEXITCODE -ne 0) { throw "El bootstrap falló; no inicies Uvicorn." }
 ```
 
-El comando aplica la migración de seguridad y crea la cuenta inicial. Continúa solo si imprime `Cuenta superadmin inicial creada.`. El bootstrap es de una sola vez; no vuelve a ejecutarse cuando ya existe el superadmin.
+El comando aplica todas las migraciones Alembic pendientes —incluido el esquema del dashboard académico— y crea la cuenta inicial. Continúa solo si imprime `Cuenta superadmin inicial creada.`. El bootstrap es de una sola vez; no vuelve a ejecutarse cuando ya existe el superadmin.
 
 4. Quita las variables temporales de bootstrap y arranca la API en la misma terminal:
 
@@ -80,7 +80,7 @@ Limpiar las variables no borra el superadmin de `api_users`. Conserva `APP_MASTE
 No repitas el bootstrap. En una terminal nueva:
 
 ```powershell
-Set-Location <ruta-del-repositorio>\code\api-reader-excel\core
+Set-Location <ruta-del-repositorio>\back\api-reader-excel\core
 $env:APP_MASTER_KEY = "<clave-entregada-por-el-equipo>"
 $env:PYTHONPATH = (Resolve-Path ..).Path
 ..\venv\Scripts\python.exe -m uvicorn app:app --app-dir .. --reload --reload-dir ..
@@ -96,14 +96,18 @@ Antes de una versión que añade migraciones, aplica las pendientes desde `core/
 ..\venv\Scripts\python.exe -m modules.security.migrations
 ```
 
-Una base antigua sin historial Alembic se reconoce solo si ambas tablas de seguridad existen y coinciden con los modelos. Un esquema incompleto o distinto produce un error; respalda los datos y revisa el esquema antes de continuar. No ejecutes el bootstrap solo para actualizar migraciones.
+Una base antigua con las dos tablas de seguridad y sin historial Alembic se reconoce solo si coincide con sus modelos. En ese caso se marca `0001_security_tables` y se aplica la migración posterior del dashboard. Si la seguridad está incompleta o distinta, o si junto a esa base legacy ya hay tablas académicas sin historial, el comando aborta sin marcarla. Un esquema con tablas académicas pero sin el conjunto de seguridad legacy no se adopta automáticamente: respáldalo y revísalo antes de intentar migrar. No ejecutes el bootstrap solo para actualizar migraciones.
+
+La migración `0002_academic_dashboard` crea las tablas de importaciones, estudiantes, programas, resultados, referencia de `TD PROGRAMAS` y el registro que identifica el snapshot activo. Las migraciones deben ejecutarse antes de arrancar la versión nueva de la API. El servidor no crea ni modifica tablas automáticamente.
+
+Para cargar y consultar el dashboard, usa una cuenta `instructor` o `superadmin` y sigue la [guía del flujo completo](09-flujo-dashboard-academico.md). En resumen: importa el archivo por `POST /excel/dashboard/import`, consulta `GET /excel/dashboard/active` y navega de global a programa y estudiante usando el mismo `import_id`.
 
 ## Ejecutar pruebas
 
-Desde `code/api-reader-excel` con el virtualenv activo:
+Desde `back/api-reader-excel` con el virtualenv activo:
 
 ```powershell
 python -m unittest discover -s tests -v
 ```
 
-Las pruebas usan SQLite en memoria para comprobar entidades y migraciones; no requieren conectar al MySQL de producción.
+Las pruebas usan SQLite en memoria para comprobar entidades, snapshots, métricas e historial de migraciones; no requieren conectar al MySQL de producción.
