@@ -81,11 +81,13 @@ Instructor/superadmin
   → respuesta con filtros, auditoría, métricas y página 1 (máximo 50 programas)
 ```
 
-1. Se registra una importación `PROCESSING` con hash y datos de auditoría. Un hash ya conocido no crea una segunda carga.
+1. Se registra una importación `PROCESSING` con hash y datos de auditoría. Un hash ya conocido no crea una segunda carga. Si su importación fue desactivada, la API responde `409`; no la restaura automáticamente.
 2. `DashboardWorkbookRepository` valida encabezados y extrae las dos hojas requeridas; `DashboardProcessor` convierte cada intento de origen en un registro listo para persistir.
 3. La transacción inserta resultados con unicidad `(import_id, source_row_number)`, la referencia visible de `TD PROGRAMAS` y las dimensiones reutilizables de estudiante/programa.
 4. `excel_dashboard_state` es una fila de coordinación bloqueada al activar: el snapshot anterior pasa a `HISTORICAL` y el nuevo a `ACTIVE` en el mismo commit. Si falla el procesamiento, el lote de resultados se revierte y la importación queda `FAILED`.
 5. El servicio consulta la versión activa o histórica desde MySQL. No depende de una caché local de un worker, por lo que varios procesos pueden atender las lecturas.
+
+El superadmin puede desactivar snapshots `ACTIVE`, `HISTORICAL` o `FAILED` mediante una marca `deleted_at`; no se borran sus filas. Al desactivar el activo, se limpia `active_import_id` y el dashboard queda sin snapshot activo hasta la siguiente importación. Las consultas normales ocultan los desactivados y el endpoint administrativo los presenta como `DELETED`. El instructor solo consulta el snapshot activo; el historial y la desactivación son exclusivos del superadmin.
 
 El GLOBAL principal procede de la columna J original. El valor bruto y su versión numérica se conservan; valores no numéricos quedan nulos. E:I alimenta solo un cálculo alternativo y Q:U conserva los niveles fuente. Los nombres de programa se identifican por texto original, sin fusionar etiquetas por normalización.
 

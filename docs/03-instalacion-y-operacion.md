@@ -28,7 +28,7 @@ python -m pip install -r requirements.txt
 
 ## Variables de entorno
 
-`core/.env` se lee usando una ruta relativa. Por eso los comandos que cargan configuración de base de datos se ejecutan desde `back/api-reader-excel/core`.
+La configuración actual resuelve `core/.env` junto a `core/config.py`, independientemente de la carpeta de trabajo. No copies credenciales a este documento; configura el `.env` local en cada equipo. Al ejecutar módulos desde `core/`, define `PYTHONPATH` con la raíz de `back/api-reader-excel`.
 
 | Variable | Uso |
 |---|---|
@@ -90,15 +90,15 @@ Si las credenciales de base de datos son texto claro, `APP_MASTER_KEY` no es nec
 
 ## Base ya utilizada o actualización de esquema
 
-Antes de una versión que añade migraciones, aplica las pendientes desde `core/` con `APP_MASTER_KEY` y `PYTHONPATH` configurados:
+Antes de una versión que añade migraciones, aplica las pendientes con el entorno virtual del proyecto y las variables de configuración correspondientes. Desde `back/api-reader-excel/`:
 
 ```powershell
-..\venv\Scripts\python.exe -m modules.security.migrations
+.\venv\Scripts\python.exe -m modules.security.migrations
 ```
 
-Una base antigua con las dos tablas de seguridad y sin historial Alembic se reconoce solo si coincide con sus modelos. En ese caso se marca `0001_security_tables` y se aplica la migración posterior del dashboard. Si la seguridad está incompleta o distinta, o si junto a esa base legacy ya hay tablas académicas sin historial, el comando aborta sin marcarla. Un esquema con tablas académicas pero sin el conjunto de seguridad legacy no se adopta automáticamente: respáldalo y revísalo antes de intentar migrar. No ejecutes el bootstrap solo para actualizar migraciones.
+También se puede ejecutar desde `core/` con `..\venv\Scripts\python.exe -m modules.security.migrations`. Usa este wrapper en lugar de `python -m alembic upgrade head`: el servicio valida los esquemas legacy antes de aplicar cambios. Una base antigua con las dos tablas de seguridad y sin historial Alembic se reconoce solo si coincide con sus modelos. En ese caso se marca `0001_security_tables` y se aplican las revisiones restantes. Si la seguridad está incompleta o distinta, o si junto a esa base legacy ya hay tablas académicas sin historial, el comando aborta sin marcarla. Un esquema con tablas académicas pero sin el conjunto de seguridad legacy no se adopta automáticamente: respáldalo y revísalo antes de intentar migrar. No ejecutes el bootstrap solo para actualizar migraciones.
 
-La migración `0002_academic_dashboard` crea las tablas de importaciones, estudiantes, programas, resultados, referencia de `TD PROGRAMAS` y el registro que identifica el snapshot activo. Las migraciones deben ejecutarse antes de arrancar la versión nueva de la API. El servidor no crea ni modifica tablas automáticamente.
+La migración `0002_academic_dashboard` crea las tablas de importaciones, estudiantes, programas, resultados, referencia de `TD PROGRAMAS` y el registro que identifica el snapshot activo. La revisión `0003_soft_delete_excel_imports` añade `deleted_at` para desactivación lógica. Ejecuta las migraciones antes de arrancar la nueva versión de la API; el servidor no crea ni modifica tablas automáticamente.
 
 Para cargar y consultar el dashboard, usa una cuenta `instructor` o `superadmin` y sigue la [guía del flujo completo](09-flujo-dashboard-academico.md). En resumen: importa el archivo por `POST /excel/dashboard/import`, consulta `GET /excel/dashboard/active` y navega de global a programa y estudiante usando el mismo `import_id`.
 

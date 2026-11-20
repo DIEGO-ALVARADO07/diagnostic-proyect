@@ -4,9 +4,7 @@
 
 El frontend ofrece la interfaz web para iniciar sesión y consumir la API Diagnostic. Está implementado en PHP y renderiza las pantallas en el servidor; no requiere Node.js, npm ni un framework JavaScript para ejecutarse.
 
-La pantalla de inicio muestra el saludo del usuario y un espacio reservado para futuros gráficos. Las demás opciones del menú abren una pantalla por separado. Actualmente el frontend puede administrar cuentas, consultar estudiantes, leer un archivo Excel y actualizar el perfil según el rol autenticado.
-
-La API ya dispone de importación persistente y consultas para el dashboard académico, pero esta interfaz PHP aún no consume esos endpoints. Por eso el espacio de gráficos todavía no presenta métricas reales. El reporte Excel que sí está conectado usa `POST /excel/read`, que solo devuelve una vista previa.
+La pantalla de inicio muestra el saludo y el dashboard académico con gráficos de los resultados persistidos. Las demás opciones del menú abren una pantalla por separado. El frontend puede administrar cuentas, consultar estudiantes, importar libros Excel como snapshots y actualizar el perfil según el rol autenticado.
 
 ## Estructura del frontend
 
@@ -19,7 +17,9 @@ La aplicación vive en `front/` en la raíz del proyecto.
 | `front/login.php` | Envía las credenciales a la API y conserva el token y el perfil en la sesión PHP. |
 | `front/logout.php` | Cierra la sesión local del frontend y redirige al formulario de acceso. |
 | `front/dashboard.css` | Define colores, tipografía, navegación, componentes compartidos y adaptación responsive. |
-| `front/dashboard.js` | Maneja búsqueda y filtros de tablas, confirmación de desactivación, menú móvil, modal de hojas y estado de carga de Excel. |
+| `front/dashboard.js` | Maneja búsqueda y filtros de tablas, confirmación de acciones destructivas y menú móvil. |
+| `front/partials/dashboard/dashboard.js` | Consulta el dashboard persistido, gestiona filtros y navegación entre programas y estudiantes, y dibuja gráficos SVG. |
+| `front/partials/dashboard/data.php` | Proxy autenticado de mismo origen para las consultas del dashboard; protege la consulta de estudiantes con CSRF y una referencia de sesión. |
 | `front/partials/<modulo>/screen.php` | Plantilla PHP del módulo. |
 | `front/partials/<modulo>/style.css` | Estilos específicos del módulo; `index.php` carga únicamente los de la vista activa. |
 
@@ -27,12 +27,13 @@ Módulos de pantalla:
 
 | Módulo | Función |
 |---|---|
-| `dashboard/` | Saludo y espacio vacío de preparación para gráficos futuros. |
+| `dashboard/` | Resumen global de TD PROGRAMAS, comparación por programa y vistas de detalle de programa y estudiante. |
 | `users/` | Directorio de cuentas activas, búsqueda, filtro por rol y desactivación para superadmin. |
 | `create_user/` | Formulario para crear cuentas de instructor o estudiante. |
 | `students/` | Consulta y búsqueda de estudiantes para instructor. |
-| `report/` | Selección de Excel y hoja, presentación del resultado y modal para errores de nombre de hoja. |
+| `report/` | Importación de snapshots Excel con las hojas `BD GEN` y `TD PROGRAMAS`. |
 | `profile/` | Consulta y actualización del perfil propio. |
+| `imports/` | Historial de todos los snapshots, solo para superadmin; permite desactivar importaciones activas, antiguas o fallidas. |
 
 El marco común —barra lateral, encabezado y pie— se mantiene en `index.php`; las plantillas parciales contienen el contenido de cada pantalla.
 
@@ -42,9 +43,9 @@ La vista se selecciona con el parámetro `view`, por ejemplo `front/index.php?vi
 
 | Rol | Vistas disponibles |
 |---|---|
-| `superadmin` | Inicio, usuarios, crear cuenta, leer reporte y mi perfil. |
+| `superadmin` | Inicio, usuarios, crear cuenta, leer reporte, importaciones y mi perfil. |
 | `instructor` | Inicio, estudiantes, leer reporte y mi perfil. |
-| `estudiante` | Inicio y mi perfil. |
+| `estudiante` | Mi perfil. |
 
 La API es la autoridad para los permisos. Ocultar una opción o restringir una vista en PHP mejora la navegación, pero no sustituye la autorización del backend.
 
@@ -55,6 +56,7 @@ La API es la autoridad para los permisos. Ocultar una opción o restringir una v
 3. En las visitas a `index.php`, el frontend consulta `GET /users/me` para actualizar el perfil y construir el menú con el rol actual.
 4. El frontend solicita `GET /users?limit=100` solamente al abrir las vistas de usuarios o estudiantes. El buscador y el filtro por rol trabajan sobre ese listado en el navegador.
 5. `api_client.php` adjunta `Authorization: Bearer <token>` a las rutas protegidas. Si recibe `401`, limpia la sesión local y redirige al login.
+6. El dashboard académico usa el proxy PHP `partials/dashboard/data.php`, que consulta el snapshot activo o las vistas de programa y estudiante con la sesión Bearer.
 
 | Acción | Rol en la interfaz | Endpoint |
 |---|---|---|
@@ -65,13 +67,18 @@ La API es la autoridad para los permisos. Ocultar una opción o restringir una v
 | Crear instructor o estudiante | Superadmin | `POST /users` |
 | Desactivar una cuenta | Superadmin | `DELETE /users/{id}` |
 | Actualizar perfil propio | Todos | `PATCH /users/me` |
-| Leer hoja de un Excel | Instructor y superadmin | `POST /excel/read` |
+| Importar snapshot de Excel | Instructor y superadmin | `POST /excel/dashboard/import` |
+| Consultar todos los estados de importación | Superadmin (módulo Importaciones) | `GET /excel/dashboard/admin/imports?limit=100` |
+| Desactivar snapshot activo, histórico o fallido | Superadmin | `DELETE /excel/dashboard/imports/{import_id}` |
+| Consultar dashboard académico | Instructor y superadmin | `GET /excel/dashboard/active`; instructor queda limitado al snapshot activo. Superadmin puede consultar también snapshots históricos. |
 
 ## Módulos y flujos
 
 ### Inicio
 
-`partials/dashboard/` muestra el saludo y una zona amplia reservada para gráficos. La pantalla no solicita datos de reportes. Para poblarla, el frontend deberá integrar `GET /excel/dashboard/active` y las consultas escalonadas de programas/estudiantes documentadas en [Flujo completo del dashboard académico](09-flujo-dashboard-academico.md).
+`partials/dashboard/` muestra el saludo y consulta el snapshot activo. La vista global presenta indicadores y programas paginados; desde allí se abre el análisis del programa, con búsqueda y paginación de estudiantes, y el historial individual. Los filtros de año, asignatura y simulacro se conservan al navegar. Las gráficas se construyen con SVG nativo y usan los valores agregados por la API.
+
+El detalle individual solicita una referencia aleatoria protegida por sesión en vez de incluir el documento del estudiante en la URL. La información del dashboard pasa por `partials/dashboard/data.php`; el navegador no envía peticiones a la base de datos ni recibe el token Bearer.
 
 ### Usuarios y estudiantes
 
@@ -82,18 +89,19 @@ La API es la autoridad para los permisos. Ocultar una opción o restringir una v
 
 ### Reporte de Excel
 
-1. La pantalla `partials/report/` presenta el botón de selección, el campo para el nombre exacto de la hoja y un aviso para verificarlo antes de subir el archivo.
-2. PHP envía `file` y `sheet_name` juntos como `multipart/form-data` a `POST /excel/read`.
-3. Se aceptan `.xlsx`, `.xlsm`, `.xls` y `.ods`; el frontend y la API limitan el archivo a 30 MB. La solicitud multipart tiene un timeout cURL mayor que las solicitudes JSON.
-4. Cuando la API responde correctamente, la pantalla muestra el nombre de archivo, la hoja procesada, el total de filas y una vista previa de hasta 50 filas.
-5. Si la API devuelve `422` con `available_sheets`, se muestra un modal con el nombre ingresado y las hojas disponibles.
-6. El resultado o el error de selección de hoja se conserva en la sesión PHP solo para completar el redireccionamiento y mostrar esa respuesta. No constituye un historial de cargas.
-
-La pantalla de reporte sigue sin almacenar el archivo ni los resultados porque utiliza `/excel/read`. Para persistir y consultar el dashboard se debe implementar una pantalla/flujo separado que llame a `/excel/dashboard/import`, `/excel/dashboard/active`, `/excel/dashboard/{import_id}` y las rutas de programa y estudiante. La API exige el mismo token Bearer.
+1. La pantalla `partials/report/` permite seleccionar el libro y advierte que debe contener las hojas `BD GEN` y `TD PROGRAMAS`.
+2. PHP envía `file` como `multipart/form-data` a `POST /excel/dashboard/import`; no solicita el nombre de una hoja.
+3. Se aceptan `.xlsx`, `.xlsm`, `.xls` y `.ods`; el frontend y la API limitan el archivo a 30 MB.
+4. La API persiste un snapshot y lo activa solo cuando valida el libro. El dashboard consulta después los datos guardados; no es necesario volver a subir el mismo contenido para leerlo.
+5. Si se sube una importación histórica idéntica, la API la devuelve sin reactivarla. La interfaz informa esa diferencia al usuario.
 
 ### Perfil
 
 El formulario consulta los datos actuales del usuario y los actualiza con `PATCH /users/me`. El cambio de contraseña es opcional; si se envía, la API exige un mínimo de 12 caracteres.
+
+### Importaciones
+
+El menú del superadmin abre `partials/imports/`, un módulo independiente que consulta el endpoint administrativo y muestra todos los estados, incluidas las importaciones desactivadas. El botón **Desactivar** se ofrece para snapshots `ACTIVE`, `HISTORICAL` o `FAILED` y requiere confirmación. La acción es lógica: conserva el registro y sus datos, pero excluye el snapshot de los endpoints normales; el superadmin lo sigue viendo como `DELETED`. Si se desactiva la importación activa, el dashboard queda sin datos hasta que se importe otro libro. El backend rechaza intentos de desactivar estados en proceso o validados.
 
 ## Sesiones y seguridad
 

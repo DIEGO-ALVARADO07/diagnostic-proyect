@@ -13,6 +13,7 @@ Esta documentación cubre el backend FastAPI de `back/api-reader-excel` y el fro
 7. [Pruebas y desarrollo](07-pruebas-y-desarrollo.md)
 8. [Frontend PHP](08-frontend.md)
 9. [Flujo completo del dashboard académico](09-flujo-dashboard-academico.md)
+10. [Estado de entrega y continuidad entre sesiones](10-estado-y-continuidad.md)
 
 ## Estado documentado
 
@@ -21,5 +22,6 @@ Esta documentación cubre el backend FastAPI de `back/api-reader-excel` y el fro
 - Aplicación PHP con navegación y pantallas separadas según el rol autenticado.
 - Base de datos MySQL para usuarios, tokens y snapshots históricos del dashboard.
 - `POST /excel/read` procesa y devuelve una hoja sin persistirla; `POST /excel/dashboard/import` guarda los resultados de `BD GEN` y la referencia visible de `TD PROGRAMAS`, pero no el archivo binario.
-- La API expone consultas escalonadas para el snapshot activo, programas y estudiantes. El frontend PHP aún no consume esos endpoints desde su panel.
+- El frontend PHP consume el dashboard persistido, con gráficos y consultas escalonadas de resumen, programa y estudiante.
+- El módulo **Importaciones** está separado y solo aparece para superadmin. Permite revisar todos los estados y desactivar snapshots de forma lógica; la revisión `0003_soft_delete_excel_imports` añade `deleted_at`.
 - No incluye todavía clasificación pedagógica ni recomendación automática de cursos.

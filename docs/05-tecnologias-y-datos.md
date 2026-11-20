@@ -58,7 +58,7 @@ uvicorn==0.54.0
 
 - **MySQL** es el motor configurado para la ejecución de la API. La URL se construye con `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` y `DB_NAME`; PyMySQL implementa la conexión.
 - `AuthBase` reúne las tablas `api_users`, `api_access_tokens` y el esquema relacional del dashboard académico; no reutiliza el `Base` de `core`.
-- El dashboard persiste metadatos de importación (`excel_imports`), estudiantes (`academic_students`), etiquetas originales de programas (`academic_programs`), equivalencias de programa confirmables (`academic_program_aliases`), intentos por fila (`academic_results`), referencias visibles de TD (`td_programas_reference`) y el ID del snapshot activo (`excel_dashboard_state`).
+- El dashboard persiste metadatos de importación (`excel_imports`, incluido `deleted_at`), estudiantes (`academic_students`), etiquetas originales de programas (`academic_programs`), equivalencias de programa confirmables (`academic_program_aliases`), intentos por fila (`academic_results`), referencias visibles de TD (`td_programas_reference`) y el ID del snapshot activo (`excel_dashboard_state`).
 - Cada intento BD GEN se identifica por `(import_id, source_row_number)`, no por documento o simulacro. El archivo binario no se conserva; sí se guarda el contenido estructurado requerido para consultas, incluido el payload de origen.
 - **SQLite** se usa en pruebas automatizadas con una base temporal en memoria. No es el motor configurado para el despliegue.
 - `POST /excel/read` sigue siendo una operación temporal de lectura; `POST /excel/dashboard/import` sí persiste snapshots de resultados e historial.

@@ -4,7 +4,7 @@
 
 El instructor sube el Excel una vez; la API lee `BD GEN` y la vista guardada de `TD PROGRAMAS`, valida y conserva los intentos en MySQL, activa el snapshot solo cuando la carga termina bien y luego permite consultar primero el resumen global, después cada programa y finalmente el historial de un estudiante.
 
-El backend ya ofrece este flujo. La pantalla PHP todavía no usa estos endpoints: su opción actual de lectura de Excel sigue llamando a `POST /excel/read`, que solo devuelve una vista previa.
+El frontend PHP importa el libro y consume estos endpoints para representar el dashboard. En el módulo independiente **Importaciones**, solo el superadmin puede revisar todos los estados y desactivar snapshots activos, históricos o fallidos. Al desactivar el activo, el dashboard queda sin datos hasta la siguiente importación.
 
 En este documento, **snapshot** significa una versión completa e identificable de los resultados importados. Una consulta usa un solo `import_id`, así que no mezcla filas de la carga anterior con las de una carga nueva; la versión anterior permanece disponible como histórica.
 
@@ -31,7 +31,7 @@ El navegador nunca se conecta directamente a MySQL; solo consume la API autentic
 4. Inicia Uvicorn y abre `http://127.0.0.1:8000/docs` para inspeccionar la API.
 5. Inicia sesión con un usuario `instructor` o `superadmin` para obtener un token Bearer.
 
-La migración `0002_academic_dashboard` crea el esquema académico. El servidor no lo crea automáticamente.
+La migración `0002_academic_dashboard` crea el esquema académico y `0003_soft_delete_excel_imports` añade la marca de desactivación lógica. El servidor no crea ni actualiza estas tablas automáticamente.
 
 ## Qué pasa al subir el libro
 
@@ -56,6 +56,7 @@ La API calcula SHA-256 sobre los bytes recibidos y crea un registro `PROCESSING`
 
 - Si su importación terminó bien, devuelve el identificador de esa versión en vez de insertar otra copia.
 - Si la importación anterior quedó `FAILED` o sigue `PROCESSING`, responde `409`.
+- Si esa importación fue desactivada lógicamente, responde `409`; no hay restauración automática.
 - Volver a subir un snapshot histórico idéntico no lo vuelve a activar. Para crear una nueva versión, el contenido debe cambiar.
 
 El nombre del archivo no determina la idempotencia; la huella se calcula sobre el contenido.
@@ -137,7 +138,9 @@ $import.overview.kpis
 
 Guarda `import_id` para consultar esa misma versión. La importación también devuelve los programas de la primera página.
 
-### 3. Consultar el snapshot activo o su historial
+### 3. Consultar el snapshot activo y listar el historial (solo superadmin)
+
+Para consultar únicamente el snapshot activo se puede usar un instructor o superadmin. La consulta del historial y el paso de desactivación requieren que `$headers` contenga el token de un superadmin.
 
 ```powershell
 $active = Invoke-RestMethod `
@@ -145,14 +148,30 @@ $active = Invoke-RestMethod `
     -Headers $headers
 
 $imports = Invoke-RestMethod `
-    -Uri "http://127.0.0.1:8000/excel/dashboard/imports?limit=20" `
+    -Uri "http://127.0.0.1:8000/excel/dashboard/admin/imports?limit=100" `
     -Headers $headers
 
 $imports.active_import_id
 $imports.imports | Select-Object import_id, status, filename, bd_gen_row_count
 ```
 
-### 4. Consultar global, programa y estudiante
+El instructor consulta el snapshot activo. Para ejecutar la consulta de historial, inicia sesión con un superadmin: el instructor no puede listar ni abrir snapshots históricos. El endpoint administrativo muestra todos los estados, incluidos los desactivados.
+
+### 4. Desactivar una importación (solo superadmin)
+
+El módulo **Importaciones** del menú de superadmin lista todos los snapshots, incluidos los desactivados. La acción **Desactivar** aplica una eliminación lógica con `deleted_at`: conserva el registro y sus resultados, pero los endpoints normales dejan de incluirlos y responden `404` ante consultas directas. Solo el historial administrativo muestra el estado `DELETED`.
+
+El endpoint `DELETE /excel/dashboard/imports/{import_id}` aplica la misma autorización en el backend. Permite desactivar snapshots `ACTIVE`, `HISTORICAL` o `FAILED` y rechaza los estados `PROCESSING` y `VALIDATED`. Al desactivar el activo, limpia `active_import_id`, por lo que el dashboard queda sin resultados hasta la siguiente importación. No borra el archivo original porque la API no lo almacena.
+
+```powershell
+$historicalImportId = "<id-historica-verificada>"
+Invoke-RestMethod `
+    -Method Delete `
+    -Uri "http://127.0.0.1:8000/excel/dashboard/imports/$historicalImportId" `
+    -Headers $headers
+```
+
+### 5. Consultar global, programa y estudiante
 
 ```powershell
 $importId = $active.import_id
@@ -191,7 +210,7 @@ Los filtros disponibles son `year`, `simulation`, `group`, `semester`, `test_typ
 |---|---|
 | `excel_imports` | Historial de archivos procesados, hash, conteos, usuario, fecha y estado. |
 | `excel_dashboard_state` | Una sola fila que indica qué importación se considera activa. |
-| `academic_students` | Índice de estudiantes por documento para relacionar sus intentos. |
+| `academic_students` | Índice compartido de estudiantes por documento para relacionar sus intentos; se conserva al desactivar un snapshot. |
 | `academic_programs` | Catálogo de etiquetas exactas de programa, sin fusiones automáticas. |
 | `academic_program_aliases` | Estructura para equivalencias confirmadas; la importación aún no las gestiona ni aplica. |
 | `academic_results` | Una fila por intento de `BD GEN`, incluida la fila fuente y los puntajes/niveles. |
@@ -201,7 +220,7 @@ El archivo original y sus macros no se conservan. Como las filas persistidas inc
 
 ## Lo que todavía no hace
 
-- No conecta la pantalla PHP de inicio con estos endpoints. Su reporte actual usa `/excel/read`, que sigue siendo solo lectura/previsualización.
+- No permite desactivar importaciones en estado `PROCESSING` o `VALIDATED`.
 - No recomienda ni asigna cursos automáticamente.
 - No recalcula la tabla dinámica guardada; la usa como referencia para auditoría y obtiene historia desde `BD GEN`.
 
