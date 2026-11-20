@@ -5,6 +5,7 @@ from xml.sax.saxutils import escape
 import unittest
 from hashlib import sha256
 
+from fastapi import HTTPException
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
@@ -14,12 +15,14 @@ from modules.excel.entities.academic import (
     AcademicResult,
     DashboardState,
     ExcelImport,
+    TdProgramasReference,
 )
 from modules.excel.dtos.requests.dashboard import DashboardFilterQuery
 from modules.excel.dtos.requests.read_workbook import ReadWorkbookRequest
 from modules.excel.repositories.dashboard_repository import (
     DashboardWorkbookRepository,
 )
+from modules.excel.routes import router as excel_router
 from modules.excel.services.dashboard_metrics import classify_level
 from modules.excel.services.dashboard_service import DashboardService
 from modules.security.entities import Account, AuthBase
@@ -382,6 +385,143 @@ class DashboardTests(unittest.TestCase):
             91,
         )
 
+    def test_soft_deletes_history_and_hides_it_from_normal_queries(self) -> None:
+        service = DashboardService()
+        historical = service.import_workbook(
+            ReadWorkbookRequest(
+                filename="first.xlsx",
+                content=make_dashboard_workbook(),
+            ),
+            self.instructor,
+            self.db,
+        )
+        active = service.import_workbook(
+            ReadWorkbookRequest(
+                filename="second.xlsx",
+                content=make_dashboard_workbook(global_score=91),
+            ),
+            self.instructor,
+            self.db,
+        )
+
+        with self.assertRaises(ApplicationError) as instructor_error:
+            service.get_overview(
+                self.db,
+                historical.import_id,
+                DashboardFilterQuery(),
+                page=1,
+                page_size=50,
+                account=self.instructor,
+            )
+        self.assertEqual(instructor_error.exception.status_code, 404)
+        superadmin = Account(
+            id=2,
+            username="admin",
+            email="admin@example.com",
+            full_name="Super Admin",
+            password_hash="unused",
+            role=Role.SUPERADMIN.value,
+            is_active=True,
+        )
+        self.assertEqual(
+            service.get_overview(
+                self.db,
+                historical.import_id,
+                DashboardFilterQuery(),
+                page=1,
+                page_size=50,
+                account=superadmin,
+            ).import_id,
+            historical.import_id,
+        )
+
+        service.delete_import(self.db, historical.import_id)
+
+        deleted = self.db.get(ExcelImport, historical.import_id)
+        self.assertIsNotNone(deleted)
+        self.assertIsNotNone(deleted.deleted_at)
+        self.assertEqual(deleted.status, "HISTORICAL")
+        self.assertIsNotNone(
+            self.db.scalar(
+                select(AcademicResult.id).where(
+                    AcademicResult.import_id == historical.import_id
+                )
+            )
+        )
+        self.assertIsNotNone(
+            self.db.scalar(
+                select(TdProgramasReference.id).where(
+                    TdProgramasReference.import_id == historical.import_id
+                )
+            )
+        )
+        self.assertEqual(
+            service.get_active_import(self.db).import_id,
+            active.import_id,
+        )
+        self.assertEqual(
+            self.db.scalar(
+                select(AcademicResult.global_score).where(
+                    AcademicResult.import_id == active.import_id,
+                    AcademicResult.source_row_number == 2,
+                )
+            ),
+            91,
+        )
+        self.assertNotIn(
+            historical.import_id,
+            {item.import_id for item in service.list_imports(self.db, 100).imports},
+        )
+        admin_history = service.list_admin_imports(self.db, 100)
+        deleted_entry = next(
+            item
+            for item in admin_history.imports
+            if item.import_id == historical.import_id
+        )
+        self.assertEqual(deleted_entry.status, "DELETED")
+        self.assertIsNotNone(deleted_entry.deleted_at)
+
+        with self.assertRaises(ApplicationError) as deleted_error:
+            service.get_overview(
+                self.db,
+                historical.import_id,
+                DashboardFilterQuery(),
+                page=1,
+                page_size=50,
+            )
+        self.assertEqual(deleted_error.exception.status_code, 404)
+
+    def test_can_soft_deactivate_active_import_and_reject_missing_import(self) -> None:
+        service = DashboardService()
+        active = service.import_workbook(
+            ReadWorkbookRequest(
+                filename="active.xlsx",
+                content=make_dashboard_workbook(),
+            ),
+            self.instructor,
+            self.db,
+        )
+
+        service.delete_import(self.db, active.import_id)
+
+        deleted = self.db.get(ExcelImport, active.import_id)
+        self.assertIsNotNone(deleted)
+        self.assertIsNotNone(deleted.deleted_at)
+        self.assertIsNotNone(
+            self.db.scalar(
+                select(AcademicResult.id).where(
+                    AcademicResult.import_id == active.import_id
+                )
+            )
+        )
+        with self.assertRaises(ApplicationError) as no_active_error:
+            service.get_active_import(self.db)
+        self.assertEqual(no_active_error.exception.status_code, 404)
+
+        with self.assertRaises(ApplicationError) as missing_error:
+            service.delete_import(self.db, "missing-import")
+        self.assertEqual(missing_error.exception.status_code, 404)
+
     def test_non_numeric_global_remains_null(self) -> None:
         content = make_dashboard_workbook(global_score=None)
         service = DashboardService()
@@ -403,10 +543,59 @@ class DashboardTests(unittest.TestCase):
             for operation in methods.values()
         ]
 
-        self.assertEqual(len(dashboard_operations), 6)
+        self.assertEqual(len(dashboard_operations), 8)
         for operation in dashboard_operations:
             with self.subTest(operation=operation["operationId"]):
                 self.assertIn({"HTTPBearer": []}, operation["security"])
+
+    def test_import_deletion_is_superadmin_only(self) -> None:
+        delete_route = next(
+            route
+            for route in excel_router.routes
+            if getattr(route, "path", None)
+            == "/excel/dashboard/imports/{import_id}"
+            and "DELETE" in route.methods
+        )
+        role_guard = delete_route.dependant.dependencies[0].call
+
+        with self.assertRaises(HTTPException) as error:
+            role_guard(self.instructor)
+        self.assertEqual(error.exception.status_code, 403)
+
+        superadmin = Account(
+            id=2,
+            username="admin",
+            email="admin@example.com",
+            full_name="Super Admin",
+            password_hash="unused",
+            role=Role.SUPERADMIN.value,
+            is_active=True,
+        )
+        self.assertIs(role_guard(superadmin), superadmin)
+
+        list_route = next(
+            route
+            for route in excel_router.routes
+            if getattr(route, "path", None) == "/excel/dashboard/admin/imports"
+            and "GET" in route.methods
+        )
+        list_role_guard = list_route.dependant.dependencies[0].call
+        with self.assertRaises(HTTPException) as list_error:
+            list_role_guard(self.instructor)
+        self.assertEqual(list_error.exception.status_code, 403)
+        self.assertIs(list_role_guard(superadmin), superadmin)
+
+        history_route = next(
+            route
+            for route in excel_router.routes
+            if getattr(route, "path", None) == "/excel/dashboard/imports"
+            and "GET" in route.methods
+        )
+        history_role_guard = history_route.dependant.dependencies[0].call
+        with self.assertRaises(HTTPException) as history_error:
+            history_role_guard(self.instructor)
+        self.assertEqual(history_error.exception.status_code, 403)
+        self.assertIs(history_role_guard(superadmin), superadmin)
 
     def test_rejects_invalid_workbooks_and_page_sizes(self) -> None:
         service = DashboardService()

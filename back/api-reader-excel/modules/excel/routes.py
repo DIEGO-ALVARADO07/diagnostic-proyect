@@ -137,7 +137,7 @@ async def get_active_dashboard(db: DbSession) -> DashboardImportResponse:
 @router.get(
     "/dashboard/imports",
     response_model=DashboardImportListResponse,
-    dependencies=[Depends(require_roles(Role.INSTRUCTOR, Role.SUPERADMIN))],
+    dependencies=[Depends(require_roles(Role.SUPERADMIN))],
 )
 async def list_dashboard_imports(
     db: DbSession,
@@ -147,12 +147,38 @@ async def list_dashboard_imports(
 
 
 @router.get(
+    "/dashboard/admin/imports",
+    response_model=DashboardImportListResponse,
+    dependencies=[Depends(require_roles(Role.SUPERADMIN))],
+)
+async def list_admin_dashboard_imports(
+    db: DbSession,
+    limit: int = Query(default=100, ge=1, le=100),
+) -> DashboardImportListResponse:
+    return await run_in_threadpool(
+        dashboard_service.list_admin_imports, db, limit
+    )
+
+
+@router.delete(
+    "/dashboard/imports/{import_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    dependencies=[Depends(require_roles(Role.SUPERADMIN))],
+)
+async def delete_dashboard_import(db: DbSession, import_id: str) -> Response:
+    await run_in_threadpool(dashboard_service.delete_import, db, import_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get(
     "/dashboard/{import_id}",
     response_model=DashboardOverviewResponse,
     dependencies=[Depends(require_roles(Role.INSTRUCTOR, Role.SUPERADMIN))],
 )
 async def get_dashboard_overview(
     db: DbSession,
+    account: CurrentAccount,
     import_id: str,
     year: int | None = None,
     simulation: str | None = None,
@@ -172,6 +198,7 @@ async def get_dashboard_overview(
         ),
         page,
         page_size,
+        account,
     )
 
 
@@ -182,6 +209,7 @@ async def get_dashboard_overview(
 )
 async def get_dashboard_program(
     db: DbSession,
+    account: CurrentAccount,
     import_id: str,
     program_id: str,
     year: int | None = None,
@@ -205,6 +233,7 @@ async def get_dashboard_program(
         search,
         page,
         page_size,
+        account,
     )
 
 
@@ -215,6 +244,7 @@ async def get_dashboard_program(
 )
 async def get_dashboard_student(
     db: DbSession,
+    account: CurrentAccount,
     import_id: str,
     document: str,
 ) -> DashboardStudentResponse:
@@ -223,4 +253,5 @@ async def get_dashboard_student(
         db,
         import_id,
         document,
+        account,
     )

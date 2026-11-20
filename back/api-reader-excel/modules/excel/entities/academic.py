@@ -74,6 +74,9 @@ class ExcelImport(AuthBase):
     activated_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True
     )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
 
 
 class DashboardState(AuthBase):

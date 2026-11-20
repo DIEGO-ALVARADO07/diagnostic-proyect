@@ -43,10 +43,20 @@ class DashboardPersistenceRepository:
             db.scalars(
                 select(ExcelImport)
                 .where(
+                    ExcelImport.deleted_at.is_(None),
                     ExcelImport.status.in_(
                         ("ACTIVE", "HISTORICAL", "FAILED")
                     )
                 )
+                .order_by(ExcelImport.imported_at.desc())
+                .limit(limit)
+            )
+        )
+
+    def list_all_imports(self, db: Session, limit: int) -> list[ExcelImport]:
+        return list(
+            db.scalars(
+                select(ExcelImport)
                 .order_by(ExcelImport.imported_at.desc())
                 .limit(limit)
             )

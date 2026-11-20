@@ -40,7 +40,7 @@ def security_metadata() -> MetaData:
 
 
 class SecurityMigrationTests(unittest.TestCase):
-    def test_initial_migration_matches_security_models_and_downgrades(self) -> None:
+    def test_migration_chain_matches_models_and_downgrades(self) -> None:
         self.assertTrue(
             all(
                 model.__tablename__ in AuthBase.metadata.tables
@@ -74,6 +74,20 @@ class SecurityMigrationTests(unittest.TestCase):
         academic_migration = importlib.util.module_from_spec(academic_spec)
         academic_spec.loader.exec_module(academic_migration)
 
+        soft_delete_migration_path = migration_path.with_name(
+            "0003_soft_delete_excel_imports.py"
+        )
+        soft_delete_spec = importlib.util.spec_from_file_location(
+            "soft_delete_excel_imports_migration",
+            soft_delete_migration_path,
+        )
+        self.assertIsNotNone(soft_delete_spec)
+        self.assertIsNotNone(soft_delete_spec.loader)
+        soft_delete_migration = importlib.util.module_from_spec(
+            soft_delete_spec
+        )
+        soft_delete_spec.loader.exec_module(soft_delete_migration)
+
         engine = create_engine("sqlite://")
         try:
             with engine.begin() as connection:
@@ -81,6 +95,7 @@ class SecurityMigrationTests(unittest.TestCase):
                 with Operations.context(context):
                     migration.upgrade()
                     academic_migration.upgrade()
+                    soft_delete_migration.upgrade()
 
                 self.assertEqual(
                     set(inspect(connection).get_table_names()),
@@ -91,6 +106,7 @@ class SecurityMigrationTests(unittest.TestCase):
                 )
 
                 with Operations.context(context):
+                    soft_delete_migration.downgrade()
                     academic_migration.downgrade()
                     migration.downgrade()
                 self.assertEqual(inspect(connection).get_table_names(), [])

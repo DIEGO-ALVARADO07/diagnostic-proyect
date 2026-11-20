@@ -120,16 +120,18 @@ El comando reconoce una base antigua sin historial Alembic solo si encuentra amb
 
 ## Dashboard histórico de TD PROGRAMAS
 
-La importación histórica mantiene intacto `POST /excel/read` y agrega estas rutas, todas protegidas para `instructor` y `superadmin` con Bearer:
+La importación histórica mantiene intacto `POST /excel/read` y agrega estas rutas, protegidas con Bearer:
 
 - `POST /excel/dashboard/import`: recibe `file` en los formatos permitidos por el servicio Excel. Abre el libro una vez y procesa únicamente `BD GEN` y `TD PROGRAMAS`.
 - `GET /excel/dashboard/active`: devuelve el snapshot activo.
-- `GET /excel/dashboard/imports?limit=20`: devuelve importaciones activas, históricas y fallidas, con el identificador activo.
-- `GET /excel/dashboard/{import_id}`: devuelve filtros, indicadores globales y programas paginados. La importación inicial incluye la primera página; el tamaño predeterminado y máximo es **50 programas**.
+- `GET /excel/dashboard/imports?limit=20`: solo `superadmin`; devuelve importaciones no desactivadas, con el identificador activo.
+- `GET /excel/dashboard/admin/imports?limit=100`: solo para `superadmin`; incluye todos los estados y reporta `DELETED` para importaciones desactivadas.
+- `DELETE /excel/dashboard/imports/{import_id}`: solo `superadmin`; desactiva lógicamente una importación `ACTIVE`, `HISTORICAL` o `FAILED`, conservando el snapshot y marcando `deleted_at`. Si era activa, se limpia `active_import_id`; las importaciones en proceso o validadas no se pueden desactivar.
+- `GET /excel/dashboard/{import_id}`: devuelve filtros, indicadores globales y programas paginados. `instructor` solo puede consultar el snapshot activo; `superadmin` puede consultar snapshots históricos disponibles. El tamaño predeterminado y máximo es **50 programas**.
 - `GET /excel/dashboard/{import_id}/programs/{program_id}`: devuelve métricas del programa, comparación institucional y filas de resultados. Admite `year`, `simulation`, `group`, `semester`, `test_type`, `presented`, `search`, `page` y `page_size`.
 - `GET /excel/dashboard/{import_id}/students/{document}`: devuelve el historial del documento y su comparación con el promedio de programa de cada intento.
 
-El dashboard guarda snapshots normalizados en MySQL y no guarda el archivo binario. El SHA-256 del contenido evita duplicar una importación idéntica. La carga registra `PROCESSING`, inserta resultados y referencia visible de `TD PROGRAMAS` en una transacción y solo activa el snapshot después de validarlo; una carga fallida se registra como `FAILED` sin activar ni dejar resultados parciales. La tabla `excel_dashboard_state` serializa el cambio del snapshot activo. Los snapshots previos se conservan como `HISTORICAL`.
+El dashboard guarda snapshots normalizados en MySQL y no guarda el archivo binario. El SHA-256 del contenido evita duplicar una importación idéntica. La carga registra `PROCESSING`, inserta resultados y referencia visible de `TD PROGRAMAS` en una transacción y solo activa el snapshot después de validarlo; una carga fallida se registra como `FAILED` sin activar ni dejar resultados parciales. La tabla `excel_dashboard_state` serializa el cambio del snapshot activo. Los snapshots previos se conservan como `HISTORICAL`. La desactivación lógica no elimina filas: los endpoints normales omiten el snapshot y responden `404` ante consultas directas; solo el historial administrativo muestra su estado `DELETED`.
 
 Cada intento de `BD GEN` conserva su fila de origen; las filas no se deduplican por documento o simulacro. Los programas se distinguen por su etiqueta original; no se fusionan automáticamente por tildes, mayúsculas ni espacios. Se preservan los niveles fuente Q:U. El puntaje GLOBAL principal se obtiene de J; queda nulo si J no es numérica y los agregados históricos omiten esos valores. El cálculo alternativo desde E:I se conserva separado y nunca sustituye a J. Las métricas se calculan sobre registros `APLICA SIMULACRO = Si`; las desviaciones son poblacionales y requieren dos o más valores. Los niveles fuente faltantes se presentan como `Sin resultado`.
 

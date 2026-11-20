@@ -102,19 +102,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirigir('users');
     }
 
+    if ($accion === 'delete_excel_import' && $rolSesion === 'superadmin') {
+        $importId = $_POST['import_id'] ?? '';
+        if (!is_string($importId) || preg_match('/^[a-f0-9-]{36}$/i', $importId) !== 1) {
+            $_SESSION['flash'] = ['type' => 'error', 'message' => 'La importación seleccionada no es válida.'];
+        } else {
+            $respuesta = llamarBackend(
+                'DELETE',
+                'excel/dashboard/imports/' . rawurlencode($importId)
+            );
+            if ($respuesta['status'] === 204) {
+                $_SESSION['flash'] = ['type' => 'success', 'message' => 'La importación se desactivó y ya no aparece en las consultas de los usuarios. Su estado permanece en el historial administrativo.'];
+            } else {
+                $_SESSION['flash'] = ['type' => 'error', 'message' => mensajeDeRespuesta($respuesta, 'No se pudo eliminar la importación.')];
+            }
+        }
+        redirigir('imports');
+    }
+
     if ($accion === 'upload_excel' && in_array($rolSesion, ['instructor', 'superadmin'], true)) {
-        $sheetName = trim($_POST['sheet_name'] ?? '');
         $uploadedFile = $_FILES['file'] ?? null;
-        if ($sheetName === '') {
-            $_SESSION['flash'] = ['type' => 'error', 'message' => 'Escribe el nombre exacto de la hoja antes de continuar.'];
-        } elseif (!is_array($uploadedFile) || ($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        if (!is_array($uploadedFile) || ($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
             $_SESSION['flash'] = ['type' => 'error', 'message' => 'Selecciona un archivo Excel válido para continuar.'];
         } elseif (($uploadedFile['size'] ?? 0) > 30 * 1024 * 1024) {
             $_SESSION['flash'] = ['type' => 'error', 'message' => 'El archivo supera el límite permitido de 30 MB.'];
         } else {
             $respuesta = llamarBackendMultipart(
-                'excel/read',
-                ['sheet_name' => $sheetName],
+                'excel/dashboard/import',
+                [],
                 [
                     'field' => 'file',
                     'tmp_name' => $uploadedFile['tmp_name'],
@@ -123,24 +138,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]
             );
             if ($respuesta['status'] === 200) {
-                $resultado = $respuesta['data'];
-                $resultado['data'] = array_slice($resultado['data'] ?? [], 0, 50);
-                $resultado['preview_limit'] = 50;
-                $_SESSION['excel_result'] = $resultado;
-            } else {
-                $detail = $respuesta['data']['detail'] ?? null;
-                if (is_array($detail) && isset($detail['available_sheets']) && is_array($detail['available_sheets'])) {
-                    $_SESSION['sheet_error'] = [
-                        'message' => $detail['message'] ?? 'El nombre de la hoja no coincide.',
-                        'available_sheets' => $detail['available_sheets'],
-                        'entered_name' => $sheetName,
+                $importacion = $respuesta['data'];
+                if (($importacion['status'] ?? '') === 'ACTIVE') {
+                    $_SESSION['flash'] = [
+                        'type' => 'success',
+                        'message' => 'El archivo se importó y sus resultados ya están disponibles en el dashboard.',
                     ];
                 } else {
-                    $_SESSION['flash'] = ['type' => 'error', 'message' => mensajeDeRespuesta($respuesta, 'No se pudo procesar el archivo Excel.')];
+                    $_SESSION['flash'] = [
+                        'type' => 'success',
+                        'message' => 'Este archivo ya existe como una importación histórica. No se activó de nuevo; el dashboard conserva la versión activa actual.',
+                    ];
                 }
+            } else {
+                $_SESSION['flash'] = ['type' => 'error', 'message' => mensajeDeRespuesta($respuesta, 'No se pudo importar el archivo Excel.')];
             }
         }
-        redirigir('report');
+        redirigir('dashboard');
     }
 
     $_SESSION['flash'] = ['type' => 'error', 'message' => 'No tienes permiso para realizar esa acción.'];
@@ -158,8 +172,6 @@ if ($respuestaPerfil['status'] === 200 && is_array($respuestaPerfil['data'])) {
 }
 
 $rol = $usuario['role'] ?? '';
-$esAdmin = $rol === 'superadmin';
-$esInstructor = $rol === 'instructor';
 $etiquetasRol = [
     'superadmin' => 'Super administrador',
     'instructor' => 'Instructor',
@@ -172,6 +184,7 @@ $vistas = [
         'title' => 'Inicio',
         'screen' => 'dashboard/screen.php',
         'style' => 'dashboard/style.css',
+        'script' => 'partials/dashboard/dashboard.js',
     ],
     'users' => [
         'title' => 'Usuarios',
@@ -198,6 +211,11 @@ $vistas = [
         'screen' => 'profile/screen.php',
         'style' => 'profile/style.css',
     ],
+    'imports' => [
+        'title' => 'Importaciones',
+        'screen' => 'imports/screen.php',
+        'style' => 'imports/style.css',
+    ],
 ];
 
 $menuPorRol = [
@@ -206,6 +224,7 @@ $menuPorRol = [
         ['view' => 'users', 'label' => 'Usuarios', 'icon' => '▤'],
         ['view' => 'create_user', 'label' => 'Crear cuenta', 'icon' => '＋'],
         ['view' => 'report', 'label' => 'Leer reporte', 'icon' => '▧'],
+        ['view' => 'imports', 'label' => 'Importaciones', 'icon' => '▤'],
         ['view' => 'profile', 'label' => 'Mi perfil', 'icon' => '○'],
     ],
     'instructor' => [
@@ -215,7 +234,6 @@ $menuPorRol = [
         ['view' => 'profile', 'label' => 'Mi perfil', 'icon' => '○'],
     ],
     'estudiante' => [
-        ['view' => 'dashboard', 'label' => 'Inicio', 'icon' => '⌂'],
         ['view' => 'profile', 'label' => 'Mi perfil', 'icon' => '○'],
     ],
 ];
@@ -228,7 +246,7 @@ if (!in_array($vistaSolicitada, $vistasPermitidas, true)) {
     if (isset($vistas[$vistaSolicitada])) {
         $_SESSION['flash'] = ['type' => 'error', 'message' => 'No tienes permiso para abrir esa sección.'];
     }
-    $vistaSolicitada = 'dashboard';
+    $vistaSolicitada = $vistasPermitidas[0] ?? 'profile';
 }
 
 $vistaActual = $vistas[$vistaSolicitada];
@@ -258,9 +276,23 @@ $cantidadInstructores = count(array_filter($usuarios, static function ($item): b
     return ($item['role'] ?? '') === 'instructor';
 }));
 
-$resultadoExcel = $_SESSION['excel_result'] ?? null;
-$errorHoja = $_SESSION['sheet_error'] ?? null;
-unset($_SESSION['excel_result'], $_SESSION['sheet_error']);
+$importaciones = [];
+$errorImportaciones = null;
+if ($vistaSolicitada === 'imports' && $rol === 'superadmin') {
+    $respuestaImportaciones = llamarBackend('GET', 'excel/dashboard/admin/imports', ['limit' => 100]);
+    if (
+        $respuestaImportaciones['status'] === 200
+        && is_array($respuestaImportaciones['data']['imports'] ?? null)
+    ) {
+        $importaciones = $respuestaImportaciones['data']['imports'];
+    } else {
+        $errorImportaciones = mensajeDeRespuesta(
+            $respuestaImportaciones,
+            'No se pudo cargar el historial de importaciones.'
+        );
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -271,6 +303,9 @@ unset($_SESSION['excel_result'], $_SESSION['sheet_error']);
     <link rel="stylesheet" href="dashboard.css">
     <link rel="stylesheet" href="partials/<?= h($vistaActual['style']) ?>">
     <script src="dashboard.js" defer></script>
+    <?php if (!empty($vistaActual['script'])): ?>
+        <script src="<?= h($vistaActual['script']) ?>" defer></script>
+    <?php endif; ?>
 </head>
 <body>
 <div class="app-shell">

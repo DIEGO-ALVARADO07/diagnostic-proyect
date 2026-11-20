@@ -106,6 +106,7 @@ class DashboardImportListItemResponse(BaseModel):
     bd_gen_row_count: int
     td_programas_row_count: int
     td_programas_selected_year: int | None
+    deleted_at: datetime | None = None
 
 
 class DashboardImportListResponse(BaseModel):

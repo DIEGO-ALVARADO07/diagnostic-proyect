@@ -11,6 +11,10 @@
 .file-input-wrap small { padding-bottom: 2px; }
 .upload-actions { grid-column: 1 / -1; }
 .upload-actions .button { min-width: 165px; }
+.import-notes { align-items: flex-start; background: #f7faf8; border: 1px solid #e8efeb; border-radius: 7px; color: #647a6d; display: flex; gap: 9px; margin-top: 20px; padding: 11px 12px; }
+.import-notes > span { color: #399268; font-size: 13px; font-weight: 700; }
+.import-notes p { font-size: 10px; line-height: 1.6; margin: 0; }
+.import-notes strong { color: #3d5d4d; }
 .result-summary { align-items: center; border-top: 1px solid var(--line); display: flex; justify-content: space-between; margin-top: 22px; padding-top: 17px; }
 .result-summary > div { align-items: center; display: flex; gap: 10px; }
 .result-check { align-items: center; background: var(--green-soft); border-radius: 50%; color: var(--green-dark); display: inline-flex; font-size: 11px; font-weight: 700; height: 28px; justify-content: center; width: 28px; }

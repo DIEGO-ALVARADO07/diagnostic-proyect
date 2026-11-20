@@ -1,0 +1,30 @@
+.imports-heading { align-items: flex-end; margin-top: 5px; }
+.imports-heading h1 { margin-bottom: 6px; }
+.imports-heading .count-pill { margin-bottom: 4px; }
+.imports-panel { margin: 0 auto; max-width: 1180px; }
+.imports-notice { align-items: flex-start; background: #f0f8f4; border: 1px solid #dfeee5; border-radius: 8px; display: flex; gap: 10px; margin: 0 0 18px; padding: 12px 13px; }
+.imports-notice > span { align-items: center; background: #dcefe4; border-radius: 50%; color: var(--green-dark); display: inline-flex; flex: 0 0 auto; font-size: 10px; font-weight: 700; height: 19px; justify-content: center; width: 19px; }
+.imports-notice p { color: #647a6d; font-size: 10px; line-height: 1.65; margin: 0; }
+.imports-notice strong { color: #3d5d4d; }
+.imports-table { min-width: 800px; }
+.imports-table td { vertical-align: middle; }
+.imports-filename { color: #354e5f; font-weight: 600; max-width: 260px; overflow-wrap: anywhere; }
+.imports-status { border-radius: 20px; display: inline-block; font-size: 9px; font-weight: 700; padding: 5px 9px; white-space: nowrap; }
+.imports-status-active { background: #eaf7f0; color: #39886a; }
+.imports-status-historical { background: #eef2f6; color: #50677b; }
+.imports-status-failed { background: #fff1ed; color: #aa5a45; }
+.imports-status-processing, .imports-status-validated { background: #fff8e9; color: #927541; }
+.imports-status-deleted { background: #f2eeee; color: #766b6b; }
+.imports-deleted-date { color: #8a9297; display: block; font-size: 8px; margin-top: 4px; }
+.imports-actions { text-align: right; white-space: nowrap; }
+.imports-actions form { margin: 0; }
+.deactivate-import-button { color: #aa514d; font-size: 10px; }
+.deactivate-import-button:hover { color: #843a38; text-decoration: underline; }
+.imports-active-label { color: #738391; font-size: 9px; }
+.imports-empty { background: #f7faf8; border: 1px dashed #dce8e1; border-radius: 7px; color: #73877a; font-size: 10px; margin: 0; padding: 20px; text-align: center; }
+
+@media (max-width: 760px) {
+    .imports-panel { padding: 16px; }
+    .imports-heading { align-items: flex-start; flex-direction: column; gap: 10px; }
+    .imports-heading .count-pill { margin: 0; }
+}

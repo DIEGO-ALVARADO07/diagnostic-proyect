@@ -27,6 +27,13 @@ function forzarLogout(): void {
     }
     session_destroy();
 
+    if (!empty($_SERVER['HTTP_X_DASHBOARD_REQUEST'])) {
+        http_response_code(401);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['detail' => 'La sesión expiró. Inicia sesión de nuevo.']);
+        exit;
+    }
+
     // Si la petición vino desde HTMX, usamos HX-Redirect para redirigir toda la ventana
     if (!empty($_SERVER['HTTP_HX_REQUEST'])) {
         header('HX-Redirect: /front/login.php');
