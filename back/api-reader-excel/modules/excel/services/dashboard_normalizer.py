@@ -1,6 +1,7 @@
 import math
 import unicodedata
 from decimal import Decimal, InvalidOperation
+from functools import lru_cache
 from typing import Any
 
 
@@ -13,7 +14,14 @@ def clean_text(value: Any) -> str | None:
     return text or None
 
 
+@lru_cache(maxsize=8192)
 def normalized_key(value: str | None) -> str:
+    """Clave de comparación sin mayúsculas, tildes ni espacios repetidos.
+
+    Es una función pura y se llama por cada registro en cada filtro y en las
+    opciones de filtros, casi siempre con pocos valores distintos (simulacros,
+    grupos, semestres, tipos), por eso se memoriza.
+    """
     if value is None:
         return ""
     decomposed = unicodedata.normalize("NFKD", value.casefold())

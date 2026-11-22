@@ -1,6 +1,9 @@
+import logging
 from collections import Counter
 from hashlib import sha256
 from http import HTTPStatus
+from time import perf_counter
+from types import MappingProxyType
 from typing import Any
 from uuid import uuid4
 
@@ -48,6 +51,7 @@ from modules.excel.repositories.dashboard_repository import (
 from modules.excel.repositories.dashboard_persistence_repository import (
     DashboardPersistenceRepository,
 )
+from modules.excel.services.dashboard_cache import DashboardDatasetCache
 from modules.excel.services.dashboard_metrics import (
     COMPETENCIES,
     calculate_metrics,
@@ -64,6 +68,10 @@ from modules.security.entities.base import utcnow
 from modules.security.entities.role import Role
 
 MAX_PAGE_SIZE = 50
+# Solo estos estados son instantáneas completas e inmutables que se pueden cachear.
+_CACHEABLE_STATUSES = frozenset({"ACTIVE", "HISTORICAL"})
+
+logger = logging.getLogger(__name__)
 
 
 class DashboardService:
@@ -73,11 +81,15 @@ class DashboardService:
         processor: DashboardProcessor | None = None,
         persistence: DashboardPersistenceRepository | None = None,
         excel_service: ExcelService | None = None,
+        dataset_cache: DashboardDatasetCache | None = None,
     ) -> None:
         self.repository = repository or DashboardWorkbookRepository()
         self.processor = processor or DashboardProcessor()
         self.persistence = persistence or DashboardPersistenceRepository()
         self.excel_service = excel_service or ExcelService()
+        self.dataset_cache = (
+            dataset_cache if dataset_cache is not None else DashboardDatasetCache()
+        )
 
     def validate_upload(self, filename: str, account: Account) -> str:
         return self.excel_service.validate_upload(filename, account)
@@ -269,11 +281,13 @@ class DashboardService:
             dashboard_state.active_import_id = None
         import_row.deleted_at = utcnow()
         db.commit()
+        # Libera memoria; la visibilidad ya la garantiza _get_dataset con deleted_at.
+        self.dataset_cache.invalidate(import_id)
 
     def _import_response(
         self, db: Session, import_row: ExcelImport
     ) -> DashboardImportResponse:
-        dataset = self._load_dataset(db, import_row)
+        dataset = self._dataset_for(db, import_row)
         filters = self._filter_options(dataset)
         overview = self._overview(
             dataset,
@@ -803,7 +817,37 @@ class DashboardService:
                 HTTPStatus.NOT_FOUND,
                 "La importación no existe o no está disponible.",
             )
-        return self._load_dataset(db, import_row)
+        return self._dataset_for(db, import_row)
+
+    def _dataset_for(
+        self, db: Session, import_row: ExcelImport
+    ) -> DashboardDataset:
+        """Devuelve el dataset desde la caché o lo carga de la base de datos.
+
+        Quien llama ya validó que la importación es visible para el usuario.
+        """
+        cacheable = (
+            import_row.deleted_at is None
+            and import_row.status in _CACHEABLE_STATUSES
+        )
+        if cacheable:
+            cached = self.dataset_cache.get(import_row.id)
+            if cached is not None:
+                return cached
+
+        started = perf_counter()
+        dataset = self._load_dataset(db, import_row)
+        logger.info(
+            "Dashboard dataset loaded from database: import_id=%s records=%d "
+            "elapsed_seconds=%.3f cached=%s",
+            import_row.id,
+            len(dataset.records),
+            perf_counter() - started,
+            cacheable,
+        )
+        if cacheable:
+            self.dataset_cache.put(dataset)
+        return dataset
 
     @staticmethod
     def _load_dataset(
@@ -916,15 +960,25 @@ class DashboardService:
             program_id: records_for_program[0].program_name
             for program_id, records_for_program in records_by_program.items()
         }
+        # El dataset se comparte vía caché entre peticiones e hilos: se congela.
         return DashboardDataset(
             import_id=import_row.id,
             filename=import_row.filename,
-            records=records,
-            records_by_program=records_by_program,
-            records_by_student=records_by_student,
-            program_names=program_names,
+            records=tuple(records),
+            records_by_program=MappingProxyType(
+                {key: tuple(value) for key, value in records_by_program.items()}
+            ),
+            records_by_student=MappingProxyType(
+                {key: tuple(value) for key, value in records_by_student.items()}
+            ),
+            program_names=MappingProxyType(program_names),
             td_programs_year=import_row.td_programas_selected_year,
-            td_programs_summary=td_summary,
+            td_programs_summary=MappingProxyType(
+                {
+                    key: MappingProxyType(values)
+                    for key, values in td_summary.items()
+                }
+            ),
             records_without_document=sum(
                 record.document is None for record in records
             ),

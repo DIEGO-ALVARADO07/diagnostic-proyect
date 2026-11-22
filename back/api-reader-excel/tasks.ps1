@@ -97,6 +97,8 @@ switch ($Task) {
 
     "test" {
         Assert-Venv
+        # Evita que los logs INFO de la app se mezclen con el reporte de unittest.
+        if (-not $env:LOG_LEVEL) { $env:LOG_LEVEL = "WARNING" }
         Invoke-Python -m unittest discover -s tests
     }
 

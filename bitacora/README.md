@@ -14,7 +14,7 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | Fase | Contenido | Estado |
 |---|---|---|
 | 1 | Higiene del repositorio, `.env.example`, logging y script de tareas | Completada |
-| 2 | Caché del dataset del dashboard por importación | Pendiente |
+| 2 | Caché del dataset del dashboard por importación | Completada |
 | 3 | Enum de estados, limpieza de archivos de compatibilidad, errores uniformes | Pendiente |
 | 4 | División de `DashboardService`, puntajes por clave, `Base` y migraciones en `core` | Pendiente |
 | 5 | Identidad de programas y regla del global calculado (requiere decisión de negocio) | Pendiente |
@@ -29,3 +29,6 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 003 | 1 | [Configuración de logging](003-logging.md) |
 | 004 | 1 | [Script de tareas `tasks.ps1`](004-script-de-tareas.md) |
 | 005 | 1 | [Actualización de la documentación de arranque](005-documentacion-arranque.md) |
+| 006 | 2 | [Caché en memoria del dataset del dashboard](006-cache-dataset-dashboard.md) |
+| 007 | 2 | [Memoizar `normalized_key`](007-memoizar-normalized-key.md) |
+| 008 | 2 | [Tests de la caché, benchmark y ajuste de `tasks.ps1 test`](008-tests-y-benchmark-fase-2.md) |

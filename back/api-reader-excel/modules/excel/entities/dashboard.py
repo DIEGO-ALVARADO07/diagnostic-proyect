@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
@@ -80,12 +81,18 @@ class DashboardRecord:
 
 @dataclass(frozen=True)
 class DashboardDataset:
+    """Instantánea de solo lectura de una importación.
+
+    Se comparte entre peticiones a través de la caché, así que sus colecciones
+    son inmutables (tuplas y ``MappingProxyType``).
+    """
+
     import_id: str
     filename: str
-    records: list[DashboardRecord]
-    records_by_program: dict[str, list[DashboardRecord]]
-    records_by_student: dict[str, list[DashboardRecord]]
-    program_names: dict[str, str]
+    records: tuple[DashboardRecord, ...]
+    records_by_program: Mapping[str, tuple[DashboardRecord, ...]]
+    records_by_student: Mapping[str, tuple[DashboardRecord, ...]]
+    program_names: Mapping[str, str]
     td_programs_year: int | None
-    td_programs_summary: dict[tuple[str, str], dict[str, float | None]]
+    td_programs_summary: Mapping[tuple[str, str], Mapping[str, float | None]]
     records_without_document: int
