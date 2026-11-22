@@ -1,13 +1,10 @@
 import os
-from pathlib import Path
 
 from cryptography.fernet import Fernet
 from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
-# Ruta absoluta del archivo .env ubicado junto a config.py
-ENV_FILE = Path(__file__).resolve().parent / ".env"
+from core.paths import ENV_FILE
 
 
 def decrypt_value(encrypted_value: str, master_key: str | None) -> str:

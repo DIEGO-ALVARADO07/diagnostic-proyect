@@ -1,5 +1,7 @@
 # 🔐 Guía de Seguridad y Gestión de Entornos (FastAPI)
 
+> **Aviso (noviembre de 2026):** esta guía describe una estructura anterior. Los archivos `.env` **ya no se versionan**, aunque estén cifrados: el `.gitignore` los excluye y la plantilla es `api-reader-excel/core/.env.example`. El arranque actual (`.\tasks.ps1 run`) está en [`api-reader-excel/IMPLEMENTATION.md`](./api-reader-excel/IMPLEMENTATION.md). Se conserva este documento por el esquema de roles y la explicación del cifrado con Fernet y `APP_MASTER_KEY`, que siguen vigentes.
+
 Este documento explica cómo funciona el cifrado de credenciales en nuestro proyecto y el flujo de trabajo para cada miembro del equipo de desarrollo.
 
 ---

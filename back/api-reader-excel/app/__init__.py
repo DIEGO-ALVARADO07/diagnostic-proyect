@@ -3,8 +3,11 @@ from fastapi.responses import JSONResponse
 
 from api import router
 from core.exceptions import ApplicationError
+from core.logging_config import configure_logging
+
 
 def create_app() -> FastAPI:
+    configure_logging()
     application = FastAPI(
         title="Diagnostic API",
         description="API modular para cuentas, roles y lectura de archivos Excel.",

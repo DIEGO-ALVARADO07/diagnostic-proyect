@@ -50,70 +50,65 @@ El frontend debe enviar el archivo y el nombre exacto de la hoja en la misma pet
 
 ## Configuración y ejecución en Windows
 
-La API usa `core.database.SessionLocal`. El `.env` debe estar en `core/` porque Pydantic busca la ruta relativa `.env` desde la carpeta de ejecución. Debe contener `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` y `DB_NAME`. La base/schema MySQL debe existir antes y el usuario necesita permisos para crear índices y tablas de seguridad. Si `DB_USER` o `DB_PASSWORD` están cifrados con Fernet, define `APP_MASTER_KEY` con la clave entregada por el equipo; no guardes secretos en el repositorio ni los pegues en logs.
+Todas las tareas se ejecutan con [`tasks.ps1`](./tasks.ps1), desde la carpeta del backend. El script usa el Python del `venv` y define `PYTHONPATH` por sí mismo, así que no hace falta activar el entorno ni moverse a `core/`.
 
-### 1. Instalar dependencias
+| Comando | Qué hace |
+|---|---|
+| `.\tasks.ps1 install` | Crea el `venv` si no existe e instala `requirements.txt`. |
+| `.\tasks.ps1 migrate` | Aplica las migraciones Alembic pendientes. |
+| `.\tasks.ps1 bootstrap` | Aplica migraciones y crea el primer superadmin (una sola vez). |
+| `.\tasks.ps1 test` | Ejecuta las pruebas automatizadas. |
+| `.\tasks.ps1 run` | Arranca Uvicorn con recarga en `http://127.0.0.1:8000` (`-Port` y `-BindHost` son opcionales). |
 
-Abre PowerShell en la raíz del proyecto:
+Si PowerShell bloquea el script por la política de ejecución, permite scripts locales para tu usuario con `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+
+### 1. Configuración (`core/.env`)
+
+La configuración se lee de `core/.env` (ruta absoluta, no depende de la carpeta desde donde se ejecute). **Este archivo no se versiona.** Créalo a partir de la plantilla:
+
+```powershell
+Copy-Item core\.env.example core\.env
+```
+
+Debe contener `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` y `DB_NAME`; opcionalmente `LOG_LEVEL` (`INFO` por defecto). La base/schema MySQL debe existir antes y el usuario necesita permisos para crear tablas e índices. Si `DB_USER` o `DB_PASSWORD` están cifrados con Fernet (empiezan por `gAAAAAB`), define `APP_MASTER_KEY` en la terminal antes de ejecutar cualquier tarea; `tasks.ps1` avisa si falta:
+
+```powershell
+$env:APP_MASTER_KEY = "<clave-maestra-entregada-por-el-equipo>"
+```
+
+No guardes secretos en el repositorio ni los pegues en logs.
+
+### 2. Instalar dependencias
 
 ```powershell
 Set-Location C:\Users\USUARIO\Desktop\diagnostic-proyect\back\api-reader-excel
-.\venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+.\tasks.ps1 install
 ```
 
-Si todavía no existe `venv`, créalo primero con `python -m venv venv` y luego actívalo e instala las dependencias.
+### 3. Primera ejecución en una base nueva
 
-### 2. Primera ejecución en una base nueva
-
-El bootstrap aplica la migración de seguridad y crea el primer superadmin. Ejecuta una sola vez. En la misma terminal:
+El bootstrap aplica las migraciones y crea el primer superadmin. Ejecútalo una sola vez:
 
 ```powershell
-Set-Location C:\Users\USUARIO\Desktop\diagnostic-proyect\back\api-reader-excel\core
-$env:APP_MASTER_KEY = "<clave-maestra-entregada-por-el-equipo>"
-$env:PYTHONPATH = (Resolve-Path ..).Path
-
-$env:BOOTSTRAP_SUPERADMIN_USERNAME = "<usuario>"
-$env:BOOTSTRAP_SUPERADMIN_EMAIL = "<correo>"
-$env:BOOTSTRAP_SUPERADMIN_FULL_NAME = "<nombre>"
-$env:BOOTSTRAP_SUPERADMIN_PASSWORD = "<contraseña-de-12-caracteres-o-mas>"
-
-..\venv\Scripts\python.exe -m modules.security.bootstrap
-if ($LASTEXITCODE -ne 0) { throw "El bootstrap falló; no inicies Uvicorn." }
+.\tasks.ps1 bootstrap
 ```
 
-Continúa solo si imprime `Cuenta superadmin inicial creada.`. Si falla, corrige el error de conexión/configuración antes de arrancar la API. El bootstrap es de aprovisionamiento inicial: no lo vuelvas a ejecutar después de que ya exista el superadmin. Las variables `BOOTSTRAP_SUPERADMIN_*` solo entregan las credenciales al proceso una vez; el usuario queda guardado en `api_users` y no se borra al limpiar esas variables.
+Pide usuario, correo, nombre y contraseña (oculta, mínimo 12 caracteres). Si ya existen las variables `BOOTSTRAP_SUPERADMIN_USERNAME`, `BOOTSTRAP_SUPERADMIN_EMAIL`, `BOOTSTRAP_SUPERADMIN_FULL_NAME` y `BOOTSTRAP_SUPERADMIN_PASSWORD`, las usa sin preguntar. Al terminar, con éxito o con error, borra esas variables de la terminal. Continúa solo si imprime `Cuenta superadmin inicial creada.`; no lo vuelvas a ejecutar cuando ya exista un superadmin.
 
-### 3. Iniciar la API
-
-Desde `core/`, en la terminal anterior, elimina únicamente las variables temporales de bootstrap y arranca el servidor. Esto no elimina la cuenta creada. Conserva `APP_MASTER_KEY` y `PYTHONPATH`, que sí se necesitan para conectar y cargar la aplicación:
+### 4. Iniciar la API
 
 ```powershell
-Remove-Item Env:\BOOTSTRAP_SUPERADMIN_USERNAME
-Remove-Item Env:\BOOTSTRAP_SUPERADMIN_EMAIL
-Remove-Item Env:\BOOTSTRAP_SUPERADMIN_FULL_NAME
-Remove-Item Env:\BOOTSTRAP_SUPERADMIN_PASSWORD
-
-..\venv\Scripts\python.exe -m uvicorn app:app --app-dir .. --reload --reload-dir ..
+.\tasks.ps1 run
 ```
 
-Deja Uvicorn ejecutándose en primer plano y abre `http://127.0.0.1:8000/docs`. Detén el servidor con `Ctrl+C`.
+Abre `http://127.0.0.1:8000/docs`. Detén el servidor con `Ctrl+C`. Los logs de la aplicación (por ejemplo, los tiempos de lectura de Excel) aparecen en la misma terminal con el nivel de `LOG_LEVEL`.
 
-### 4. Arranques posteriores y nuevas migraciones
+### 5. Nuevas migraciones
 
-No repitas el bootstrap. Para iniciar en una terminal nueva, define solo `APP_MASTER_KEY` y `PYTHONPATH`, desde `core/`, y ejecuta Uvicorn:
-
-```powershell
-Set-Location C:\Users\USUARIO\Desktop\diagnostic-proyect\back\api-reader-excel\core
-$env:APP_MASTER_KEY = "<clave-maestra-entregada-por-el-equipo>"
-$env:PYTHONPATH = (Resolve-Path ..).Path
-..\venv\Scripts\python.exe -m uvicorn app:app --app-dir .. --reload --reload-dir ..
-```
-
-Si se despliega una versión que añade migraciones, aplica primero las pendientes usando la misma configuración y permisos de base de datos:
+Si se despliega una versión que añade migraciones, aplícalas antes de arrancar:
 
 ```powershell
-..\venv\Scripts\python.exe -m modules.security.migrations
+.\tasks.ps1 migrate
 ```
 
 El comando reconoce una base antigua sin historial Alembic solo si encuentra ambas tablas de seguridad y verifica que coincidan con los modelos. En ese caso marca la revisión inicial de seguridad (`0001`) y aplica las siguientes, incluida la persistencia académica; si el esquema de seguridad está incompleto o distinto, o ya existen tablas académicas sin historial, se detiene sin marcarlas como migradas. El servidor no crea ni migra tablas automáticamente.
@@ -143,11 +138,13 @@ La respuesta de importación incluye `source_audit`, con los años de `BD GEN`, 
 
 ### Pruebas
 
-Desde la carpeta del proyecto, activa el entorno virtual y ejecuta:
+Desde la carpeta del backend:
 
 ```powershell
-python -m unittest discover -s tests -v
+.\tasks.ps1 test
 ```
+
+Las pruebas no necesitan `core/.env` ni conexión a MySQL.
 
 ## Flujo completo de la API
 
