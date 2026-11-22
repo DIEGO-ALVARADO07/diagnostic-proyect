@@ -18,6 +18,7 @@ from modules.excel.entities.competency import COMPETENCIES
 from modules.excel.entities.dashboard import DashboardDataset, DashboardRecord
 from modules.excel.entities.import_status import SNAPSHOT_STATUSES
 from modules.excel.services.dashboard_cache import DashboardDatasetCache
+from modules.excel.services.dashboard_normalizer import canonical_semester
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,7 @@ class DashboardDatasetLoader:
                 global_score=_as_float(result.global_score),
                 moment=result.moment_raw,
                 test_type=result.assessment_type,
-                semester=result.semester_raw,
+                semester=canonical_semester(result.semester_raw),
                 year=result.year,
                 simulation=result.simulation_name,
                 group=result.group_name,
@@ -142,7 +143,7 @@ class DashboardDatasetLoader:
         )
         for reference in references:
             td_summary[
-                (reference.simulation_key, reference.program_name_raw)
+                (reference.simulation_key, reference.program_normalized_key)
             ] = {
                 competency.key: _as_float(
                     getattr(reference, competency.average_column)
@@ -183,4 +184,5 @@ class DashboardDatasetLoader:
             records_without_document=sum(
                 record.document is None for record in records
             ),
+            data_quality=(import_row.validation_summary or {}).get("data_quality"),
         )

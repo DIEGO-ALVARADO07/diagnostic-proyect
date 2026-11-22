@@ -73,3 +73,26 @@ def document_value(value: Any) -> str | None:
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return text
+
+
+def accent_count(value: str) -> int:
+    """Cantidad de letras con tilde o diacrítico (``Í``, ``ñ``…)."""
+    return sum(
+        1
+        for character in unicodedata.normalize("NFKD", value)
+        if unicodedata.combining(character)
+    )
+
+
+def canonical_semester(value: Any) -> str | None:
+    """Unifica la escritura del semestre: ``"4"`` y ``4.0`` pasan a ``"SEMESTRE 4"``.
+
+    Cualquier otro texto se devuelve limpio y sin cambios (``"SEMESTRE 4"``).
+    """
+    text = clean_text(value)
+    if text is None:
+        return None
+    number = numeric_value(text)
+    if number is not None and number.is_integer() and number > 0:
+        return f"SEMESTRE {int(number)}"
+    return text

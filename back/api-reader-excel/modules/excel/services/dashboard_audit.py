@@ -2,6 +2,7 @@
 
 from modules.excel.dtos.responses.dashboard import (
     DashboardAuditDifferenceResponse,
+    DashboardDataQualityResponse,
     DashboardSourceAuditResponse,
 )
 from modules.excel.entities.dashboard import DashboardDataset
@@ -21,14 +22,16 @@ def build_source_audit(dataset: DashboardDataset) -> DashboardSourceAuditRespons
     differences: list[DashboardAuditDifferenceResponse] = []
     difference_count = 0
     if dataset.td_programs_year is not None:
-        program_id_by_name = {
-            name: program_id
+        # Se empareja por nombre normalizado: "INGENIERÍA DE SISTEMAS" en TD
+        # PROGRAMAS es el mismo programa que "INGENIERIA DE SISTEMAS" en BD GEN.
+        program_id_by_key = {
+            normalized_key(name): program_id
             for program_id, name in dataset.program_names.items()
         }
         for (simulation_key, program_key), td_values in (
             dataset.td_programs_summary.items()
         ):
-            program_id = program_id_by_name.get(program_key)
+            program_id = program_id_by_key.get(program_key)
             if program_id is None:
                 continue
             matched = [
@@ -80,4 +83,9 @@ def build_source_audit(dataset: DashboardDataset) -> DashboardSourceAuditRespons
         compared_metrics=compared_metrics,
         difference_count=difference_count,
         differences=differences,
+        data_quality=(
+            DashboardDataQualityResponse.model_validate(dataset.data_quality)
+            if dataset.data_quality is not None
+            else None
+        ),
     )

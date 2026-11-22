@@ -17,7 +17,7 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 2 | Caché del dataset del dashboard por importación | Completada |
 | 3 | Enum de estados, limpieza de archivos de compatibilidad, errores uniformes | Completada |
 | 4 | División de `DashboardService`, puntajes por clave, `Base` y migraciones en `core` | Completada |
-| 5 | Identidad de programas y regla del global calculado (requiere decisión de negocio) | Pendiente |
+| 5 | Identidad de programas, semestres, regla del global y calidad de datos | Completada |
 | 6 | Ajustes de seguridad, CI y frontend | Pendiente |
 
 ## Índice
@@ -40,3 +40,7 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 014 | 4 | [Competencias en un solo lugar y puntajes por clave](014-competencias-y-puntajes-por-clave.md) |
 | 015 | 4 | [División de `DashboardService`](015-division-dashboard-service.md) |
 | 016 | 4 | [TD PROGRAMAS sin encabezado y verificación de regresión](016-td-programas-sin-encabezado-y-regresion.md) |
+| 017 | 5 | [Unificación de programas por nombre normalizado](017-unificacion-de-programas.md) |
+| 018 | 5 | [Migración `0004_unify_programs`](018-migracion-0004-programas.md) |
+| 019 | 5 | [Semestres normalizados](019-semestres-normalizados.md) |
+| 020 | 5 | [Reporte de calidad de datos, regla del global y verificación](020-calidad-de-datos-y-regla-global.md) |

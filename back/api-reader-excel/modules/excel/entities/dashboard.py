@@ -13,8 +13,9 @@ class DashboardImportRecord:
     email: str | None
     student_search_name: str | None
     program_name: str
-    program_raw_name_key: str
+    """Nombre tal como viene en el Excel."""
     program_normalized_key: str
+    """Identidad del programa (sin mayúsculas, tildes ni espacios extra)."""
     scores: Mapping[str, Decimal | None]
     """Puntaje por ``Competency.key``."""
     global_raw: str | None
@@ -63,6 +64,10 @@ class DashboardImportData:
     records: tuple[DashboardImportRecord, ...]
     td_programas_year: int | None
     td_programas_records: tuple[TdProgramasRecord, ...]
+    program_names: Mapping[str, str]
+    """Nombre a mostrar por ``program_normalized_key`` (ver ``program_catalog``)."""
+    data_quality: Mapping[str, Any]
+    """Hallazgos que no impiden importar (ver ``dashboard_data_quality``)."""
 
 
 @dataclass(frozen=True)
@@ -104,4 +109,6 @@ class DashboardDataset:
     program_names: Mapping[str, str]
     td_programs_year: int | None
     td_programs_summary: Mapping[tuple[str, str], Mapping[str, float | None]]
+    """Promedios de TD PROGRAMAS por (simulacro normalizado, programa normalizado)."""
     records_without_document: int
+    data_quality: Mapping[str, Any] | None = None

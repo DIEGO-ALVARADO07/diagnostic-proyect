@@ -130,6 +130,10 @@ class DashboardImportService:
             db.flush()
             self._activate(db, import_row)
             db.commit()
+            # La importación puede renombrar programas compartidos con otras
+            # importaciones (nombre visible), así que se descartan los datasets
+            # en caché para que no muestren el nombre anterior.
+            self.loader.cache.clear()
         except DashboardWorkbookError as error:
             self._mark_failed(db, import_row.id, error)
             raise ApplicationError(

@@ -118,7 +118,12 @@ class AcademicStudent(Base):
 class AcademicProgram(Base):
     __tablename__ = "academic_programs"
     __table_args__ = (
-        Index("ix_academic_programs_normalized_key", "normalized_key"),
+        # Identidad del programa: un registro por nombre normalizado (migración 0004).
+        Index(
+            "ix_academic_programs_normalized_key",
+            "normalized_key",
+            unique=True,
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

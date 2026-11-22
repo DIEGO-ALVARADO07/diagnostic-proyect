@@ -1,3 +1,4 @@
+from collections import defaultdict
 from hashlib import sha256
 
 from sqlalchemy import select
@@ -5,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from modules.excel.entities.academic import (
     AcademicProgram,
+    AcademicProgramAlias,
     AcademicResult,
     AcademicStudent,
     DashboardState,
@@ -90,7 +92,6 @@ class DashboardPersistenceRepository:
             for record in records
             if record.document is not None
         }
-        program_keys = {record.program_raw_name_key for record in records}
 
         students = {
             student.document_key: student
@@ -100,14 +101,7 @@ class DashboardPersistenceRepository:
                 )
             )
         } if document_keys else {}
-        programs = {
-            program.raw_name_key: program
-            for program in db.scalars(
-                select(AcademicProgram).where(
-                    AcademicProgram.raw_name_key.in_(program_keys)
-                )
-            )
-        } if program_keys else {}
+        programs = self._sync_programs(db, data)
 
         now = utcnow()
         for record in records:
@@ -133,17 +127,6 @@ class DashboardPersistenceRepository:
                     student.email = record.email or student.email
                     student.updated_at = now
 
-            program = programs.get(record.program_raw_name_key)
-            if program is None:
-                program = AcademicProgram(
-                    canonical_name=record.program_name,
-                    raw_name_key=record.program_raw_name_key,
-                    normalized_key=record.program_normalized_key,
-                    is_active=True,
-                )
-                programs[record.program_raw_name_key] = program
-                db.add(program)
-
         db.flush()
         results: list[AcademicResult] = []
         for record in records:
@@ -152,7 +135,7 @@ class DashboardPersistenceRepository:
                 student_id = students[
                     sha256(record.document.encode("utf-8")).hexdigest()
                 ].id
-            program = programs[record.program_raw_name_key]
+            program = programs[record.program_normalized_key]
             results.append(
                 AcademicResult(
                     import_id=import_row.id,
@@ -236,4 +219,69 @@ class DashboardPersistenceRepository:
             "rows_without_document": sum(
                 record.document is None for record in records
             ),
+            "data_quality": dict(data.data_quality),
         }
+
+    @staticmethod
+    def _sync_programs(
+        db: Session, data: DashboardImportData
+    ) -> dict[str, AcademicProgram]:
+        """Un programa por clave normalizada; registra cada escritura como alias.
+
+        El nombre visible se actualiza con el elegido en esta importación
+        (``data.program_names``), así todas las importaciones lo comparten.
+        """
+        variants_by_key: dict[str, set[str]] = defaultdict(set)
+        for record in data.records:
+            variants_by_key[record.program_normalized_key].add(record.program_name)
+        keys = sorted(variants_by_key)
+        programs = {
+            program.normalized_key: program
+            for program in db.scalars(
+                select(AcademicProgram).where(
+                    AcademicProgram.normalized_key.in_(keys)
+                )
+            )
+        } if keys else {}
+
+        for key in keys:
+            name = data.program_names[key]
+            program = programs.get(key)
+            if program is None:
+                program = AcademicProgram(
+                    canonical_name=name,
+                    # Columna heredada (antes: hash del nombre crudo). Se mantiene
+                    # única derivándola de la clave normalizada.
+                    raw_name_key=sha256(key.encode("utf-8")).hexdigest(),
+                    normalized_key=key,
+                    is_active=True,
+                )
+                programs[key] = program
+                db.add(program)
+            else:
+                program.canonical_name = name
+        db.flush()
+
+        # Se compara en Python: en MySQL la colación ignora tildes y mayúsculas.
+        known_aliases = {
+            (alias.program_id, alias.raw_name)
+            for alias in db.scalars(
+                select(AcademicProgramAlias).where(
+                    AcademicProgramAlias.program_id.in_(
+                        [program.id for program in programs.values()]
+                    )
+                )
+            )
+        } if programs else set()
+        for key in keys:
+            program = programs[key]
+            for raw_name in sorted(variants_by_key[key]):
+                if (program.id, raw_name) not in known_aliases:
+                    db.add(
+                        AcademicProgramAlias(
+                            program_id=program.id,
+                            raw_name=raw_name,
+                            normalized_name=key,
+                        )
+                    )
+        return programs

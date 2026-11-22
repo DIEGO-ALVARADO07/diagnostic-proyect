@@ -1,4 +1,3 @@
-from hashlib import sha256
 from math import isfinite
 from typing import Any
 
@@ -12,13 +11,16 @@ from modules.excel.repositories.dashboard_repository import (
     DashboardWorkbookError,
     DashboardWorkbookSheets,
 )
+from modules.excel.services.dashboard_data_quality import assess_data_quality
 from modules.excel.services.dashboard_normalizer import (
+    canonical_semester,
     clean_text,
     decimal_value,
     document_value,
     normalized_key,
     numeric_value,
 )
+from modules.excel.services.program_catalog import choose_program_names
 
 # Columnas de TD PROGRAMAS después de PROGRAMA: una por competencia y dos GL.
 _TD_AVERAGE_COLUMNS = len(COMPETENCIES) + 2
@@ -133,9 +135,11 @@ class DashboardProcessor:
         workbook: DashboardWorkbookSheets,
     ) -> DashboardImportData:
         records: list[DashboardImportRecord] = []
+        data_rows: list[dict[str, Any]] = []
         for row_number, row in enumerate(workbook.bd_gen_rows, start=2):
             if not any(clean_text(value) for value in row.values()):
                 continue
+            data_rows.append(row)
 
             program_name = _raw_text(row.get("programa"))
             simulation = _raw_text(row.get("sim"))
@@ -177,9 +181,6 @@ class DashboardProcessor:
                     email=_raw_text(row.get("dirección de correo")),
                     student_search_name=search_name,
                     program_name=program_name,
-                    program_raw_name_key=sha256(
-                        program_name.encode("utf-8")
-                    ).hexdigest(),
                     program_normalized_key=normalized_key(program_name),
                     scores=scores,
                     global_raw=raw_global,
@@ -200,8 +201,11 @@ class DashboardProcessor:
                         else None
                     ),
                     semester=semester,
+                    # "4" y "SEMESTRE 4" son el mismo semestre; se guarda el texto original.
                     semester_key=(
-                        normalized_key(semester) if semester is not None else None
+                        normalized_key(canonical_semester(semester))
+                        if semester is not None
+                        else None
                     ),
                     year=_year_value(row.get("año"), row_number, "BD GEN"),
                     simulation=simulation,
@@ -236,4 +240,9 @@ class DashboardProcessor:
             records=tuple(records),
             td_programas_year=selected_year,
             td_programas_records=td_records,
+            program_names=choose_program_names(
+                (record.program_name for record in records),
+                (record.program_name for record in td_records),
+            ),
+            data_quality=assess_data_quality(data_rows),
         )

@@ -77,6 +77,17 @@ class DashboardAuditDifferenceResponse(BaseModel):
     absolute_difference: float
 
 
+class DashboardDataQualityResponse(BaseModel):
+    """Hallazgos de BD GEN que no impiden importar, por clave de competencia."""
+
+    score_codes: dict[str, dict[str, int]] = {}
+    """Textos no numéricos en el puntaje, p. ej. {"comunicacion_escrita": {"N": 254}}."""
+    levels_without_numeric_score: dict[str, int] = {}
+    """Filas con un nivel válido pero sin puntaje numérico."""
+    unknown_levels: dict[str, dict[str, int]] = {}
+    """Niveles que no son válidos ni un código conocido, p. ej. {"ingles": {"false": 2}}."""
+
+
 class DashboardSourceAuditResponse(BaseModel):
     years_in_bd_gen: list[int]
     td_programas_visible_year: int | None
@@ -85,6 +96,8 @@ class DashboardSourceAuditResponse(BaseModel):
     compared_metrics: int
     difference_count: int
     differences: list[DashboardAuditDifferenceResponse]
+    data_quality: DashboardDataQualityResponse | None = None
+    """Ausente en importaciones anteriores a la fase 5."""
 
 
 class DashboardImportResponse(BaseModel):

@@ -93,7 +93,9 @@ def _sheet_xml(rows: list[list[object]]) -> str:
 
 
 def make_dashboard_workbook(
-    global_score: object = 90, td_title_row: bool = True
+    global_score: object = 90,
+    td_title_row: bool = True,
+    first_semester: object = "SEMESTRE 7",
 ) -> bytes:
     first_record = [
         "101",
@@ -109,7 +111,7 @@ def make_dashboard_workbook(
         "PROGRAMA Á",
         None,
         "SABER PRO",
-        "SEMESTRE 7",
+        first_semester,
         2025,
         "SIMULACRO 2025-1 MOMENTO 1",
         None,
@@ -284,7 +286,8 @@ class DashboardTests(unittest.TestCase):
 
         self.assertEqual(response.source_audit.td_programas_visible_year, 2025)
         self.assertEqual(response.source_audit.compared_program_rows, 1)
-        self.assertEqual(response.source_audit.difference_count, 0)
+        # Única diferencia esperada: ver test_import_calculates_metrics_...
+        self.assertEqual(response.source_audit.difference_count, 1)
         stored = self.db.scalar(
             select(TdProgramasReference).where(
                 TdProgramasReference.import_id == response.import_id
@@ -310,12 +313,20 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(response.overview.kpis.not_presented_records, 1)
         self.assertEqual(response.overview.kpis.average_global, 112)
         self.assertEqual(response.source_audit.td_programas_visible_year, 2025)
-        self.assertEqual(response.source_audit.difference_count, 0)
-        self.assertLessEqual(len(response.overview.programs), 50)
+        # "PROGRAMA Á", "Programa A" y "PROGRAMA A" son el mismo programa
+        # (fase 5); se muestra el nombre que usa TD PROGRAMAS.
         self.assertEqual(
-            {program.name for program in response.filters.programs},
-            {"PROGRAMA Á", "Programa A", "PROGRAMA A"},
+            [program.name for program in response.filters.programs],
+            ["PROGRAMA A"],
         )
+        # Al unificarlos, la auditoría compara TD PROGRAMAS con todos los
+        # registros del programa en 2025: las competencias coinciden, pero el
+        # GLOBAL de BD GEN (90) no coincide con el GL de TD (120).
+        self.assertEqual(response.source_audit.difference_count, 1)
+        self.assertEqual(
+            response.source_audit.differences[0].metric, "average_global"
+        )
+        self.assertLessEqual(len(response.overview.programs), 50)
         stored_result = self.db.scalar(
             select(AcademicResult).where(
                 AcademicResult.import_id == response.import_id,
@@ -328,7 +339,7 @@ class DashboardTests(unittest.TestCase):
         program = next(
             item
             for item in response.filters.programs
-            if item.name == "PROGRAMA Á"
+            if item.name == "PROGRAMA A"
         )
         program_response = service.get_program(
             self.db,
