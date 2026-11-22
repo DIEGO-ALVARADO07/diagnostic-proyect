@@ -15,7 +15,7 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 |---|---|---|
 | 1 | Higiene del repositorio, `.env.example`, logging y script de tareas | Completada |
 | 2 | Caché del dataset del dashboard por importación | Completada |
-| 3 | Enum de estados, limpieza de archivos de compatibilidad, errores uniformes | Pendiente |
+| 3 | Enum de estados, limpieza de archivos de compatibilidad, errores uniformes | Completada |
 | 4 | División de `DashboardService`, puntajes por clave, `Base` y migraciones en `core` | Pendiente |
 | 5 | Identidad de programas y regla del global calculado (requiere decisión de negocio) | Pendiente |
 | 6 | Ajustes de seguridad, CI y frontend | Pendiente |
@@ -32,3 +32,7 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 006 | 2 | [Caché en memoria del dataset del dashboard](006-cache-dataset-dashboard.md) |
 | 007 | 2 | [Memoizar `normalized_key`](007-memoizar-normalized-key.md) |
 | 008 | 2 | [Tests de la caché, benchmark y ajuste de `tasks.ps1 test`](008-tests-y-benchmark-fase-2.md) |
+| 009 | 3 | [Enum `ImportStatus` y constantes del dashboard](009-enum-estados-importacion.md) |
+| 010 | 3 | [Sesión de BD en `core` y eliminación de archivos de compatibilidad](010-sesion-bd-y-shims.md) |
+| 011 | 3 | [Errores uniformes: `ApplicationError` y `HTTPStatus`](011-errores-uniformes.md) |
+| 012 | 3 | [Correcciones a `tasks.ps1` (errores de la entrada 004)](012-correcciones-tasks-ps1.md) |

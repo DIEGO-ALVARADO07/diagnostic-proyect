@@ -5,7 +5,6 @@ from xml.sax.saxutils import escape
 import unittest
 from hashlib import sha256
 
-from fastapi import HTTPException
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
@@ -558,7 +557,7 @@ class DashboardTests(unittest.TestCase):
         )
         role_guard = delete_route.dependant.dependencies[0].call
 
-        with self.assertRaises(HTTPException) as error:
+        with self.assertRaises(ApplicationError) as error:
             role_guard(self.instructor)
         self.assertEqual(error.exception.status_code, 403)
 
@@ -580,7 +579,7 @@ class DashboardTests(unittest.TestCase):
             and "GET" in route.methods
         )
         list_role_guard = list_route.dependant.dependencies[0].call
-        with self.assertRaises(HTTPException) as list_error:
+        with self.assertRaises(ApplicationError) as list_error:
             list_role_guard(self.instructor)
         self.assertEqual(list_error.exception.status_code, 403)
         self.assertIs(list_role_guard(superadmin), superadmin)
@@ -592,7 +591,7 @@ class DashboardTests(unittest.TestCase):
             and "GET" in route.methods
         )
         history_role_guard = history_route.dependant.dependencies[0].call
-        with self.assertRaises(HTTPException) as history_error:
+        with self.assertRaises(ApplicationError) as history_error:
             history_role_guard(self.instructor)
         self.assertEqual(history_error.exception.status_code, 403)
         self.assertIs(history_role_guard(superadmin), superadmin)

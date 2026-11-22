@@ -20,8 +20,8 @@ from modules.excel.dtos.responses.dashboard import (
 from modules.excel.dtos.responses.read_workbook import ReadWorkbookResponse
 from modules.excel.services.excel_service import ExcelService, MAX_UPLOAD_BYTES
 from modules.excel.services.dashboard_service import DashboardService, MAX_PAGE_SIZE
+from core.db_session import DbSession
 from modules.security.dependencies import CurrentAccount, require_roles
-from modules.security.dependencies import DbSession
 from modules.security.entities.role import Role
 
 logger = logging.getLogger(__name__)

@@ -1,6 +1,5 @@
 import unittest
 
-from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
@@ -8,13 +7,16 @@ from sqlalchemy.orm import sessionmaker
 from core.exceptions import ApplicationError
 from modules.security.dtos.requests.auth import LoginRequest
 from modules.security.dependencies import require_roles
-from modules.security.models import AccessToken, Account, AuthBase
-from modules.security.permission import Permission
-from modules.security.role import Role, has_permission
+from modules.security.entities import AccessToken, Account, AuthBase
+from modules.security.entities.permission import Permission
+from modules.security.entities.role import Role, has_permission
 from modules.security.security import hash_password, verify_password
 from modules.security.services.auth_service import AuthService
 from modules.security.services.user_service import UserService
-from modules.security.user import UserCreate, UserUpdate
+from modules.security.dtos.requests.users import (
+    UserCreateRequest as UserCreate,
+    UserUpdateRequest as UserUpdate,
+)
 
 
 class PasswordSecurityTests(unittest.TestCase):
@@ -58,7 +60,7 @@ class RolePermissionTests(unittest.TestCase):
             is_active=True,
         )
 
-        with self.assertRaises(HTTPException) as error:
+        with self.assertRaises(ApplicationError) as error:
             instructor_only(student)
 
         self.assertEqual(error.exception.status_code, 403)

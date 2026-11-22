@@ -1,29 +1,37 @@
-from typing import Annotated, Callable
+from collections.abc import Callable
+from http import HTTPStatus
+from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.orm import Session
 
-from modules.security.database import get_db
+from core.db_session import DbSession
+from core.exceptions import ApplicationError
 from modules.security.entities import AccessToken, Account, utcnow
 from modules.security.entities.permission import Permission
+from modules.security.entities.role import Role, has_permission
 from modules.security.repositories.account_repository import AccountRepository
 from modules.security.repositories.token_repository import TokenRepository
-from modules.security.entities.role import Role, has_permission
 from modules.security.security import hash_access_token
 
 _bearer_scheme = HTTPBearer(auto_error=False)
-DbSession = Annotated[Session, Depends(get_db)]
 BearerCredentials = Annotated[
     HTTPAuthorizationCredentials | None, Depends(_bearer_scheme)
 ]
 
 
-def _unauthorized() -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Credenciales de acceso inválidas o vencidas.",
+def _unauthorized() -> ApplicationError:
+    return ApplicationError(
+        HTTPStatus.UNAUTHORIZED,
+        "Credenciales de acceso inválidas o vencidas.",
         headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def _forbidden() -> ApplicationError:
+    return ApplicationError(
+        HTTPStatus.FORBIDDEN,
+        "No tienes permisos para realizar esta acción.",
     )
 
 
@@ -61,10 +69,7 @@ CurrentAccount = Annotated[Account, Depends(get_current_account)]
 def require_roles(*allowed_roles: Role) -> Callable[..., Account]:
     def dependency(account: CurrentAccount) -> Account:
         if Role(account.role) not in allowed_roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes permisos para realizar esta acción.",
-            )
+            raise _forbidden()
         return account
 
     return dependency
@@ -73,10 +78,7 @@ def require_roles(*allowed_roles: Role) -> Callable[..., Account]:
 def require_permission(permission: Permission) -> Callable[..., Account]:
     def dependency(account: CurrentAccount) -> Account:
         if not has_permission(Role(account.role), permission):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes permisos para realizar esta acción.",
-            )
+            raise _forbidden()
         return account
 
     return dependency

@@ -6,10 +6,13 @@ import fastexcel
 
 from core.exceptions import ApplicationError
 from modules.excel.dtos.requests.read_workbook import ReadWorkbookRequest
+from modules.excel.repositories.workbook_repository import (
+    SheetSelectionError,
+    WorkbookRepository,
+)
 from modules.excel.services.excel_service import ExcelService
-from modules.excel.service import SheetSelectionError, read_first_sheet
-from modules.security.models import Account
-from modules.security.role import Role
+from modules.security.entities import Account
+from modules.security.entities.role import Role
 
 
 def make_workbook() -> bytes:
@@ -70,6 +73,14 @@ def make_workbook() -> bytes:
         for path, content in files.items():
             archive.writestr(path, content)
     return workbook.getvalue()
+
+
+def read_first_sheet(
+    content: bytes, filename: str, sheet_name: str | None = None
+) -> dict[str, object]:
+    """Lee una hoja con el repositorio y la serializa como la respuesta de la API."""
+    workbook = WorkbookRepository().read_sheet(content, filename, sheet_name)
+    return ExcelService.response_from_entity(workbook).model_dump()
 
 
 class ExcelServiceTests(unittest.TestCase):

@@ -18,6 +18,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from modules.excel.entities.import_status import (
+    SNAPSHOT_DATASET_MODE,
+    ImportStatus,
+    status_sql_check,
+)
 from modules.security.entities.base import AuthBase, utcnow
 
 
@@ -25,11 +30,11 @@ class ExcelImport(AuthBase):
     __tablename__ = "excel_imports"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('PROCESSING', 'VALIDATED', 'ACTIVE', 'HISTORICAL', 'FAILED')",
+            status_sql_check(),
             name="ck_excel_imports_status",
         ),
         CheckConstraint(
-            "dataset_mode = 'SNAPSHOT'",
+            f"dataset_mode = '{SNAPSHOT_DATASET_MODE}'",
             name="ck_excel_imports_dataset_mode",
         ),
         Index("ix_excel_imports_status_imported_at", "status", "imported_at"),
@@ -48,10 +53,10 @@ class ExcelImport(AuthBase):
         DateTime, nullable=False, default=utcnow
     )
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="PROCESSING"
+        String(20), nullable=False, default=ImportStatus.PROCESSING.value
     )
     dataset_mode: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="SNAPSHOT"
+        String(20), nullable=False, default=SNAPSHOT_DATASET_MODE
     )
     bd_gen_row_count: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0

@@ -18,7 +18,7 @@ from modules.excel.entities.academic import (
     ExcelImport,
     TdProgramasReference,
 )
-from modules.security.models import AuthBase
+from modules.security.entities import AuthBase
 from modules.security.services.migration_service import SecurityMigrationService
 
 _ACADEMIC_MODELS = (

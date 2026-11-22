@@ -16,7 +16,6 @@ from core.exceptions import ApplicationError
 from modules.excel.entities.academic import (
     AcademicProgram,
     AcademicResult,
-    DashboardState,
     ExcelImport,
     TdProgramasReference,
 )
@@ -44,6 +43,13 @@ from modules.excel.entities.dashboard import (
     DashboardDataset,
     DashboardRecord,
 )
+from modules.excel.entities.import_status import (
+    DEACTIVATABLE_STATUSES,
+    DELETED_STATUS_LABEL,
+    SNAPSHOT_DATASET_MODE,
+    SNAPSHOT_STATUSES,
+    ImportStatus,
+)
 from modules.excel.repositories.dashboard_repository import (
     DashboardWorkbookError,
     DashboardWorkbookRepository,
@@ -68,8 +74,6 @@ from modules.security.entities.base import utcnow
 from modules.security.entities.role import Role
 
 MAX_PAGE_SIZE = 50
-# Solo estos estados son instantáneas completas e inmutables que se pueden cachear.
-_CACHEABLE_STATUSES = frozenset({"ACTIVE", "HISTORICAL"})
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +118,7 @@ class DashboardService:
                     HTTPStatus.CONFLICT,
                     "Este archivo fue desactivado y no se puede importar de nuevo.",
                 )
-            if existing.status in {"ACTIVE", "HISTORICAL"}:
+            if existing.status in SNAPSHOT_STATUSES:
                 return self._import_response(db, existing)
             raise ApplicationError(
                 HTTPStatus.CONFLICT,
@@ -126,8 +130,8 @@ class DashboardService:
             filename=safe_filename,
             file_sha256=file_hash,
             imported_by_user_id=account.id,
-            status="PROCESSING",
-            dataset_mode="SNAPSHOT",
+            status=ImportStatus.PROCESSING,
+            dataset_mode=SNAPSHOT_DATASET_MODE,
             bd_gen_row_count=0,
             td_programas_row_count=0,
             inserted_count=0,
@@ -142,7 +146,7 @@ class DashboardService:
             if (
                 existing is not None
                 and existing.deleted_at is None
-                and existing.status in {"ACTIVE", "HISTORICAL"}
+                and existing.status in SNAPSHOT_STATUSES
             ):
                 return self._import_response(db, existing)
             raise ApplicationError(
@@ -154,13 +158,9 @@ class DashboardService:
             sheets = self.repository.read_sheets(request.content)
             data = self.processor.process(safe_filename, sheets)
             self.persistence.persist_snapshot(db, import_row, data)
-            import_row.status = "VALIDATED"
+            import_row.status = ImportStatus.VALIDATED
             db.flush()
-            dashboard_state = db.scalar(
-                select(DashboardState)
-                .where(DashboardState.id == 1)
-                .with_for_update()
-            )
+            dashboard_state = self.persistence.lock_dashboard_state(db)
             if dashboard_state is None:
                 raise RuntimeError(
                     "No existe el estado inicial del dashboard; "
@@ -172,8 +172,8 @@ class DashboardService:
                 else None
             )
             if active_import is not None:
-                active_import.status = "HISTORICAL"
-            import_row.status = "ACTIVE"
+                active_import.status = ImportStatus.HISTORICAL
+            import_row.status = ImportStatus.ACTIVE
             import_row.activated_at = utcnow()
             dashboard_state.active_import_id = import_row.id
             db.commit()
@@ -203,31 +203,20 @@ class DashboardService:
         return self._import_response(db, import_row)
 
     def list_imports(self, db: Session, limit: int) -> DashboardImportListResponse:
-        imports = self.persistence.list_imports(db, limit)
-        return DashboardImportListResponse(
-            active_import_id=self.persistence.get_active_import_id(db),
-            imports=[
-                DashboardImportListItemResponse(
-                    import_id=item.id,
-                    filename=item.filename,
-                    status=(
-                        "DELETED" if item.deleted_at is not None else item.status
-                    ),
-                    imported_at=item.imported_at,
-                    activated_at=item.activated_at,
-                    bd_gen_row_count=item.bd_gen_row_count,
-                    td_programas_row_count=item.td_programas_row_count,
-                    td_programas_selected_year=item.td_programas_selected_year,
-                    deleted_at=item.deleted_at,
-                )
-                for item in imports
-            ],
+        return self._import_list_response(
+            db, self.persistence.list_imports(db, limit)
         )
 
     def list_admin_imports(
         self, db: Session, limit: int
     ) -> DashboardImportListResponse:
-        imports = self.persistence.list_all_imports(db, limit)
+        return self._import_list_response(
+            db, self.persistence.list_all_imports(db, limit)
+        )
+
+    def _import_list_response(
+        self, db: Session, imports: list[ExcelImport]
+    ) -> DashboardImportListResponse:
         return DashboardImportListResponse(
             active_import_id=self.persistence.get_active_import_id(db),
             imports=[
@@ -235,7 +224,9 @@ class DashboardService:
                     import_id=item.id,
                     filename=item.filename,
                     status=(
-                        "DELETED" if item.deleted_at is not None else item.status
+                        DELETED_STATUS_LABEL
+                        if item.deleted_at is not None
+                        else item.status
                     ),
                     imported_at=item.imported_at,
                     activated_at=item.activated_at,
@@ -249,11 +240,7 @@ class DashboardService:
         )
 
     def delete_import(self, db: Session, import_id: str) -> None:
-        dashboard_state = db.scalar(
-            select(DashboardState)
-            .where(DashboardState.id == 1)
-            .with_for_update()
-        )
+        dashboard_state = self.persistence.lock_dashboard_state(db)
         if dashboard_state is None:
             raise ApplicationError(
                 HTTPStatus.CONFLICT,
@@ -271,7 +258,7 @@ class DashboardService:
             )
         if import_row.deleted_at is not None:
             return
-        if import_row.status not in {"ACTIVE", "HISTORICAL", "FAILED"}:
+        if import_row.status not in DEACTIVATABLE_STATUSES:
             raise ApplicationError(
                 HTTPStatus.CONFLICT,
                 "Solo se pueden desactivar importaciones activas, históricas o fallidas.",
@@ -315,7 +302,7 @@ class DashboardService:
             raise RuntimeError(
                 "No se pudo recuperar el registro de importación fallido."
             ) from error
-        import_row.status = "FAILED"
+        import_row.status = ImportStatus.FAILED
         import_row.validation_summary = {
             "status": "failed",
             "error_type": type(error).__name__,
@@ -806,11 +793,11 @@ class DashboardService:
         if (
             import_row is None
             or import_row.deleted_at is not None
-            or import_row.status not in {"ACTIVE", "HISTORICAL"}
+            or import_row.status not in SNAPSHOT_STATUSES
             or (
                 account is not None
                 and Role(account.role) is not Role.SUPERADMIN
-                and import_row.status != "ACTIVE"
+                and import_row.status != ImportStatus.ACTIVE
             )
         ):
             raise ApplicationError(
@@ -828,7 +815,7 @@ class DashboardService:
         """
         cacheable = (
             import_row.deleted_at is None
-            and import_row.status in _CACHEABLE_STATUSES
+            and import_row.status in SNAPSHOT_STATUSES
         )
         if cacheable:
             cached = self.dataset_cache.get(import_row.id)

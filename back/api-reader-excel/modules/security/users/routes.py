@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.orm import Session
 
-from modules.security.database import get_db
+from core.db_session import DbSession
 from modules.security.dependencies import CurrentAccount, require_permission, require_roles
 from modules.security.dtos.requests.users import (
     ProfileUpdateRequest,
@@ -9,8 +8,8 @@ from modules.security.dtos.requests.users import (
     UserUpdateRequest,
 )
 from modules.security.dtos.responses.users import UserResponse
-from modules.security.permission import Permission
-from modules.security.role import Role
+from modules.security.entities.permission import Permission
+from modules.security.entities.role import Role
 from modules.security.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -23,7 +22,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 )
 def list_users(
     account: CurrentAccount,
-    db: Session = Depends(get_db),
+    db: DbSession,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=100),
 ) -> list[UserResponse]:
@@ -39,7 +38,7 @@ def list_users(
 def create_user(
     payload: UserCreateRequest,
     account: CurrentAccount,
-    db: Session = Depends(get_db),
+    db: DbSession,
 ) -> UserResponse:
     return UserService(db).create_user(payload, account)
 
@@ -53,14 +52,14 @@ def read_my_profile(account: CurrentAccount) -> UserResponse:
 def update_my_profile(
     payload: ProfileUpdateRequest,
     account: CurrentAccount,
-    db: Session = Depends(get_db),
+    db: DbSession,
 ) -> UserResponse:
     return UserService(db).update_my_profile(payload, account)
 
 
 @router.get("/{user_id}", response_model=UserResponse)
 def read_user(
-    user_id: int, account: CurrentAccount, db: Session = Depends(get_db)
+    user_id: int, account: CurrentAccount, db: DbSession
 ) -> UserResponse:
     return UserService(db).read_user(user_id, account)
 
@@ -70,7 +69,7 @@ def update_user(
     user_id: int,
     payload: UserUpdateRequest,
     account: CurrentAccount,
-    db: Session = Depends(get_db),
+    db: DbSession,
 ) -> UserResponse:
     return UserService(db).update_user(user_id, payload, account)
 
@@ -83,6 +82,6 @@ def update_user(
 def deactivate_user(
     user_id: int,
     account: CurrentAccount,
-    db: Session = Depends(get_db),
+    db: DbSession,
 ) -> None:
     UserService(db).deactivate_user(user_id, account)

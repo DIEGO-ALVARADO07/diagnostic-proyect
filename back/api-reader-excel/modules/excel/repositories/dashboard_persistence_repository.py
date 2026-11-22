@@ -12,6 +12,10 @@ from modules.excel.entities.academic import (
     TdProgramasReference,
 )
 from modules.excel.entities.dashboard import DashboardImportData
+from modules.excel.entities.import_status import (
+    DASHBOARD_STATE_ID,
+    DEACTIVATABLE_STATUSES,
+)
 from modules.security.entities.base import utcnow
 
 _INSERT_BATCH_SIZE = 500
@@ -29,13 +33,24 @@ class DashboardPersistenceRepository:
         return db.get(ExcelImport, import_id)
 
     def get_active_import(self, db: Session) -> ExcelImport | None:
-        state = db.get(DashboardState, 1)
+        state = db.get(DashboardState, DASHBOARD_STATE_ID)
         if state is None or state.active_import_id is None:
             return None
         return db.get(ExcelImport, state.active_import_id)
 
+    def lock_dashboard_state(self, db: Session) -> DashboardState | None:
+        """Bloquea (SELECT ... FOR UPDATE) la fila única del estado del dashboard.
+
+        Serializa activaciones y desactivaciones concurrentes de importaciones.
+        """
+        return db.scalar(
+            select(DashboardState)
+            .where(DashboardState.id == DASHBOARD_STATE_ID)
+            .with_for_update()
+        )
+
     def get_active_import_id(self, db: Session) -> str | None:
-        state = db.get(DashboardState, 1)
+        state = db.get(DashboardState, DASHBOARD_STATE_ID)
         return state.active_import_id if state is not None else None
 
     def list_imports(self, db: Session, limit: int) -> list[ExcelImport]:
@@ -45,8 +60,8 @@ class DashboardPersistenceRepository:
                 .where(
                     ExcelImport.deleted_at.is_(None),
                     ExcelImport.status.in_(
-                        ("ACTIVE", "HISTORICAL", "FAILED")
-                    )
+                        [status.value for status in DEACTIVATABLE_STATUSES]
+                    ),
                 )
                 .order_by(ExcelImport.imported_at.desc())
                 .limit(limit)

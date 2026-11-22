@@ -1,10 +1,11 @@
 from datetime import timedelta
+from http import HTTPStatus
 
 from core.exceptions import ApplicationError
 from modules.security.dtos.requests.auth import LoginRequest
 from modules.security.dtos.responses.auth import LoginResponse
 from modules.security.dtos.responses.users import UserResponse
-from modules.security.entities import AccessToken, Account, utcnow
+from modules.security.entities import AccessToken, utcnow
 from modules.security.repositories.account_repository import AccountRepository
 from modules.security.repositories.token_repository import TokenRepository
 from modules.security.security import (
@@ -35,7 +36,7 @@ class AuthService:
             )
         ):
             raise ApplicationError(
-                401,
+                HTTPStatus.UNAUTHORIZED,
                 "Usuario o contraseña incorrectos.",
                 headers={"WWW-Authenticate": "Bearer"},
             )

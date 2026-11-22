@@ -1,4 +1,5 @@
 from http import HTTPStatus
+
 from pydantic import SecretStr
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -59,7 +60,7 @@ class UserService:
     ) -> UserResponse:
         changes = self._changes(payload)
         if not changes:
-            raise ApplicationError(422, "No se enviaron cambios.")
+            raise ApplicationError(HTTPStatus.UNPROCESSABLE_ENTITY, "No se enviaron cambios.")
         self._apply_changes(actor, changes)
         return self._commit(actor)
 
@@ -67,14 +68,14 @@ class UserService:
         role = Role(actor.role)
         if role == Role.ESTUDIANTE:
             if user_id != actor.id:
-                raise ApplicationError(403, "Solo puedes consultar tu perfil.")
+                raise ApplicationError(HTTPStatus.FORBIDDEN, "Solo puedes consultar tu perfil.")
             return UserResponse.model_validate(actor)
         if not has_permission(role, Permission.READ_USERS):
-            raise ApplicationError(403, "No tienes permisos para consultar usuarios.")
+            raise ApplicationError(HTTPStatus.FORBIDDEN, "No tienes permisos para consultar usuarios.")
 
         target = self._active_user_or_404(user_id)
         if role == Role.INSTRUCTOR and target.role == Role.SUPERADMIN.value:
-            raise ApplicationError(404, "Usuario no encontrado.")
+            raise ApplicationError(HTTPStatus.NOT_FOUND, "Usuario no encontrado.")
         return UserResponse.model_validate(target)
 
     def update_user(
@@ -82,30 +83,30 @@ class UserService:
     ) -> UserResponse:
         role = Role(actor.role)
         if role == Role.ESTUDIANTE and user_id != actor.id:
-            raise ApplicationError(403, "Solo puedes editar tus propios datos.")
+            raise ApplicationError(HTTPStatus.FORBIDDEN, "Solo puedes editar tus propios datos.")
 
         target = actor if user_id == actor.id else self._active_user_or_404(user_id)
         changes = self._changes(payload)
         if not changes:
-            raise ApplicationError(422, "No se enviaron cambios.")
+            raise ApplicationError(HTTPStatus.UNPROCESSABLE_ENTITY, "No se enviaron cambios.")
 
         if role == Role.ESTUDIANTE:
             if "username" in changes or "role" in changes:
-                raise ApplicationError(403, "No puedes cambiar tu usuario ni tu rol.")
+                raise ApplicationError(HTTPStatus.FORBIDDEN, "No puedes cambiar tu usuario ni tu rol.")
         elif role == Role.INSTRUCTOR:
             if target.role == Role.SUPERADMIN.value:
-                raise ApplicationError(403, "No puedes modificar superadmins.")
+                raise ApplicationError(HTTPStatus.FORBIDDEN, "No puedes modificar superadmins.")
             if "username" in changes or "role" in changes:
-                raise ApplicationError(403, "No puedes cambiar usuarios ni roles.")
+                raise ApplicationError(HTTPStatus.FORBIDDEN, "No puedes cambiar usuarios ni roles.")
             if target.id != actor.id and "password" in changes:
                 raise ApplicationError(
-                    403, "Solo puedes cambiar tu propia contraseña."
+                    HTTPStatus.FORBIDDEN, "Solo puedes cambiar tu propia contraseña."
                 )
 
         if role == Role.SUPERADMIN and target.role == Role.SUPERADMIN.value:
             if "role" in changes:
                 raise ApplicationError(
-                    403, "No se puede cambiar el rol de un superadmin."
+                    HTTPStatus.FORBIDDEN, "No se puede cambiar el rol de un superadmin."
                 )
 
         self._apply_changes(target, changes)
@@ -120,7 +121,7 @@ class UserService:
             )
             if active_superadmins <= 1:
                 raise ApplicationError(
-                    409, "No se puede desactivar el último superadmin activo."
+                    HTTPStatus.CONFLICT, "No se puede desactivar el último superadmin activo."
                 )
 
         target.is_active = False
@@ -130,12 +131,12 @@ class UserService:
     @staticmethod
     def _require_superadmin(actor: Account) -> None:
         if Role(actor.role) != Role.SUPERADMIN:
-            raise ApplicationError(403, "No tienes permisos para realizar esta acción.")
+            raise ApplicationError(HTTPStatus.FORBIDDEN, "No tienes permisos para realizar esta acción.")
 
     def _active_user_or_404(self, user_id: int) -> Account:
         account = self.accounts.get_active_by_id(user_id)
         if account is None:
-            raise ApplicationError(404, "Usuario no encontrado.")
+            raise ApplicationError(HTTPStatus.NOT_FOUND, "Usuario no encontrado.")
         return account
 
     @staticmethod

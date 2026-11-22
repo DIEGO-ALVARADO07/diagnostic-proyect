@@ -10,7 +10,8 @@ La guía de integración de la aplicación PHP está en [`front/README.md`](../.
 - `dtos/requests` valida las entradas; `dtos/responses` limita explícitamente los datos que se entregan al frontend. No se serializan entidades ORM directamente.
 - `services` contiene los casos de uso y reglas de negocio.
 - `repositories` concentra las consultas y el acceso a datos o al lector de archivos.
-- `entities` contiene los modelos ORM (`Account`, `AccessToken`, `AuthBase`) y los tipos del dominio (`Role`, `Permission`). Los módulos anteriores `models.py`, `role.py` y `permission.py` se conservan como fachadas de compatibilidad; las tablas y columnas no cambian.
+- `entities` contiene los modelos ORM (`Account`, `AccessToken`, `AuthBase`) y los tipos del dominio (`Role`, `Permission`, `ImportStatus`). Los antiguos módulos de compatibilidad (`models.py`, `role.py`, `permission.py`, `user.py`, `excel/service.py`) se eliminaron; importa siempre desde `entities` o `dtos`.
+- Los errores de negocio y de autorización se lanzan como `core.exceptions.ApplicationError` con un código `HTTPStatus`; la app los convierte en `{"detail": ...}`.
 - `modules/security/migrations` conserva las migraciones Alembic de seguridad y del dashboard académico; ambas comparten `AuthBase` y se aplican en orden.
 
 ## Pasos realizados
@@ -152,7 +153,7 @@ Las pruebas no necesitan `core/.env` ni conexión a MySQL.
 
 1. Uvicorn importa `app:app`; `app.create_app()` crea FastAPI y agrega el router central de `api`.
 2. `api` ensambla los routers de autenticación, usuarios y Excel. Las reglas de negocio permanecen dentro de sus módulos.
-3. Las rutas que requieren base de datos obtienen una sesión con `modules/security/database.py`; esta importa `core.database.SessionLocal` de forma diferida y cierra la sesión al terminar la petición.
+3. Las rutas que requieren base de datos declaran `db: DbSession` (`core/db_session.py`). `get_db` importa `core.database.SessionLocal` de forma diferida y cierra la sesión al terminar la petición; por eso la app y las pruebas se construyen sin `core/.env`.
 
 ### Inicio de sesión y autorización
 

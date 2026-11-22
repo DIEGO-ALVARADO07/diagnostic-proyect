@@ -1,3 +1,5 @@
+from http import HTTPStatus
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -18,7 +20,7 @@ class BootstrapService:
     ) -> None:
         if self.accounts.exists_with_role(Role.SUPERADMIN.value):
             raise ApplicationError(
-                409,
+                HTTPStatus.CONFLICT,
                 "Ya existe una cuenta superadmin; el aprovisionamiento inicial se canceló.",
             )
 
@@ -36,6 +38,6 @@ class BootstrapService:
         except IntegrityError:
             self.db.rollback()
             raise ApplicationError(
-                409,
+                HTTPStatus.CONFLICT,
                 "No se pudo crear el superadmin: el usuario o correo ya existe.",
             ) from None

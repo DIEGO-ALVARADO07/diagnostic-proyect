@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Tareas comunes del backend: instalar, migrar, crear el superadmin, probar y arrancar la API.
 
@@ -44,7 +44,8 @@ function Assert-EnvFile {
         throw "Falta core\.env. Copia la plantilla y complétala: Copy-Item core\.env.example core\.env"
     }
     # Solo comprueba si hay valores cifrados; no muestra ningún valor.
-    $hasEncryptedValues = Select-String -Path $EnvFile -Pattern "=\s*gAAAAAB" -Quiet
+    # Acepta valores con o sin comillas: DB_USER=gAAAAAB... o DB_USER = "gAAAAAB..."
+    $hasEncryptedValues = Select-String -Path $EnvFile -Pattern '=\s*["'']?gAAAAAB' -Quiet
     if ($hasEncryptedValues -and -not $env:APP_MASTER_KEY) {
         throw "core\.env tiene credenciales cifradas. Define APP_MASTER_KEY en esta terminal: `$env:APP_MASTER_KEY = '<clave>'"
     }
