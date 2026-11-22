@@ -6,6 +6,7 @@ El backend de este proyecto es una API FastAPI modular. Su código está en [`ap
 
 - [Guía técnica del backend](./api-reader-excel/IMPLEMENTATION.md): arquitectura, roles y permisos, endpoints, configuración de base de datos, migraciones, ejecución y pruebas.
 - [Guía del frontend](../front/README.md): aplicación PHP, pantallas por rol, integración con la API y ejecución local.
+- **Rama `docs`** del repositorio: documentación completa del proyecto (`docs/`), incluida la guía de instalación y uso (`docs/03-instalacion-y-operacion.md`) y la **bitácora de cambios** (`docs/bitacora/`), donde se registra en orden qué se cambió, dónde y por qué.
 
 La guía técnica es la referencia actual para arrancar esta versión modular de la API. [`note.md`](./note.md) conserva notas previas del entorno y puede mencionar una estructura anterior.
 
