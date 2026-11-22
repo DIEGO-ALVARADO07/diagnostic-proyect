@@ -5,7 +5,8 @@ from core.exceptions import ApplicationError
 from modules.security.dtos.requests.auth import LoginRequest
 from modules.security.dtos.responses.auth import LoginResponse
 from modules.security.dtos.responses.users import UserResponse
-from modules.security.entities import AccessToken, utcnow
+from core.orm import utcnow
+from modules.security.entities import AccessToken
 from modules.security.repositories.account_repository import AccountRepository
 from modules.security.repositories.token_repository import TokenRepository
 from modules.security.security import (

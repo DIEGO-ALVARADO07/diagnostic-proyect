@@ -25,7 +25,8 @@ from modules.excel.dtos.requests.dashboard import DashboardFilterQuery
 from modules.excel.dtos.requests.read_workbook import ReadWorkbookRequest
 from modules.excel.entities.academic import DashboardState
 from modules.excel.services.dashboard_service import DashboardService
-from modules.security.entities import Account, AuthBase
+from core.orm import Base
+from modules.security.entities import Account
 from modules.security.entities.role import Role
 from tests.test_dashboard import BD_HEADERS, _sheet_xml
 
@@ -119,7 +120,7 @@ def timed(label: str, func) -> None:
 
 def main() -> None:
     engine = create_engine("sqlite://")
-    AuthBase.metadata.create_all(engine)
+    Base.metadata.create_all(engine)
     db = Session(engine)
     account = Account(
         id=1, username="bench", email="b@example.com", full_name="Bench",

@@ -2,6 +2,7 @@ from hashlib import sha256
 from math import isfinite
 from typing import Any
 
+from modules.excel.entities.competency import COMPETENCIES
 from modules.excel.entities.dashboard import (
     DashboardImportData,
     DashboardImportRecord,
@@ -19,20 +20,8 @@ from modules.excel.services.dashboard_normalizer import (
     numeric_value,
 )
 
-SCORE_HEADERS = (
-    "lectura crítica",
-    "comunicación escrita",
-    "competencias ciudadanas",
-    "razonamiento cuantitativo",
-    "inglés",
-)
-LEVEL_HEADERS = (
-    "n: lectura crítica",
-    "n: comunicación escrita",
-    "n: competencias ciudadanas",
-    "n: razonamiento cuantitativo",
-    "n: inglés",
-)
+# Columnas de TD PROGRAMAS después de PROGRAMA: una por competencia y dos GL.
+_TD_AVERAGE_COLUMNS = len(COMPETENCIES) + 2
 
 
 def _raw_text(value: Any) -> str | None:
@@ -100,7 +89,7 @@ def _td_programas_records(
         if (
             current_simulation is None
             or first_value is None
-            or len(values) < 8
+            or len(values) < 1 + _TD_AVERAGE_COLUMNS
         ):
             continue
 
@@ -115,10 +104,17 @@ def _td_programas_records(
                 simulation_key=normalized_key(current_simulation),
                 program_name=program_name,
                 program_normalized_key=normalized_key(program_name),
-                averages=tuple(decimal_value(value) for value in values[1:8]),
+                competency_averages={
+                    competency.key: decimal_value(value)
+                    for competency, value in zip(
+                        COMPETENCIES, values[1 : 1 + len(COMPETENCIES)]
+                    )
+                },
+                global_average=decimal_value(values[1 + len(COMPETENCIES)]),
+                competency_mean=decimal_value(values[2 + len(COMPETENCIES)]),
                 source_payload={
                     f"column_{index + 2}": _json_value(value)
-                    for index, value in enumerate(values[:8])
+                    for index, value in enumerate(values[: 1 + _TD_AVERAGE_COLUMNS])
                 },
             )
         )
@@ -162,9 +158,10 @@ class DashboardProcessor:
                 if clean_text(value)
             ]
             search_name = normalized_key(" ".join(name_parts)) or None
-            scores = tuple(
-                decimal_value(row.get(header)) for header in SCORE_HEADERS
-            )
+            scores = {
+                competency.key: decimal_value(row.get(competency.score_header))
+                for competency in COMPETENCIES
+            }
             raw_global = _raw_text(row.get("global"))
             applies_raw = _raw_text(row.get("aplica simulacro"))
             semester = _raw_text(row.get("semestre"))
@@ -188,11 +185,12 @@ class DashboardProcessor:
                     global_raw=raw_global,
                     global_score=decimal_value(row.get("global")),
                     global_calculated_score=(
+                        # Regla del Excel institucional: puntaje vacío cuenta como 0.
                         sum(
-                            (score or 0 for score in scores),
+                            (score or 0 for score in scores.values()),
                             start=0,
                         )
-                        / 5
+                        / len(COMPETENCIES)
                     ),
                     moment=_raw_text(row.get("momento")),
                     test_type=assessment_type,
@@ -212,9 +210,10 @@ class DashboardProcessor:
                     group_key=normalized_key(group) if group is not None else None,
                     presented=_presentation_value(row.get("aplica simulacro")),
                     presented_raw=applies_raw,
-                    levels=tuple(
-                        _raw_text(row.get(header)) for header in LEVEL_HEADERS
-                    ),
+                    levels={
+                        competency.key: _raw_text(row.get(competency.level_header))
+                        for competency in COMPETENCIES
+                    },
                     campus=_raw_text(row.get("sede")),
                     training_applied=_raw_text(
                         row.get("aplico entrenamiento")

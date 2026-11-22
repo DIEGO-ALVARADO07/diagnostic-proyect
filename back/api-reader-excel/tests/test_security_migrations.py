@@ -18,8 +18,8 @@ from modules.excel.entities.academic import (
     ExcelImport,
     TdProgramasReference,
 )
-from modules.security.entities import AuthBase
-from modules.security.services.migration_service import SecurityMigrationService
+from core.orm import Base
+from migrations.runner import DatabaseMigrationService
 
 _ACADEMIC_MODELS = (
     AcademicProgram,
@@ -35,7 +35,7 @@ _ACADEMIC_MODELS = (
 def security_metadata() -> MetaData:
     metadata = MetaData()
     for table_name in ("api_users", "api_access_tokens"):
-        AuthBase.metadata.tables[table_name].to_metadata(metadata)
+        Base.metadata.tables[table_name].to_metadata(metadata)
     return metadata
 
 
@@ -43,14 +43,12 @@ class SecurityMigrationTests(unittest.TestCase):
     def test_migration_chain_matches_models_and_downgrades(self) -> None:
         self.assertTrue(
             all(
-                model.__tablename__ in AuthBase.metadata.tables
+                model.__tablename__ in Base.metadata.tables
                 for model in _ACADEMIC_MODELS
             )
         )
         migration_path = (
             Path(__file__).resolve().parents[1]
-            / "modules"
-            / "security"
             / "migrations"
             / "versions"
             / "0001_create_security_tables.py"
@@ -99,10 +97,10 @@ class SecurityMigrationTests(unittest.TestCase):
 
                 self.assertEqual(
                     set(inspect(connection).get_table_names()),
-                    set(AuthBase.metadata.tables),
+                    set(Base.metadata.tables),
                 )
                 self.assertEqual(
-                    compare_metadata(context, AuthBase.metadata), []
+                    compare_metadata(context, Base.metadata), []
                 )
 
                 with Operations.context(context):
@@ -121,13 +119,13 @@ class SecurityMigrationTests(unittest.TestCase):
                 connection.exec_driver_sql(
                     "CREATE TABLE unrelated_core_table (id INTEGER PRIMARY KEY)"
                 )
-            migration_service = SecurityMigrationService(Config(), engine)
+            migration_service = DatabaseMigrationService(Config(), engine)
 
             with patch(
-                "modules.security.services.migration_service.command.stamp"
+                "migrations.runner.command.stamp"
             ) as stamp:
                 with patch(
-                    "modules.security.services.migration_service.command.upgrade"
+                    "migrations.runner.command.upgrade"
                 ) as upgrade:
                     migration_service.upgrade()
 
@@ -143,10 +141,10 @@ class SecurityMigrationTests(unittest.TestCase):
         try:
             with engine.begin() as connection:
                 connection.exec_driver_sql("CREATE TABLE api_users (id INTEGER)")
-            migration_service = SecurityMigrationService(Config(), engine)
+            migration_service = DatabaseMigrationService(Config(), engine)
 
             with patch(
-                "modules.security.services.migration_service.command.stamp"
+                "migrations.runner.command.stamp"
             ) as stamp:
                 with self.assertRaises(RuntimeError):
                     migration_service.upgrade()

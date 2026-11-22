@@ -7,7 +7,8 @@ from sqlalchemy.orm import sessionmaker
 from core.exceptions import ApplicationError
 from modules.security.dtos.requests.auth import LoginRequest
 from modules.security.dependencies import require_roles
-from modules.security.entities import AccessToken, Account, AuthBase
+from core.orm import Base
+from modules.security.entities import AccessToken, Account
 from modules.security.entities.permission import Permission
 from modules.security.entities.role import Role, has_permission
 from modules.security.security import hash_password, verify_password
@@ -69,7 +70,7 @@ class RolePermissionTests(unittest.TestCase):
 class AuthServiceTests(unittest.TestCase):
     def setUp(self) -> None:
         self.engine = create_engine("sqlite://")
-        AuthBase.metadata.create_all(self.engine)
+        Base.metadata.create_all(self.engine)
         self.session = sessionmaker(bind=self.engine)()
         self.account = Account(
             username="admin",
@@ -109,7 +110,7 @@ class AuthServiceTests(unittest.TestCase):
 class UserScopeTests(unittest.TestCase):
     def setUp(self) -> None:
         self.engine = create_engine("sqlite://")
-        AuthBase.metadata.create_all(self.engine)
+        Base.metadata.create_all(self.engine)
         self.session = sessionmaker(bind=self.engine)()
         self.student = Account(
             username="student",

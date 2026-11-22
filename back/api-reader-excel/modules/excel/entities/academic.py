@@ -23,10 +23,10 @@ from modules.excel.entities.import_status import (
     ImportStatus,
     status_sql_check,
 )
-from modules.security.entities.base import AuthBase, utcnow
+from core.orm import Base, utcnow
 
 
-class ExcelImport(AuthBase):
+class ExcelImport(Base):
     __tablename__ = "excel_imports"
     __table_args__ = (
         CheckConstraint(
@@ -84,7 +84,7 @@ class ExcelImport(AuthBase):
     )
 
 
-class DashboardState(AuthBase):
+class DashboardState(Base):
     __tablename__ = "excel_dashboard_state"
 
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
@@ -94,7 +94,7 @@ class DashboardState(AuthBase):
     )
 
 
-class AcademicStudent(AuthBase):
+class AcademicStudent(Base):
     __tablename__ = "academic_students"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -115,7 +115,7 @@ class AcademicStudent(AuthBase):
     )
 
 
-class AcademicProgram(AuthBase):
+class AcademicProgram(Base):
     __tablename__ = "academic_programs"
     __table_args__ = (
         Index("ix_academic_programs_normalized_key", "normalized_key"),
@@ -132,7 +132,7 @@ class AcademicProgram(AuthBase):
     )
 
 
-class AcademicProgramAlias(AuthBase):
+class AcademicProgramAlias(Base):
     __tablename__ = "academic_program_aliases"
     __table_args__ = (
         Index("ix_academic_program_aliases_normalized_name", "normalized_name"),
@@ -154,7 +154,7 @@ class AcademicProgramAlias(AuthBase):
     )
 
 
-class AcademicResult(AuthBase):
+class AcademicResult(Base):
     __tablename__ = "academic_results"
     __table_args__ = (
         UniqueConstraint(
@@ -297,7 +297,7 @@ class AcademicResult(AuthBase):
     )
 
 
-class TdProgramasReference(AuthBase):
+class TdProgramasReference(Base):
     __tablename__ = "td_programas_reference"
     __table_args__ = (
         UniqueConstraint(

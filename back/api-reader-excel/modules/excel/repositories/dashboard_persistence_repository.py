@@ -11,12 +11,13 @@ from modules.excel.entities.academic import (
     ExcelImport,
     TdProgramasReference,
 )
+from modules.excel.entities.competency import COMPETENCIES
 from modules.excel.entities.dashboard import DashboardImportData
 from modules.excel.entities.import_status import (
     DASHBOARD_STATE_ID,
     DEACTIVATABLE_STATUSES,
 )
-from modules.security.entities.base import utcnow
+from core.orm import utcnow
 
 _INSERT_BATCH_SIZE = 500
 
@@ -164,11 +165,10 @@ class DashboardPersistenceRepository:
                     student_search_name=record.student_search_name,
                     program_id=program.id,
                     program_name_raw=record.program_name,
-                    reading_score=record.scores[0],
-                    writing_score=record.scores[1],
-                    citizenship_score=record.scores[2],
-                    quantitative_score=record.scores[3],
-                    english_score=record.scores[4],
+                    **{
+                        competency.score_column: record.scores[competency.key]
+                        for competency in COMPETENCIES
+                    },
                     global_raw=record.global_raw,
                     global_score=record.global_score,
                     global_calculated_score=record.global_calculated_score,
@@ -180,11 +180,10 @@ class DashboardPersistenceRepository:
                     year=record.year,
                     simulation_name=record.simulation,
                     simulation_key=record.simulation_key,
-                    reading_level=record.levels[0],
-                    writing_level=record.levels[1],
-                    citizenship_level=record.levels[2],
-                    quantitative_level=record.levels[3],
-                    english_level=record.levels[4],
+                    **{
+                        competency.level_column: record.levels[competency.key]
+                        for competency in COMPETENCIES
+                    },
                     campus_raw=record.campus,
                     group_name=record.group,
                     group_key=record.group_key,
@@ -211,13 +210,14 @@ class DashboardPersistenceRepository:
                 simulation_key=record.simulation_key,
                 program_name_raw=record.program_name,
                 program_normalized_key=record.program_normalized_key,
-                reading_average=record.averages[0],
-                writing_average=record.averages[1],
-                citizenship_average=record.averages[2],
-                quantitative_average=record.averages[3],
-                english_average=record.averages[4],
-                global_average_from_records=record.averages[5],
-                average_of_competency_averages=record.averages[6],
+                **{
+                    competency.average_column: record.competency_averages[
+                        competency.key
+                    ]
+                    for competency in COMPETENCIES
+                },
+                global_average_from_records=record.global_average,
+                average_of_competency_averages=record.competency_mean,
                 source_payload=record.source_payload,
             )
             for record in data.td_programas_records

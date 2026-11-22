@@ -1,7 +1,7 @@
 from alembic import context
 
 from core.database import engine
-from modules.security.entities.base import AuthBase
+from core.orm import Base
 from modules.security.entities.access_token import AccessToken
 from modules.security.entities.account import Account
 from modules.excel.entities.academic import (
@@ -25,7 +25,7 @@ _IMPORTED_MODELS = (
     ExcelImport,
     TdProgramasReference,
 )
-target_metadata = AuthBase.metadata
+target_metadata = Base.metadata
 if any(
     model.__tablename__ not in target_metadata.tables
     for model in _IMPORTED_MODELS

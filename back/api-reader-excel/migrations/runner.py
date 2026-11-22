@@ -5,7 +5,7 @@ from alembic.migration import MigrationContext
 from sqlalchemy import MetaData, inspect
 from sqlalchemy.engine import Engine
 
-from modules.security.entities.base import AuthBase
+from core.orm import Base
 
 _SECURITY_TABLES = {"api_users", "api_access_tokens"}
 _ACADEMIC_TABLES = {
@@ -22,7 +22,7 @@ _ACADEMIC_TABLES = {
 def _security_metadata() -> MetaData:
     metadata = MetaData()
     for table_name in _SECURITY_TABLES:
-        AuthBase.metadata.tables[table_name].to_metadata(metadata)
+        Base.metadata.tables[table_name].to_metadata(metadata)
     return metadata
 
 
@@ -36,7 +36,7 @@ def _include_security_tables(
     return parent_names.get("table_name") in _SECURITY_TABLES
 
 
-class SecurityMigrationService:
+class DatabaseMigrationService:
     def __init__(self, config: Config, engine: Engine) -> None:
         self.config = config
         self.engine = engine

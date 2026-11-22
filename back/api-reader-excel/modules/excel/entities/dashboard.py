@@ -15,7 +15,8 @@ class DashboardImportRecord:
     program_name: str
     program_raw_name_key: str
     program_normalized_key: str
-    scores: tuple[Decimal | None, ...]
+    scores: Mapping[str, Decimal | None]
+    """Puntaje por ``Competency.key``."""
     global_raw: str | None
     global_score: Decimal | None
     global_calculated_score: Decimal
@@ -31,7 +32,8 @@ class DashboardImportRecord:
     group_key: str | None
     presented: bool | None
     presented_raw: str | None
-    levels: tuple[str | None, ...]
+    levels: Mapping[str, str | None]
+    """Nivel del archivo por ``Competency.key``."""
     campus: str | None
     training_applied: str | None
     ent: str | None
@@ -46,7 +48,12 @@ class TdProgramasRecord:
     simulation_key: str
     program_name: str
     program_normalized_key: str
-    averages: tuple[Decimal | None, ...]
+    competency_averages: Mapping[str, Decimal | None]
+    """Promedio por ``Competency.key`` (columnas LC, CE, CC, RC, I)."""
+    global_average: Decimal | None
+    """Primera columna GL: promedio del GLOBAL de los registros."""
+    competency_mean: Decimal | None
+    """Segunda columna GL: promedio de los promedios por competencia."""
     source_payload: dict[str, Any]
 
 
@@ -66,7 +73,8 @@ class DashboardRecord:
     email: str | None
     program_id: str
     program_name: str
-    scores: tuple[float | None, ...]
+    scores: Mapping[str, float | None]
+    """Puntaje por ``Competency.key``."""
     global_score: float | None
     moment: str | None
     test_type: str | None
@@ -75,7 +83,8 @@ class DashboardRecord:
     simulation: str
     group: str | None
     presented: bool | None
-    levels: tuple[str | None, ...]
+    levels: Mapping[str, str | None]
+    """Nivel del archivo por ``Competency.key``."""
     ent: str | None
 
 

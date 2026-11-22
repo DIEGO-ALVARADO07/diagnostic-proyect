@@ -11,7 +11,8 @@ from modules.security.dtos.requests.users import (
     UserUpdateRequest,
 )
 from modules.security.dtos.responses.users import UserResponse
-from modules.security.entities import Account, utcnow
+from core.orm import utcnow
+from modules.security.entities import Account
 from modules.security.entities.permission import Permission
 from modules.security.repositories.account_repository import AccountRepository
 from modules.security.repositories.token_repository import TokenRepository

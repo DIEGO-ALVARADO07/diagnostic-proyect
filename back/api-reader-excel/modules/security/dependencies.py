@@ -7,7 +7,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.db_session import DbSession
 from core.exceptions import ApplicationError
-from modules.security.entities import AccessToken, Account, utcnow
+from core.orm import utcnow
+from modules.security.entities import AccessToken, Account
 from modules.security.entities.permission import Permission
 from modules.security.entities.role import Role, has_permission
 from modules.security.repositories.account_repository import AccountRepository

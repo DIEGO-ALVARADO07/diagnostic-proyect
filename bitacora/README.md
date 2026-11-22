@@ -16,7 +16,7 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 1 | Higiene del repositorio, `.env.example`, logging y script de tareas | Completada |
 | 2 | Caché del dataset del dashboard por importación | Completada |
 | 3 | Enum de estados, limpieza de archivos de compatibilidad, errores uniformes | Completada |
-| 4 | División de `DashboardService`, puntajes por clave, `Base` y migraciones en `core` | Pendiente |
+| 4 | División de `DashboardService`, puntajes por clave, `Base` y migraciones en `core` | Completada |
 | 5 | Identidad de programas y regla del global calculado (requiere decisión de negocio) | Pendiente |
 | 6 | Ajustes de seguridad, CI y frontend | Pendiente |
 
@@ -36,3 +36,7 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 010 | 3 | [Sesión de BD en `core` y eliminación de archivos de compatibilidad](010-sesion-bd-y-shims.md) |
 | 011 | 3 | [Errores uniformes: `ApplicationError` y `HTTPStatus`](011-errores-uniformes.md) |
 | 012 | 3 | [Correcciones a `tasks.ps1` (errores de la entrada 004)](012-correcciones-tasks-ps1.md) |
+| 013 | 4 | [`Base` del ORM y migraciones fuera del módulo `security`](013-base-y-migraciones-en-core.md) |
+| 014 | 4 | [Competencias en un solo lugar y puntajes por clave](014-competencias-y-puntajes-por-clave.md) |
+| 015 | 4 | [División de `DashboardService`](015-division-dashboard-service.md) |
+| 016 | 4 | [TD PROGRAMAS sin encabezado y verificación de regresión](016-td-programas-sin-encabezado-y-regresion.md) |

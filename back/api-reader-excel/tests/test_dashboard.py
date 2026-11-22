@@ -22,9 +22,10 @@ from modules.excel.repositories.dashboard_repository import (
     DashboardWorkbookRepository,
 )
 from modules.excel.routes import router as excel_router
-from modules.excel.services.dashboard_metrics import classify_level
+from modules.excel.entities.competency import COMPETENCIES, classify_level
 from modules.excel.services.dashboard_service import DashboardService
-from modules.security.entities import Account, AuthBase
+from core.orm import Base
+from modules.security.entities import Account
 from modules.security.entities.role import Role
 
 
@@ -91,7 +92,9 @@ def _sheet_xml(rows: list[list[object]]) -> str:
     )
 
 
-def make_dashboard_workbook(global_score: object = 90) -> bytes:
+def make_dashboard_workbook(
+    global_score: object = 90, td_title_row: bool = True
+) -> bytes:
     first_record = [
         "101",
         "Ana",
@@ -177,7 +180,7 @@ def make_dashboard_workbook(global_score: object = 90) -> bytes:
         None,
     ]
     td_rows = [
-        ["TD", "LC", "CE", "CC", "RC", "I", "GL", "GL"],
+        *([["TD", "LC", "CE", "CC", "RC", "I", "GL", "GL"]] if td_title_row else []),
         ["AÑO", 2025, None, None, None, None, None, None],
         ["PROGRAMA", "LC", "CE", "CC", "RC", "I", "GL", "GL"],
         ["SIMULACRO 2025-1 MOMENTO 1", None, None, None, None, None, None, None],
@@ -235,7 +238,7 @@ def make_dashboard_workbook(global_score: object = 90) -> bytes:
 class DashboardTests(unittest.TestCase):
     def setUp(self) -> None:
         self.engine = create_engine("sqlite://")
-        AuthBase.metadata.create_all(self.engine)
+        Base.metadata.create_all(self.engine)
         self.db = Session(self.engine)
         self.instructor = Account(
             id=1,
@@ -265,7 +268,30 @@ class DashboardTests(unittest.TestCase):
             workbook.bd_gen_rows[0]["programa"],
             "PROGRAMA Á",
         )
-        self.assertEqual(len(workbook.td_programas_rows), 4)
+        # TD PROGRAMAS se lee sin encabezado: incluye la fila de título.
+        self.assertEqual(len(workbook.td_programas_rows), 5)
+        self.assertEqual(workbook.td_programas_rows[0][0], 1)
+
+    def test_td_programas_may_start_directly_with_year_row(self) -> None:
+        response = DashboardService().import_workbook(
+            ReadWorkbookRequest(
+                filename="no-title.xlsx",
+                content=make_dashboard_workbook(td_title_row=False),
+            ),
+            self.instructor,
+            self.db,
+        )
+
+        self.assertEqual(response.source_audit.td_programas_visible_year, 2025)
+        self.assertEqual(response.source_audit.compared_program_rows, 1)
+        self.assertEqual(response.source_audit.difference_count, 0)
+        stored = self.db.scalar(
+            select(TdProgramasReference).where(
+                TdProgramasReference.import_id == response.import_id
+            )
+        )
+        # La fila del programa es la 4.ª del Excel (AÑO, PROGRAMA, SIMULACRO, programa).
+        self.assertEqual(stored.source_row_number, 4)
 
     def test_import_calculates_metrics_and_keeps_student_history(self) -> None:
         service = DashboardService()
@@ -647,10 +673,10 @@ class DashboardTests(unittest.TestCase):
             for score, level in boundaries:
                 with self.subTest(competency=competency_index, score=score):
                     self.assertEqual(
-                        classify_level(competency_index, score),
+                        classify_level(COMPETENCIES[competency_index], score),
                         level,
                     )
-        self.assertIsNone(classify_level(0, None))
+        self.assertIsNone(classify_level(COMPETENCIES[0], None))
 
 
 if __name__ == "__main__":

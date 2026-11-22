@@ -106,7 +106,7 @@ switch ($Task) {
     "migrate" {
         Assert-Venv
         Assert-EnvFile
-        Invoke-Python -m modules.security.migrations
+        Invoke-Python -m migrations
         Write-Host "Migraciones aplicadas." -ForegroundColor Green
     }
 

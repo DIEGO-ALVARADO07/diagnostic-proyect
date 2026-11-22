@@ -6,7 +6,7 @@ from alembic.config import Config
 
 from core.exceptions import ApplicationError
 from modules.security.services.bootstrap_service import BootstrapService
-from modules.security.services.migration_service import SecurityMigrationService
+from migrations.runner import DatabaseMigrationService
 
 
 def main() -> None:
@@ -40,7 +40,7 @@ def main() -> None:
 
     project_root = Path(__file__).resolve().parents[2]
     migration_config = Config(str(project_root / "alembic.ini"))
-    SecurityMigrationService(migration_config, engine).upgrade()
+    DatabaseMigrationService(migration_config, engine).upgrade()
     with SessionLocal() as db:
         try:
             BootstrapService(db).create_superadmin(

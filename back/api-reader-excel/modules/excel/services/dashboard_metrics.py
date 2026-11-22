@@ -1,71 +1,22 @@
-from dataclasses import dataclass
+from collections.abc import Sequence
 from statistics import fmean, pstdev
 
+from modules.excel.entities.competency import COMPETENCIES, classify_level
 from modules.excel.entities.dashboard import DashboardRecord
 
 
-@dataclass(frozen=True)
-class Competency:
-    key: str
-    label: str
-    thresholds: tuple[tuple[str, float], ...]
-
-
-COMPETENCIES = (
-    Competency(
-        "lectura_critica",
-        "Lectura crítica",
-        (("1", 124), ("2", 156), ("3", 198), ("4", float("inf"))),
-    ),
-    Competency(
-        "comunicacion_escrita",
-        "Comunicación escrita",
-        (("1", 114), ("2", 148), ("3", 182), ("4", float("inf"))),
-    ),
-    Competency(
-        "competencias_ciudadanas",
-        "Competencias ciudadanas",
-        (("1", 125), ("2", 156), ("3", 198), ("4", float("inf"))),
-    ),
-    Competency(
-        "razonamiento_cuantitativo",
-        "Razonamiento cuantitativo",
-        (("1", 125), ("2", 153), ("3", 201), ("4", float("inf"))),
-    ),
-    Competency(
-        "ingles",
-        "Inglés",
-        (("A1", 120), ("A2", 164), ("B1", 195), ("B2", float("inf"))),
-    ),
-)
-
-
-def classify_level(
-    competency_index: int, score: float | None
-) -> str | None:
-    if score is None:
-        return None
-    for level, upper_bound in COMPETENCIES[competency_index].thresholds:
-        if score <= upper_bound:
-            return level
-    raise ValueError(f"No se pudo asignar nivel al puntaje {score}.")
-
-
-def calculate_metrics(records: list[DashboardRecord]) -> dict[str, object]:
+def calculate_metrics(records: Sequence[DashboardRecord]) -> dict[str, object]:
     presented = [record for record in records if record.presented]
     competency_results: dict[str, dict[str, object]] = {}
     competency_averages: list[float] = []
 
-    for index, competency in enumerate(COMPETENCIES):
+    for competency in COMPETENCIES:
         values = [
-            record.scores[index]
+            score
             for record in presented
-            if record.scores[index] is not None
+            if (score := record.scores[competency.key]) is not None
         ]
-        levels = [
-            classify_level(index, score)
-            for score in values
-        ]
+        levels = [classify_level(competency, score) for score in values]
         distribution_counts = {
             level: levels.count(level)
             for level, _ in competency.thresholds

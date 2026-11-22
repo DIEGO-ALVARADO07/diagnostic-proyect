@@ -1,6 +1,6 @@
 # Organización modular de la API
 
-La API está organizada como un monolito modular: `modules/security` contiene autenticación, roles, permisos y gestión de usuarios; `modules/excel` contiene el procesamiento de hojas de cálculo. `core` conserva la configuración y persistencia compartidas, mientras `api` ensambla los routers y `app` crea la aplicación. Esta separación permite añadir módulos sin convertirlos todavía en servicios independientes.
+La API está organizada como un monolito modular: `modules/security` contiene autenticación, roles, permisos y gestión de usuarios; `modules/excel` contiene el procesamiento de hojas de cálculo. `core` conserva la configuración y la persistencia compartidas (`orm.Base`, sesión por petición, errores), `migrations` versiona el esquema completo con Alembic, `api` ensambla los routers y `app` crea la aplicación. Esta separación permite añadir módulos sin convertirlos todavía en servicios independientes.
 
 La guía de integración de la aplicación PHP está en [`front/README.md`](../../front/README.md). Este documento se concentra en el backend, sus rutas, configuración, migraciones y pruebas.
 
@@ -10,9 +10,25 @@ La guía de integración de la aplicación PHP está en [`front/README.md`](../.
 - `dtos/requests` valida las entradas; `dtos/responses` limita explícitamente los datos que se entregan al frontend. No se serializan entidades ORM directamente.
 - `services` contiene los casos de uso y reglas de negocio.
 - `repositories` concentra las consultas y el acceso a datos o al lector de archivos.
-- `entities` contiene los modelos ORM (`Account`, `AccessToken`, `AuthBase`) y los tipos del dominio (`Role`, `Permission`, `ImportStatus`). Los antiguos módulos de compatibilidad (`models.py`, `role.py`, `permission.py`, `user.py`, `excel/service.py`) se eliminaron; importa siempre desde `entities` o `dtos`.
+- `entities` contiene los modelos ORM (`Account`, `AccessToken`, `ExcelImport`, …, todos sobre `core.orm.Base`) y los tipos del dominio (`Role`, `Permission`, `ImportStatus`, `Competency`). Los antiguos módulos de compatibilidad (`models.py`, `role.py`, `permission.py`, `user.py`, `excel/service.py`) se eliminaron; importa siempre desde `entities` o `dtos`.
 - Los errores de negocio y de autorización se lanzan como `core.exceptions.ApplicationError` con un código `HTTPStatus`; la app los convierte en `{"detail": ...}`.
-- `modules/security/migrations` conserva las migraciones Alembic de seguridad y del dashboard académico; ambas comparten `AuthBase` y se aplican en orden.
+- `migrations/` (raíz del backend) contiene las migraciones Alembic de todos los módulos sobre la metadata de `core.orm.Base`; se aplican con `.	asks.ps1 migrate` (`python -m migrations`).
+
+### Servicios del dashboard (`modules/excel/services`)
+
+| Archivo | Responsabilidad |
+|---|---|
+| `dashboard_service.py` | Punto de entrada usado por las rutas: compone los servicios y comparte la caché. |
+| `dashboard_import_service.py` | Importar, activar, listar y desactivar importaciones. |
+| `dashboard_query_service.py` | Overview, programa, estudiante e importación activa (solo lectura). |
+| `dashboard_dataset_loader.py` | Arma el `DashboardDataset` desde la base o desde la caché. |
+| `dashboard_cache.py` | Caché LRU de datasets por importación. |
+| `dashboard_filters.py` / `dashboard_mappers.py` | Filtros y conversión a DTOs de respuesta. |
+| `dashboard_audit.py` | Comparación de TD PROGRAMAS con lo calculado desde BD GEN. |
+| `dashboard_metrics.py` | Promedios, desviaciones y distribución por niveles. |
+| `dashboard_processor.py` / `dashboard_normalizer.py` | Interpretación y normalización de las filas del Excel. |
+
+Las competencias (clave, encabezado en el Excel, columnas en la base y umbrales de nivel) se definen una sola vez en `modules/excel/entities/competency.py`.
 
 ## Pasos realizados
 

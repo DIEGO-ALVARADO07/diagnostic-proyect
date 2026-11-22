@@ -3,10 +3,10 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from modules.security.entities.base import AuthBase, utcnow
+from core.orm import Base, utcnow
 
 
-class Account(AuthBase):
+class Account(Base):
     __tablename__ = "api_users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

@@ -11,8 +11,10 @@ from modules.excel.dtos.requests.read_workbook import ReadWorkbookRequest
 from modules.excel.entities.academic import DashboardState
 from modules.excel.entities.dashboard import DashboardDataset
 from modules.excel.services.dashboard_cache import DashboardDatasetCache
+from modules.excel.services.dashboard_dataset_loader import DashboardDatasetLoader
 from modules.excel.services.dashboard_service import DashboardService
-from modules.security.entities import Account, AuthBase
+from core.orm import Base
+from modules.security.entities import Account
 from modules.security.entities.role import Role
 from tests.test_dashboard import make_dashboard_workbook
 
@@ -73,7 +75,7 @@ class DashboardDatasetCacheTests(unittest.TestCase):
 class DashboardServiceCacheTests(unittest.TestCase):
     def setUp(self) -> None:
         self.engine = create_engine("sqlite://")
-        AuthBase.metadata.create_all(self.engine)
+        Base.metadata.create_all(self.engine)
         self.db = Session(self.engine)
         self.superadmin = Account(
             id=1,
@@ -119,9 +121,9 @@ class DashboardServiceCacheTests(unittest.TestCase):
         self.assertIn(import_id, self.cache)
 
         with patch.object(
-            DashboardService,
-            "_load_dataset",
-            wraps=DashboardService._load_dataset,
+            DashboardDatasetLoader,
+            "read_from_database",
+            wraps=DashboardDatasetLoader.read_from_database,
         ) as load_dataset:
             first = self._overview(import_id)
             second = self._overview(import_id)
@@ -137,9 +139,9 @@ class DashboardServiceCacheTests(unittest.TestCase):
         self.cache.clear()
 
         with patch.object(
-            DashboardService,
-            "_load_dataset",
-            wraps=DashboardService._load_dataset,
+            DashboardDatasetLoader,
+            "read_from_database",
+            wraps=DashboardDatasetLoader.read_from_database,
         ) as load_dataset:
             uncached = self._overview(import_id)
             cached = self._overview(import_id)

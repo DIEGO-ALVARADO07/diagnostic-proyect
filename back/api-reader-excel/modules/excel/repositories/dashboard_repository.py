@@ -3,6 +3,8 @@ from typing import Any
 
 import fastexcel
 
+from modules.excel.entities.competency import COMPETENCIES
+
 
 class DashboardWorkbookError(ValueError):
     pass
@@ -20,11 +22,6 @@ BD_GEN_REQUIRED_HEADERS = {
     "nombre",
     "apellido(s)",
     "dirección de correo",
-    "lectura crítica",
-    "comunicación escrita",
-    "competencias ciudadanas",
-    "razonamiento cuantitativo",
-    "inglés",
     "global",
     "programa",
     "momento",
@@ -32,16 +29,13 @@ BD_GEN_REQUIRED_HEADERS = {
     "semestre",
     "año",
     "sim",
-    "n: lectura crítica",
-    "n: comunicación escrita",
-    "n: competencias ciudadanas",
-    "n: razonamiento cuantitativo",
-    "n: inglés",
     "sede",
     "grupo",
     "aplica simulacro",
     "aplico entrenamiento",
     "ent",
+    *(competency.score_header for competency in COMPETENCIES),
+    *(competency.level_header for competency in COMPETENCIES),
 }
 TD_PROGRAMAS_HEADER = (
     "programa",
@@ -74,7 +68,13 @@ class DashboardWorkbookRepository:
             )
 
         bd_gen = workbook.load_sheet("BD GEN").to_polars()
-        td_programas = workbook.load_sheet("TD PROGRAMAS").to_polars()
+        # TD PROGRAMAS no tiene una fila de encabezados fija: el año, los títulos
+        # y los bloques por simulacro están en filas sueltas. Se lee sin
+        # encabezado para no perder la primera fila (antes fastexcel la usaba
+        # como nombres de columna y, si era la fila "AÑO", el import fallaba).
+        td_programas = workbook.load_sheet(
+            "TD PROGRAMAS", header_row=None
+        ).to_polars()
 
         normalized_headers = [_normalize_header(str(name)) for name in bd_gen.columns]
         if len(normalized_headers) != len(set(normalized_headers)):
@@ -109,9 +109,10 @@ class DashboardWorkbookRepository:
             dict(zip(header_names, row.values()))
             for row in bd_gen.to_dicts()
         ]
+        # Con header_row=None la fila 1 del Excel es la primera fila leída.
         td_programas_rows = [
             (row_number, tuple(row.values()))
-            for row_number, row in enumerate(td_programas.to_dicts(), start=2)
+            for row_number, row in enumerate(td_programas.to_dicts(), start=1)
         ]
         return DashboardWorkbookSheets(
             available_sheets=available_sheets,
