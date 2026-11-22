@@ -2,70 +2,96 @@
 
 ## Pruebas automatizadas
 
-Desde `back/api-reader-excel`, con el entorno virtual activo:
+Desde `back/api-reader-excel`:
 
 ```powershell
-python -m unittest discover -s tests -v
+.\tasks.ps1 test
 ```
 
-Las pruebas cubren:
+Ejecuta `python -m unittest discover -s tests` con el Python del `venv` y `LOG_LEVEL=WARNING` (para que los logs no se mezclen con el reporte). **58 pruebas**, todas en SQLite en memoria: no necesitan `core/.env` ni MySQL.
 
-- Hashes de contraseña y permisos por rol.
-- Límite de acceso a perfiles y restricciones de edición.
-- DTOs de respuesta, incluyendo la ausencia de hashes.
-- Login y almacenamiento de solo el hash del token.
-- Selección de la primera hoja o de una hoja indicada y errores Excel.
-- Lectura de `BD GEN` y `TD PROGRAMAS`, importación idempotente, persistencia de intentos, auditoría de GLOBAL desde J, historial y activación de snapshots.
-- Contrato de configuración de DB.
-- Migraciones Alembic `0001` a `0003`: coincidencia del esquema con los modelos, aplicación/reversión en SQLite y manejo seguro de esquemas legacy parciales.
-- Desactivación lógica de snapshots: conservación de datos, ocultamiento de consultas normales, estado `DELETED` para superadmin y restricciones por rol, incluido el caso de desactivar el activo.
+| Archivo | Cubre |
+|---|---|
+| `tests/test_auth.py` | Hash de contraseñas, permisos por rol, login con hash del token, edición de perfiles y restricciones. |
+| `tests/test_config.py` | Contrato de configuración de la base de datos. |
+| `tests/test_excel.py` | Lectura de la primera hoja o de una hoja elegida y errores de Excel. |
+| `tests/test_dashboard.py` | Lectura de `BD GEN`/`TD PROGRAMAS` (incluido un libro que empieza en la fila `AÑO`), importación idempotente, métricas, historial, activación, desactivación lógica y permisos. |
+| `tests/test_dashboard_cache.py` | Caché LRU de datasets y su relación con la desactivación (incluido el caso de varios procesos). |
+| `tests/test_dashboard_rules.py` | Reglas de datos: nombre de programa, unificación con alias, semestres y reporte de calidad. |
+| `tests/test_error_handling.py` | Contrato de errores (`401` con `WWW-Authenticate`, `{"detail": ...}`). |
+| `tests/test_security_migrations.py` | Cadena de migraciones `0001`–`0004` frente a los modelos, reversión, fusión de programas de `0004` y bases antiguas sin historial. |
 
-No se requiere un servidor MySQL para esta suite; las pruebas de persistencia usan SQLite temporal en memoria. La prueba de migración sobre SQLite no reemplaza una validación de despliegue sobre MySQL.
+La prueba de migraciones sobre SQLite no sustituye validar la migración en el MySQL de destino (con copia de seguridad).
 
-## Validación enfocada de los cambios recientes
-
-Desde `back/api-reader-excel` con el entorno virtual:
+Para ejecutar un solo archivo:
 
 ```powershell
-.\venv\Scripts\python.exe -m unittest discover -s tests -p test_dashboard.py -v
-.\venv\Scripts\python.exe -m unittest discover -s tests -p test_security_migrations.py -v
+$env:PYTHONPATH = "."; .\venv\Scripts\python.exe -m unittest tests.test_dashboard_rules -v
 ```
 
-La validación de interfaz también puede hacerse desde la raíz del proyecto:
+## Medir rendimiento
+
+`scripts/bench_dashboard.py` genera un libro sintético, lo importa en SQLite y mide las consultas del dashboard (primera llamada y siguientes, que salen de la caché):
+
+```powershell
+$env:PYTHONPATH = "."; .\venv\Scripts\python.exe scripts\bench_dashboard.py 20000
+```
+
+Referencia (20.000 filas, 22/11/2026): overview ~197 ms, overview filtrado ~89 ms, programa ~134 ms, estudiante ~7 ms. Sin la caché (antes de la fase 2) cada consulta tardaba ~1 s.
+
+## Revisión estática
+
+Para detectar imports sin usar o nombres rotos se usó `pyflakes` (instalado localmente en el `venv`; aún no está en `requirements.txt`, ver fase 6 en el [estado del proyecto](10-estado-y-continuidad.md)):
+
+```powershell
+.\venv\Scripts\python.exe -m pyflakes modules core app api tests migrations scripts
+```
+
+Validación del frontend desde la raíz del repositorio:
 
 ```powershell
 php -l front\index.php
 php -l front\partials\imports\screen.php
 php -l front\partials\profile\screen.php
-git diff --check
 ```
-
-Para comprobar la documentación, ejecuta `git diff --check` desde la raíz de `diagnostic-proyect-docs-worktree`.
 
 ## Ejecutar para desarrollo
 
-Arranca el servidor desde `back/api-reader-excel/core` con las variables de configuración:
-
 ```powershell
-$env:PYTHONPATH = (Resolve-Path ..).Path
-..\venv\Scripts\python.exe -m uvicorn app:app --app-dir .. --reload --reload-dir ..
+.\tasks.ps1 run
 ```
 
-La documentación OpenAPI queda en `http://127.0.0.1:8000/docs`.
+Arranca Uvicorn con recarga automática; la documentación OpenAPI queda en `http://127.0.0.1:8000/docs`. Para ver más detalle en los logs, define `LOG_LEVEL=DEBUG` en `core/.env` o en la terminal.
+
+## Dónde está cada cosa
+
+```text
+back/api-reader-excel/
+├── app/            crea la app FastAPI y configura logging y errores
+├── api/            ensambla los routers
+├── core/           config, engine, sesión por petición, Base ORM, errores, logging
+├── migrations/     Alembic (env, runner y versiones 0001–0004)
+├── modules/
+│   ├── security/   autenticación, usuarios, roles y permisos
+│   └── excel/      lectura de Excel y dashboard académico
+├── scripts/        utilidades (benchmark)
+├── tests/
+└── tasks.ps1       install / migrate / bootstrap / run / test
+```
 
 ## Guía para agregar una funcionalidad
 
 1. Crear o extender el módulo bajo `modules/<nombre>/`.
-2. Definir los DTOs request/response necesarios, sin reutilizar entidades ORM como contrato de frontend.
-3. Implementar reglas de negocio en `services/`.
+2. Definir los DTOs request/response necesarios, sin usar entidades ORM como contrato del frontend.
+3. Implementar las reglas en `services/` (un servicio por caso de uso; funciones puras cuando no hay estado).
 4. Implementar acceso a datos o adaptadores en `repositories/`.
-5. Mantener las rutas delgadas y registrar el router en `api/__init__.py`.
-6. Si se agrega persistencia, definir entidades y una migración versionada; no crear tablas al iniciar la API.
-7. Añadir pruebas focalizadas para reglas, contratos y migraciones.
+5. Mantener las rutas delgadas, recibir la sesión con `db: DbSession` (`core/db_session.py`) y registrar el router en `api/__init__.py`.
+6. Lanzar errores de negocio con `core.exceptions.ApplicationError` y un `HTTPStatus`.
+7. Si se agrega persistencia: modelos sobre `core.orm.Base` y una migración nueva en `migrations/versions/`; nunca crear tablas al iniciar la API. Añadir la migración a `test_security_migrations.py`.
+8. Añadir pruebas y registrar el cambio en la [bitácora](bitacora/README.md).
 
 ## Limitaciones conocidas
 
-- El endpoint simple `/excel/read` responde con los datos de la hoja y no persiste; el dashboard histórico tiene su flujo independiente y páginas de hasta 50 programas o intentos.
-- La API aplica límite de carga de 30 MB, pero un archivo bajo ese límite todavía puede producir una respuesta JSON grande.
-- La interfaz PHP consume los endpoints persistentes del dashboard a través de un proxy autenticado del mismo origen.
-- Python 3.15.2 es la versión del entorno inspeccionado; el proyecto no publica aún un rango oficial de versiones soportadas.
+- `POST /excel/read` devuelve la hoja completa como JSON: un archivo cercano a 30 MB puede producir una respuesta muy grande.
+- La caché del dashboard vive en memoria de cada proceso: se vacía al reiniciar y la primera consulta vuelve a cargar desde MySQL.
+- Python 3.15.2 es la versión del entorno probado; no hay un rango oficial de versiones.

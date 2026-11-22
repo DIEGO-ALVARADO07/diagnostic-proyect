@@ -22,17 +22,37 @@ Uvicorn
 | `services` | Aplicar reglas de negocio y coordinar el caso de uso. |
 | `repositories` | Consultar o persistir datos, o adaptar la lectura del libro Excel. |
 | `entities` | Representar entidades persistentes o del dominio del módulo. |
-| `migrations` | Versionar cambios de esquema de base de datos cuando corresponda. |
+| `entities` (dominio) | Tipos sin dependencias de framework: `Role`, `Permission`, `ImportStatus`, `Competency`, registros y dataset del dashboard. |
 
-`modules/security/models.py`, `role.py` y `permission.py` se conservan como fachadas para imports antiguos; las definiciones canónicas están en `modules/security/entities/`.
+Las migraciones de todos los módulos están en `back/api-reader-excel/migrations/`. Los antiguos módulos de compatibilidad (`models.py`, `role.py`, `permission.py`, `user.py`, `excel/service.py`) se eliminaron: se importa siempre desde `entities/` o `dtos/`.
 
 ## Componentes compartidos
 
-- `app/`: construye la aplicación FastAPI y convierte errores esperados `ApplicationError` en respuestas HTTP.
+- `app/`: construye la aplicación FastAPI, configura el logging y convierte los errores esperados `ApplicationError` en respuestas HTTP `{"detail": ...}`. Las dependencias de seguridad también usan `ApplicationError` (`401` con `WWW-Authenticate: Bearer`, `403`).
 - `api/`: registra los routers disponibles.
-- `core/config.py`: carga `DB_*` y descifra usuario/contraseña cuando están cifrados con Fernet.
-- `core/database.py`: crea el engine SQLAlchemy y las sesiones.
-- `modules/security/database.py`: entrega una sesión por petición y la cierra al finalizar.
+- `core/config.py`: carga `DB_*` desde `core/.env` y descifra usuario/contraseña cuando están cifrados con Fernet.
+- `core/database.py`: crea el engine SQLAlchemy y la fábrica de sesiones.
+- `core/db_session.py`: `get_db` y el tipo `DbSession`, que todas las rutas usan para recibir una sesión por petición. Importa la configuración de forma diferida, así la app y las pruebas se construyen sin credenciales.
+- `core/orm.py`: base declarativa `Base` compartida por todos los modelos y `utcnow()`.
+- `core/logging_config.py`: formato y nivel de logs (`LOG_LEVEL`).
+- `migrations/`: Alembic (`env.py`, `runner.py` con `DatabaseMigrationService` y las revisiones `0001`–`0004`).
+
+### Servicios del dashboard (`modules/excel/services`)
+
+| Archivo | Responsabilidad |
+|---|---|
+| `dashboard_service.py` | Punto de entrada que usan las rutas: compone los servicios y comparte la caché. |
+| `dashboard_import_service.py` | Importar, activar, listar y desactivar importaciones. |
+| `dashboard_query_service.py` | Overview, programa, estudiante e importación activa (solo lectura). |
+| `dashboard_dataset_loader.py` | Arma el dataset inmutable de una importación desde MySQL o desde la caché. |
+| `dashboard_cache.py` | Caché LRU en memoria (3 importaciones) de datasets. |
+| `dashboard_filters.py`, `dashboard_mappers.py` | Filtros y conversión a DTOs de respuesta. |
+| `dashboard_audit.py` | Comparación de `TD PROGRAMAS` con lo calculado desde `BD GEN`. |
+| `dashboard_metrics.py` | Promedios, desviaciones y distribución por niveles. |
+| `dashboard_processor.py`, `dashboard_normalizer.py` | Interpretación y normalización de las filas del Excel. |
+| `program_catalog.py`, `dashboard_data_quality.py` | Regla de identidad/nombre de programas y reporte de calidad de datos. |
+
+Las competencias (clave, encabezado en el Excel, columnas en la base y umbrales de nivel) se definen una sola vez en `modules/excel/entities/competency.py`.
 
 ## Flujo de autenticación
 
@@ -85,13 +105,13 @@ Instructor/superadmin
 2. `DashboardWorkbookRepository` valida encabezados y extrae las dos hojas requeridas; `DashboardProcessor` convierte cada intento de origen en un registro listo para persistir.
 3. La transacción inserta resultados con unicidad `(import_id, source_row_number)`, la referencia visible de `TD PROGRAMAS` y las dimensiones reutilizables de estudiante/programa.
 4. `excel_dashboard_state` es una fila de coordinación bloqueada al activar: el snapshot anterior pasa a `HISTORICAL` y el nuevo a `ACTIVE` en el mismo commit. Si falla el procesamiento, el lote de resultados se revierte y la importación queda `FAILED`.
-5. El servicio consulta la versión activa o histórica desde MySQL. No depende de una caché local de un worker, por lo que varios procesos pueden atender las lecturas.
+5. Las consultas validan en cada petición, contra MySQL, que la importación sea visible (estado, `deleted_at` y rol). Los datos de la importación salen de una caché en memoria del proceso, porque una importación activa o histórica no cambia; la primera consulta tras arrancar la carga desde MySQL. Como la visibilidad se comprueba siempre en la base, varios procesos con cachés independientes siguen siendo correctos.
 
 El superadmin puede desactivar snapshots `ACTIVE`, `HISTORICAL` o `FAILED` mediante una marca `deleted_at`; no se borran sus filas. Al desactivar el activo, se limpia `active_import_id` y el dashboard queda sin snapshot activo hasta la siguiente importación. Las consultas normales ocultan los desactivados y el endpoint administrativo los presenta como `DELETED`. El instructor solo consulta el snapshot activo; el historial y la desactivación son exclusivos del superadmin.
 
-El GLOBAL principal procede de la columna J original. El valor bruto y su versión numérica se conservan; valores no numéricos quedan nulos. E:I alimenta solo un cálculo alternativo y Q:U conserva los niveles fuente. Los nombres de programa se identifican por texto original, sin fusionar etiquetas por normalización.
+El GLOBAL principal procede de la columna J original. El valor bruto y su versión numérica se conservan; valores no numéricos quedan nulos. E:I alimenta solo un cálculo alternativo (regla del Excel: suma / 5, vacías = 0) y Q:U conserva los niveles fuente. Los programas se identifican por nombre normalizado (sin tildes, mayúsculas ni espacios extra); cada escritura original queda como alias.
 
-`TD PROGRAMAS` es una tabla dinámica guardada en el libro. Se persiste la selección de año y los valores que están visibles al momento de importar; no se intenta recalcular la tabla dinámica ni se toma como reemplazo del histórico de `BD GEN`.
+`TD PROGRAMAS` es una tabla dinámica guardada en el libro. Se lee sin fila de encabezado (la primera fila puede ser un título o directamente `AÑO`). Se persiste la selección de año y los valores visibles al importar; no se recalcula la tabla dinámica ni reemplaza el histórico de `BD GEN`.
 
 ## Razones de esta construcción
 

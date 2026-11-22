@@ -21,17 +21,17 @@ El navegador nunca se conecta directamente a MySQL; solo consume la API autentic
 ## Antes de usarlo
 
 1. Instala dependencias y configura MySQL siguiendo [Instalación y operación](03-instalacion-y-operacion.md).
-2. En una base nueva, ejecuta el bootstrap una sola vez. Este aplica las migraciones existentes antes de crear el primer superadmin.
-3. En una base ya utilizada, aplica migraciones pendientes desde `back/api-reader-excel/core` con el entorno virtual y variables de configuración:
+2. En una base nueva, ejecuta `.\tasks.ps1 bootstrap` una sola vez. Aplica las migraciones antes de crear el primer superadmin.
+3. En una base ya utilizada, aplica las migraciones pendientes desde `back/api-reader-excel` (con copia de seguridad antes de `0004`):
 
    ```powershell
-   ..\venv\Scripts\python.exe -m modules.security.migrations
+   .\tasks.ps1 migrate
    ```
 
-4. Inicia Uvicorn y abre `http://127.0.0.1:8000/docs` para inspeccionar la API.
+4. Inicia la API con `.\tasks.ps1 run` y abre `http://127.0.0.1:8000/docs` para inspeccionar la API.
 5. Inicia sesión con un usuario `instructor` o `superadmin` para obtener un token Bearer.
 
-La migración `0002_academic_dashboard` crea el esquema académico y `0003_soft_delete_excel_imports` añade la marca de desactivación lógica. El servidor no crea ni actualiza estas tablas automáticamente.
+La migración `0002_academic_dashboard` crea el esquema académico, `0003_soft_delete_excel_imports` añade la marca de desactivación lógica y `0004_unify_programs` unifica los programas por nombre normalizado. El servidor no crea ni actualiza estas tablas automáticamente.
 
 ## Qué pasa al subir el libro
 
@@ -64,7 +64,7 @@ El nombre del archivo no determina la idempotencia; la huella se calcula sobre e
 ### 3. Se leen solo las hojas requeridas
 
 - **`BD GEN`:** fuente histórica de intentos individuales.
-- **`TD PROGRAMAS`:** tabla dinámica; se conserva el año seleccionado y la referencia visible en el libro al momento de importar.
+- **`TD PROGRAMAS`:** tabla dinámica; se lee sin fila de encabezado y se conserva el año seleccionado y la referencia visible en el libro al momento de importar.
 
 No se ejecutan macros, no se procesan otras hojas y no se guarda el archivo binario. Si faltan hojas, encabezados requeridos o el año visible de la tabla dinámica, la importación falla con `422`.
 
@@ -75,7 +75,9 @@ No se ejecutan macros, no se procesan otras hojas y no se guarda el archivo bina
 - El puntaje GLOBAL principal viene de **J**, sin recalcularlo desde las competencias. Se guarda la representación original y, cuando se puede convertir, también el valor numérico. Un valor no numérico queda `NULL`.
 - El cálculo alternativo desde E:I se conserva separado; nunca sustituye el GLOBAL de J.
 - Los niveles de origen Q:U se conservan; no se vuelven a inferir desde los puntajes.
-- Etiquetas de programa distintas siguen siendo programas distintos. La normalización sirve para comparar/buscar, no para fusionar tildes, espacios o mayúsculas automáticamente.
+- Los nombres de programa que solo difieren en tildes, mayúsculas o espacios son el mismo programa (p. ej. `INGENIERIA DE SISTEMAS` e `INGENIERÍA DE SISTEMAS`). Ninguna fila se suma ni se fusiona: solo cambia el programa al que pertenece, y los promedios se calculan sobre todas sus filas. Cada escritura original queda como alias y en `program_name_raw`.
+- `4` y `SEMESTRE 4` se tratan como el mismo semestre; se guarda el texto original.
+- Los códigos no numéricos en puntajes (`N`, `N/A`, `P`) cuentan como sin puntaje y se informan en la auditoría.
 - Las filas sin documento permanecen como intentos. No se cuentan como estudiantes únicos ni se pueden consultar por documento.
 
 ### 5. Se guardan los resultados y se cambia la versión activa
@@ -94,7 +96,7 @@ La respuesta de importación incluye:
 
 - `import_id`, `filename`, `status` e `imported_at`.
 - `filters`: años, simulacros, programas y otros filtros encontrados en `BD GEN`.
-- `source_audit`: año visible de `TD PROGRAMAS`, filas/métricas comparables y diferencias.
+- `source_audit`: año visible de `TD PROGRAMAS`, filas/métricas comparables, diferencias y `data_quality` (códigos en puntajes y niveles inconsistentes).
 - `overview`: indicadores y primera página de programas, limitada a 50.
 
 Los indicadores de puntajes se calculan sobre filas con `APLICA SIMULACRO = Si`; los valores GLOBAL vacíos/no numéricos no entran al promedio. Las diferencias de auditoría se informan, no se corrigen ni bloquean una carga válida.
@@ -211,8 +213,8 @@ Los filtros disponibles son `year`, `simulation`, `group`, `semester`, `test_typ
 | `excel_imports` | Historial de archivos procesados, hash, conteos, usuario, fecha y estado. |
 | `excel_dashboard_state` | Una sola fila que indica qué importación se considera activa. |
 | `academic_students` | Índice compartido de estudiantes por documento para relacionar sus intentos; se conserva al desactivar un snapshot. |
-| `academic_programs` | Catálogo de etiquetas exactas de programa, sin fusiones automáticas. |
-| `academic_program_aliases` | Estructura para equivalencias confirmadas; la importación aún no las gestiona ni aplica. |
+| `academic_programs` | Un programa por nombre normalizado, con el nombre visible elegido. |
+| `academic_program_aliases` | Cada escritura original encontrada de un programa. |
 | `academic_results` | Una fila por intento de `BD GEN`, incluida la fila fuente y los puntajes/niveles. |
 | `td_programas_reference` | Valores visibles de la tabla dinámica y año seleccionado en esa importación. |
 

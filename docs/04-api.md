@@ -87,9 +87,30 @@ Estas rutas requieren rol `instructor` o `superadmin` y `Authorization: Bearer <
 
 `POST /excel/dashboard/import` acepta archivos de hasta 30 MB en las extensiones que permite el servicio Excel. El mismo contenido identificado por SHA-256 no se vuelve a insertar; si ya existe una importación válida no desactivada, la respuesta vuelve a identificarla. Si ese contenido fue desactivado, la API responde `409`; no hay restauración automática. La vista global pagina hasta 50 programas por petición (`page` empieza en 1; `page_size` de 1 a 50).
 
-Los endpoints de programa y vista global aceptan `year`, `simulation`, `group`, `semester`, `test_type` y `presented`; el endpoint de programa también admite `search`, `page` y `page_size`. `program_id` se obtiene de `filters.programs` o de la lista `overview.programs` de la respuesta de importación. En búsquedas y filtros se conserva el identificador de importación para que las consultas lean siempre el mismo snapshot.
+Los endpoints de programa y vista global aceptan `year`, `simulation`, `group`, `semester`, `test_type` y `presented`; el endpoint de programa también admite `search`, `page` y `page_size`. `program_id` se obtiene de `filters.programs` o de la lista `overview.programs` de la respuesta de importación. Un programa agrupa todas las escrituras de su nombre que solo difieren en tildes, mayúsculas o espacios; el filtro `semester` trata `4` y `SEMESTRE 4` como el mismo valor. En búsquedas y filtros se conserva el identificador de importación para que las consultas lean siempre el mismo snapshot.
 
 El estado persistido de cada carga puede ser `PROCESSING`, `VALIDATED`, `ACTIVE`, `HISTORICAL` o `FAILED`. `PROCESSING`/`VALIDATED` son estados internos transitorios; normalmente la respuesta exitosa será `ACTIVE`. Si la validación del libro falla se responde `422` y la carga queda registrada como `FAILED`; ningún resultado parcial reemplaza el snapshot activo. `DELETED` es un estado que proyecta el listado administrativo cuando `deleted_at` está establecido; no reemplaza el estado almacenado. Al desactivar el snapshot activo, se limpia `active_import_id`. Los endpoints normales ocultan snapshots desactivados y responden `404` al consultarlos por ID.
+
+### Auditoría y calidad de datos
+
+La respuesta de importación (y `GET /excel/dashboard/active`) incluye `source_audit`:
+
+| Campo | Contenido |
+|---|---|
+| `years_in_bd_gen`, `td_programas_visible_year` | Años de `BD GEN` y año seleccionado en `TD PROGRAMAS`. |
+| `compared_program_rows`, `compared_metrics`, `difference_count`, `differences` | Comparación de `TD PROGRAMAS` con lo calculado desde `BD GEN`, emparejando programa y simulacro por nombre normalizado (máximo 100 diferencias detalladas). |
+| `records_without_document` | Intentos sin documento. |
+| `data_quality` | `score_codes` (textos no numéricos en puntajes, por competencia), `levels_without_numeric_score` y `unknown_levels`. Es `null` en importaciones anteriores al 22/11/2026. |
+
+Ejemplo de `data_quality` con el libro CORHUILA:
+
+```json
+{
+  "score_codes": {"comunicacion_escrita": {"N": 254, "N/A": 489, "P": 12}},
+  "levels_without_numeric_score": {"comunicacion_escrita": 60},
+  "unknown_levels": {"ingles": {"false": 2}}
+}
+```
 
 ## Estado
 

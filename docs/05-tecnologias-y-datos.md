@@ -4,6 +4,8 @@
 
 El proyecto declara la versión de API `1.0.0` en `app`. El entorno inspeccionado usa Python `3.15.2`; no hay actualmente un archivo de metadatos que declare un rango formal de versiones soportadas. Las versiones siguientes son las fijadas en el `requirements.txt` inspeccionado.
 
+Herramientas de desarrollo usadas localmente y aún no fijadas en `requirements.txt`: `pyflakes` (revisión estática). Ver la fase 6 pendiente en el [estado del proyecto](10-estado-y-continuidad.md).
+
 ## Bibliotecas principales
 
 | Biblioteca | Versión fijada | Uso |
@@ -57,8 +59,8 @@ uvicorn==0.54.0
 ## Bases de datos
 
 - **MySQL** es el motor configurado para la ejecución de la API. La URL se construye con `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` y `DB_NAME`; PyMySQL implementa la conexión.
-- `AuthBase` reúne las tablas `api_users`, `api_access_tokens` y el esquema relacional del dashboard académico; no reutiliza el `Base` de `core`.
-- El dashboard persiste metadatos de importación (`excel_imports`, incluido `deleted_at`), estudiantes (`academic_students`), etiquetas originales de programas (`academic_programs`), equivalencias de programa confirmables (`academic_program_aliases`), intentos por fila (`academic_results`), referencias visibles de TD (`td_programas_reference`) y el ID del snapshot activo (`excel_dashboard_state`).
+- `core.orm.Base` reúne todas las tablas: `api_users`, `api_access_tokens` y el esquema relacional del dashboard académico.
+- El dashboard persiste metadatos de importación (`excel_imports`, incluido `deleted_at`), estudiantes (`academic_students`), programas identificados por nombre normalizado (`academic_programs`), cada escritura original de un programa (`academic_program_aliases`), intentos por fila (`academic_results`), referencias visibles de TD (`td_programas_reference`) y el ID del snapshot activo (`excel_dashboard_state`).
 - Cada intento BD GEN se identifica por `(import_id, source_row_number)`, no por documento o simulacro. El archivo binario no se conserva; sí se guarda el contenido estructurado requerido para consultas, incluido el payload de origen.
 - **SQLite** se usa en pruebas automatizadas con una base temporal en memoria. No es el motor configurado para el despliegue.
 - `POST /excel/read` sigue siendo una operación temporal de lectura; `POST /excel/dashboard/import` sí persiste snapshots de resultados e historial.
@@ -68,8 +70,10 @@ uvicorn==0.54.0
 - La columna J de `BD GEN` es el puntaje GLOBAL principal. Se almacena su representación original y su valor numérico; si la celda no es numérica, el puntaje numérico queda `NULL` y no participa en los promedios globales.
 - Los puntajes de competencia E:I se guardan por separado. Su suma dividida por cinco es solo un cálculo alternativo y no reemplaza J.
 - Los niveles Q:U se conservan desde el Excel; no se reconstruyen a partir de los puntajes.
-- Los programas mantienen etiquetas exactas. La clave normalizada apoya filtros/búsqueda, pero no combina automáticamente nombres que difieran por tildes, espacios o mayúsculas.
-- Existe una tabla para alias confirmados de programa, pero la importación actual no crea ni aplica alias automáticamente.
+- La suma de E:I dividida por cinco cuenta las competencias vacías como 0, igual que el Excel institucional (decisión del 22/11/2026).
+- **Programas:** dos nombres son el mismo programa si coinciden sin tildes, mayúsculas ni espacios extra (`normalized_key`, único desde la migración `0004`). El nombre visible es el de `TD PROGRAMAS` si existe; si no, la variante con más tildes y luego la más frecuente. Cada escritura se guarda en `academic_program_aliases`. Los promedios de un programa se calculan sobre todas sus filas; los intentos no se suman ni se fusionan.
+- **Semestres:** un número suelto (`4`) se trata como `SEMESTRE 4` en filtros y comparaciones; se conserva el texto original.
+- **Códigos no numéricos** en puntajes (`N`, `N/A`, `P`…) cuentan como sin puntaje y se informan en `source_audit.data_quality`.
 - `TD PROGRAMAS` es una tabla dinámica: se persiste el año seleccionado y la referencia visible de esa importación. Los históricos se consultan desde BD GEN.
 
 El detalle de columnas, estados e invariantes está en [flujo del dashboard académico](09-flujo-dashboard-academico.md).

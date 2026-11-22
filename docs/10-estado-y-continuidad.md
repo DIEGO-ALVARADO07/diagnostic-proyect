@@ -1,115 +1,92 @@
 # Estado de entrega y continuidad entre sesiones
 
-> Resumen de trabajo actualizado el 20 de noviembre de 2026. Este documento permite retomar el desarrollo en otra sesión o equipo sin depender del historial de chat. No contiene credenciales ni valores de `.env`.
+> Actualizado el 22 de noviembre de 2026. Permite retomar el desarrollo en otra sesión o equipo sin depender del historial de chat. No contiene credenciales ni valores de `.env`.
 
-## Repositorios y transferencia
+## Ramas del repositorio
 
-Hay dos carpetas de trabajo independientes:
+| Rama | Contenido |
+|---|---|
+| `dev` | Código: backend en `back/api-reader-excel/` y frontend en `front/`. Último commit: `2ae0476` (fase 5). |
+| `docs` | Esta documentación (`docs/`) y la [bitácora de cambios](bitacora/README.md). |
+| `main` | Rama principal; aún no recibe los cambios de las fases 1–5. |
 
-- `diagnostic-proyect/`: código del backend en `back/api-reader-excel/` y frontend en `front/`.
-- `diagnostic-proyect-docs-worktree/`: esta documentación, en `docs/`.
+Para trabajar en ambas a la vez, usa un *worktree* para `docs` (`git worktree add ../diagnostic-proyect-docs docs`) y así no cambias de rama en la carpeta del código. No copies credenciales, tokens ni el contenido de `core/.env` a Git ni a esta carpeta.
 
-La documentación debe transferirse junto con el código al que se refiere. Los comandos y rutas de los documentos técnicos son relativos a la raíz del proyecto, salvo que se indique lo contrario. Antes de continuar en otro equipo, revisa `git status --short` en ambos worktrees y conserva cualquier modificación sin commit. No copies credenciales, tokens ni contenido del archivo `core/.env` a Git o a esta carpeta.
+## Plan de mejoras (revisión técnica de noviembre de 2026)
 
-Al preparar este resumen, el código del proyecto tenía cambios pendientes (incluidos cambios staged) y la documentación tenía cambios sin commit. No se creó ningún commit ni se subieron cambios; cada worktree debe sincronizarse por separado si se requiere llevarlos a otro dispositivo.
+Cada cambio está explicado en orden (qué, dónde y por qué) en la [bitácora](bitacora/README.md).
+
+| Fase | Contenido | Estado | Commit en `dev` |
+|---|---|---|---|
+| 1 | `.env` fuera de Git, `.env.example`, logging y `tasks.ps1` | Completada | `4c7dd04` |
+| 2 | Caché en memoria del dataset del dashboard (~1 s → 5–150 ms por consulta) | Completada | `9ff838b` |
+| 3 | Enum de estados, sesión de BD única en `core`, sin módulos de compatibilidad, errores uniformes | Completada | `85ed289` |
+| 4 | `DashboardService` dividido, competencias por clave, `Base` y migraciones en `core`, `TD PROGRAMAS` sin encabezado | Completada | `b834696` |
+| 5 | Programas unificados (migración `0004`), semestres normalizados, reporte de calidad de datos | Completada | `2ae0476` |
+| 6 | Seguridad (limpieza de tokens vencidos, cerrar sesiones al cambiar contraseña, límite de intentos de login), `requirements-dev.txt` con ruff/pytest, CI en GitHub Actions, frontend (URL de API configurable, CSRF en login) | **Pendiente** | — |
+
+Decisiones de negocio tomadas en la fase 5 (22/11/2026):
+
+- Unificar programas que solo difieren en tildes, mayúsculas o espacios.
+- Tratar `4` como `SEMESTRE 4`.
+- Mantener la regla del GLOBAL del Excel (competencias vacías = 0).
+- Los códigos `N` y `P` de "Comunicación escrita" tienen significado desconocido: siguen como sin puntaje y se reportan en `source_audit.data_quality` para que alguien los aclare.
+
+## Tareas operativas pendientes
+
+1. **Aplicar las migraciones en cada MySQL** (con copia de seguridad: `0004` fusiona programas y no se revierte):
+
+   ```powershell
+   $env:APP_MASTER_KEY = "<clave>"
+   .\tasks.ps1 migrate
+   ```
+
+2. **Credenciales:** `core/.env` estuvo versionado hasta el commit `764a5b6` y sigue en el historial de Git. `DB_USER` y `DB_PASSWORD` van cifrados, pero `DB_HOST`, `DB_PORT` y `DB_NAME` están en texto plano. Si el repositorio es o será público, conviene rotar las credenciales de MySQL.
+3. Aclarar con la institución qué significan los códigos `N` y `P`.
 
 ## Qué está construido
 
+### Backend
+
+- API FastAPI (monolito modular): `modules/security` (autenticación con token opaco, usuarios, roles) y `modules/excel` (lectura de Excel y dashboard académico).
+- `POST /excel/read` lee una hoja sin persistir; `POST /excel/dashboard/import` guarda snapshots de `BD GEN` y la referencia visible de `TD PROGRAMAS` en MySQL (no guarda el archivo).
+- Dashboard: vista global, programa y estudiante con filtros; auditoría frente a `TD PROGRAMAS` y reporte de calidad de datos; caché en memoria por importación.
+- Operación con `tasks.ps1` (install, migrate, bootstrap, run, test) y logging configurable.
+- 58 pruebas automatizadas en SQLite.
+
 ### Frontend
 
-- Frontend PHP con inicio y cierre de sesión, sesión del lado del servidor y llamadas autenticadas a la API. No requiere Node.js ni npm para ejecutarse.
-- Navegación y pantallas separadas según el rol. `front/index.php` mantiene el marco principal y carga el módulo solicitado desde `front/partials/`.
-- Estilo institucional verde, sidebar y pantallas modulares para dashboard, usuarios, estudiantes, reporte, perfil e importaciones.
-- El instructor puede consultar estudiantes, importar el libro y consultar el dashboard académico.
-- El superadmin dispone, además, de administración de usuarios e historial administrativo de importaciones.
-- El dashboard consulta datos persistidos mediante el proxy PHP `front/partials/dashboard/data.php`; `dashboard.js` dibuja los gráficos SVG y gestiona las vistas global, programa y estudiante.
+- PHP con sesión del lado del servidor y llamadas autenticadas a la API; no requiere Node.js.
+- Pantallas por rol: dashboard, usuarios, estudiantes, reporte, perfil e importaciones (superadmin).
+- El dashboard usa el proxy `front/partials/dashboard/data.php` y dibuja gráficos SVG.
 
-La guía funcional y de instalación está en [Frontend PHP](08-frontend.md).
+Guías: [Instalación y uso](03-instalacion-y-operacion.md), [API](04-api.md), [Flujo del dashboard](09-flujo-dashboard-academico.md), [Frontend](08-frontend.md).
 
-### Backend y datos académicos
+## Validación registrada (22/11/2026)
 
-- FastAPI mantiene separados el endpoint de lectura temporal `POST /excel/read` y el flujo persistente `POST /excel/dashboard/import`.
-- La importación académica usa las hojas `BD GEN` y `TD PROGRAMAS`, procesa los resultados y guarda snapshots relacionales en MySQL. No guarda el archivo binario.
-- Cada importación tiene hash y estado. Se conserva cada fila de origen; las consultas usan el mismo `import_id` para evitar mezclar snapshots.
-- El frontend carga global, programas y estudiantes desde endpoints autenticados; sus filtros y gráficos no consultan directamente MySQL.
+- `.\tasks.ps1 test`: 58 pruebas OK.
+- `pyflakes` sobre `modules`, `core`, `app`, `api`, `tests`, `migrations` y `scripts`: sin avisos.
+- Libro real `CORHUILA.xlsm` (3.819 filas): las fases 3 y 4 no cambiaron ningún resultado (comparación completa de respuestas y filas guardadas). La fase 5 solo cambió lo decidido: 27 → 17 programas y 9 → 7 semestres; KPIs, historiales y auditoría (14 diferencias) iguales.
+- Uvicorn real: `/health` responde y las rutas protegidas sin token devuelven `401` con `WWW-Authenticate: Bearer`.
 
-La especificación de contratos está en [API y contratos](04-api.md); el flujo de datos completo, en [Flujo del dashboard académico](09-flujo-dashboard-academico.md).
+Las pruebas de migraciones se ejecutan sobre SQLite; no demuestran que ya se aplicaron en el MySQL de cada equipo.
 
-## Permisos y desactivación lógica
-
-| Acción | Superadmin | Instructor |
-|---|---:|---:|
-| Importar snapshot | Sí | Sí |
-| Consultar snapshot activo | Sí | Sí |
-| Consultar snapshots históricos disponibles | Sí | No |
-| Abrir el módulo de historial administrativo | Sí | No |
-| Ver registros desactivados como `DELETED` | Sí | No |
-| Desactivar un snapshot | Sí | No |
-
-El historial tiene un módulo independiente **Importaciones** en el frontend. La desactivación no es un borrado físico:
-
-- La API marca `excel_imports.deleted_at`; conserva el registro y sus resultados.
-- El estado original guardado no se reemplaza; el endpoint administrativo presenta `DELETED` cuando `deleted_at` tiene valor.
-- Las consultas normales ocultan los snapshots desactivados y las consultas directas por ID responden `404`.
-- Se pueden desactivar snapshots `ACTIVE`, `HISTORICAL` o `FAILED`; no `PROCESSING` ni `VALIDATED`.
-- Si se desactiva el snapshot activo, `excel_dashboard_state.active_import_id` se limpia. El dashboard queda sin resultados hasta una nueva importación.
-- Reimportar exactamente el contenido desactivado responde `409`; no existe restauración automática.
-
-Rutas relevantes:
-
-| Método | Ruta | Acceso y resultado |
-|---|---|---|
-| `GET` | `/excel/dashboard/active` | Instructor o superadmin; consulta el snapshot activo. |
-| `GET` | `/excel/dashboard/imports` | Superadmin; lista importaciones no desactivadas. |
-| `GET` | `/excel/dashboard/admin/imports?limit=100` | Superadmin; lista todos los estados, incluidos `DELETED`. Lo usa el módulo **Importaciones**. |
-| `DELETE` | `/excel/dashboard/imports/{import_id}` | Superadmin; desactivación lógica de `ACTIVE`, `HISTORICAL` o `FAILED`. |
-| `GET` | `/excel/dashboard/{import_id}` y consultas hijas | Instructor solo para el activo; superadmin para activos e históricos no desactivados. |
-
-## Migraciones: requisito antes de probar
-
-La revisión `0003_soft_delete_excel_imports` agrega la columna nullable `deleted_at` a `excel_imports`. Sin aplicarla, las nuevas consultas pueden fallar aunque el frontend y el código de la API estén actualizados. El servidor no migra la base automáticamente.
-
-Desde PowerShell, en la raíz de `back/api-reader-excel/`, usa el entorno virtual del proyecto y el wrapper que valida esquemas legacy:
-
-```powershell
-.\venv\Scripts\python.exe -m modules.security.migrations
-```
-
-Si la terminal está en `back/api-reader-excel/core/`, la ruta del intérprete equivalente es:
-
-```powershell
-..\venv\Scripts\python.exe -m modules.security.migrations
-```
-
-No uses `python -m alembic upgrade head` para saltarte el wrapper de migraciones. Configura localmente `core/.env` y `APP_MASTER_KEY` cuando aplique. La revisión `0003` fue verificada con SQLite en las pruebas; la aplicación a una base MySQL real debe confirmarse en el entorno destino antes de usar la interfaz.
-
-## Validación registrada
-
-En el workspace al preparar esta nota pasaron:
-
-- `python -m unittest discover -s tests -p test_dashboard.py -v`: 10 pruebas.
-- `python -m unittest discover -s tests -p test_security_migrations.py -v`: 3 pruebas.
-- `php -l` para `front/index.php`, el módulo `imports` y la pantalla de perfil.
-- `git diff --check` en el repositorio de código y en el worktree de documentación.
-
-Las pruebas de migraciones se ejecutan sobre SQLite temporal; no demuestran que la migración ya se haya aplicado a la base MySQL configurada en cada equipo.
-
-## Archivos de referencia en el código
+## Archivos de referencia en el código (rama `dev`)
 
 | Archivo | Responsabilidad |
 |---|---|
-| `front/index.php` | Navegación, control de vistas por rol y flujo de acciones de importación. |
-| `front/partials/imports/screen.php` y `style.css` | Historial administrativo y acción de desactivación. |
-| `front/partials/dashboard/dashboard.js` y `data.php` | Consultas del dashboard, visualizaciones SVG y proxy autenticado PHP. |
-| `back/api-reader-excel/modules/excel/routes.py` | Endpoints y controles de acceso del dashboard. |
-| `back/api-reader-excel/modules/excel/services/dashboard_service.py` | Importación, autorización de snapshots y desactivación lógica. |
-| `back/api-reader-excel/modules/excel/entities/academic.py` | Entidad de importación con `deleted_at`. |
-| `back/api-reader-excel/modules/security/migrations/versions/0003_soft_delete_excel_imports.py` | Migración de la marca de desactivación lógica. |
-| `back/api-reader-excel/tests/test_dashboard.py` | Pruebas de dashboard, permisos, retención y desactivación. |
-| `back/api-reader-excel/tests/test_security_migrations.py` | Cadena y reversión de migraciones. |
+| `back/api-reader-excel/tasks.ps1` | Tareas de instalación, migración, arranque y pruebas. |
+| `back/api-reader-excel/core/` | Configuración, sesión por petición, `Base` ORM, errores y logging. |
+| `back/api-reader-excel/migrations/` | Alembic: `runner.py` y revisiones `0001`–`0004`. |
+| `back/api-reader-excel/modules/excel/routes.py` | Endpoints del dashboard y controles de acceso. |
+| `back/api-reader-excel/modules/excel/services/` | Importación, consultas, caché, auditoría, reglas de programas y calidad de datos. |
+| `back/api-reader-excel/modules/excel/entities/` | Modelos ORM y dominio (`ImportStatus`, `Competency`, dataset). |
+| `back/api-reader-excel/scripts/bench_dashboard.py` | Medición de rendimiento. |
+| `front/index.php`, `front/partials/` | Navegación por rol y pantallas. |
 
-## Precaución al retomar
+## Al retomar
 
-En el workspace de desarrollo existe una modificación local del usuario en `back/api-reader-excel/core/config.py`, que resuelve `core/.env` junto al archivo de configuración. No reemplazar ni revertir ese archivo sin revisar primero su diff. Tampoco sobrescribir cambios pendientes del frontend o backend al sincronizar entre equipos.
-
-Para continuar, revisa primero [Instalación y operación](03-instalacion-y-operacion.md), [Pruebas y desarrollo](07-pruebas-y-desarrollo.md) y el estado de ambos worktrees. No se implementó recomendación automática de cursos ni clasificación pedagógica; son objetivos futuros del proyecto.
+1. `git fetch` y revisa `git status` en `dev` y en el worktree de `docs`.
+2. Lee la [bitácora](bitacora/README.md) para entender los cambios recientes.
+3. Sigue [Instalación y uso](03-instalacion-y-operacion.md) y aplica las migraciones pendientes.
+4. Continúa con la fase 6 o con los objetivos del proyecto (clasificación pedagógica y recomendación de cursos, aún no implementados).

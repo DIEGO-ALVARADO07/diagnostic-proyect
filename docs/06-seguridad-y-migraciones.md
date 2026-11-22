@@ -6,7 +6,7 @@
 - El login produce un token aleatorio opaco. En la tabla solo se conserva su hash SHA-256, vencimiento y estado de revocación.
 - El token vence a las 8 horas. Logout y desactivación de cuenta revocan tokens.
 - Las respuestas de usuario no incluyen contraseña ni hash.
-- El acceso a endpoints protegidos usa `Authorization: Bearer <access_token>`.
+- El acceso a endpoints protegidos usa `Authorization: Bearer <access_token>`. Sin token o con uno inválido o vencido, la API responde `401` con la cabecera `WWW-Authenticate: Bearer`; sin permisos, `403`.
 
 ## Roles
 
@@ -25,40 +25,52 @@ Un instructor no cambia usuario, rol ni contraseña de otras cuentas. Un estudia
 
 ## Configuración secreta
 
-`core/config.py` busca `APP_MASTER_KEY`. Si los valores de usuario o contraseña MySQL están cifrados en `core/.env`, Fernet los descifra al cargar configuración. La clave maestra debe recibirse por un canal seguro y exportarse localmente; nunca debe añadirse a Git o a los documentos.
+`core/.env` **no se versiona** (lo excluye el `.gitignore`; la plantilla es `core/.env.example`). `core/config.py` busca `APP_MASTER_KEY`. Si los valores de usuario o contraseña MySQL están cifrados en `core/.env`, Fernet los descifra al cargar configuración. La clave maestra debe recibirse por un canal seguro y exportarse localmente; nunca debe añadirse a Git o a los documentos.
 
 Las variables `BOOTSTRAP_SUPERADMIN_*` se usan solo durante el aprovisionamiento inicial. Quitarlas de la terminal después del bootstrap no elimina la cuenta creada en MySQL.
 
 ## Migraciones activas
 
-- `alembic.ini` apunta a `modules/security/migrations` y a sus revisiones versionadas.
-- `0001_security_tables` crea `api_users`, `api_access_tokens` y sus índices.
-- `0002_academic_dashboard` crea el esquema relacional de importaciones y resultados del dashboard, incluida la fila única de `excel_dashboard_state`.
-- `0003_soft_delete_excel_imports` agrega `excel_imports.deleted_at`, sin borrar ni modificar las filas académicas existentes.
+- Las migraciones viven en `back/api-reader-excel/migrations/` (antes en `modules/security/migrations/`; las revisiones no cambiaron, así que las bases existentes siguen siendo válidas). `alembic.ini` apunta a esa carpeta.
+- Todos los modelos (seguridad y académicos) comparten la base declarativa `core.orm.Base`.
 - Alembic guarda la revisión aplicada en `alembic_version`.
-- El servidor no migra ni crea tablas automáticamente; migrar es un paso operativo explícito.
-- Se mantiene Alembic porque ya es el gestor de migraciones del backend; no se añade Liquibase en paralelo.
+- El servidor no migra ni crea tablas automáticamente: migrar es un paso operativo explícito.
+
+| Revisión | Contenido |
+|---|---|
+| `0001_security_tables` | `api_users`, `api_access_tokens` y sus índices. |
+| `0002_academic_dashboard` | Esquema del dashboard: importaciones, estudiantes, programas, alias, resultados, referencia de `TD PROGRAMAS` y la fila única `excel_dashboard_state`. |
+| `0003_soft_delete_excel_imports` | `excel_imports.deleted_at` para desactivación lógica. |
+| `0004_unify_programs` | Fusiona programas cuyo nombre solo difiere en tildes, mayúsculas o espacios: conserva el de menor id, reasigna resultados y alias, guarda cada nombre como alias y hace **único** `academic_programs.normalized_key`. |
 
 ### Base nueva
 
 1. Crear la base/schema MySQL por separado.
-2. Ejecutar `python -m modules.security.bootstrap` desde `core/` con configuración y variables iniciales. El bootstrap aplica migraciones y crea el primer superadmin.
-3. Iniciar Uvicorn.
+2. `.\tasks.ps1 bootstrap` desde `back/api-reader-excel`: aplica las migraciones y crea el primer superadmin.
+3. `.\tasks.ps1 run`.
 
-### Aplicar migraciones
-
-Ejecutar desde `core/`:
+### Aplicar migraciones en una base existente
 
 ```powershell
-..\venv\Scripts\python.exe -m modules.security.migrations
+$env:APP_MASTER_KEY = "<clave>"   # si core\.env va cifrado
+.\tasks.ps1 migrate               # equivale a: python -m migrations
 ```
 
-Ejecuta el comando antes de iniciar una versión nueva de la API. Para una instalación nueva, `modules.security.bootstrap` aplica las migraciones pendientes antes de crear la cuenta superadmin. Para una actualización, este comando aplica las revisiones nuevas sin volver a ejecutar el bootstrap.
+Ejecútalo antes de arrancar una versión nueva de la API. No ejecutes el bootstrap solo para migrar, y no uses `alembic upgrade head` directamente: el comando del proyecto valida antes las bases antiguas.
 
-Si existe una base legacy con las dos tablas de seguridad y sin historial Alembic, el servicio exige que coincidan con los modelos. Entonces marca `0001_security_tables` y continúa hacia `head`, que incluye `0002_academic_dashboard` y `0003_soft_delete_excel_imports`. Si la seguridad está incompleta, difiere de los modelos o ya hay tablas académicas sin historial en esa base legacy, aborta sin marcarla. Un esquema académico sin las tablas legacy de seguridad no se adopta automáticamente: respáldalo y revísalo antes de migrar.
+Si existe una base legacy con las dos tablas de seguridad y sin historial Alembic, el servicio (`migrations/runner.py`, `DatabaseMigrationService`) exige que coincidan con los modelos. Entonces marca `0001_security_tables` y continúa hasta la última revisión. Si la seguridad está incompleta, difiere de los modelos o ya hay tablas académicas sin historial en esa base legacy, aborta sin marcarla. Un esquema académico sin las tablas legacy de seguridad no se adopta automáticamente: respáldalo y revísalo antes de migrar.
 
-La importación registra contenido personal de estudiantes (documento, nombre, correo y filas fuente) en MySQL para habilitar búsquedas e historial. El Excel binario no se persiste. Restringe acceso a la base, copias de seguridad y snapshots de acuerdo con las políticas de datos de la institución; los logs HTTP no deben incluir payload ni datos personales.
+**Antes de `0004` haz una copia de seguridad**: fusiona datos. En MySQL los cambios de índice confirman la transacción de forma implícita; si fallara la creación del índice único, la fusión ya estaría aplicada (es correcta por sí misma) y basta con revisar el error y reintentar.
+
+La importación registra contenido personal de estudiantes (documento, nombre, correo y filas fuente) en MySQL para habilitar búsquedas e historial. El Excel binario no se persiste. Restringe el acceso a la base, las copias de seguridad y los snapshots de acuerdo con las políticas de datos de la institución; los logs no incluyen payload ni datos personales.
 
 ### Reversión
 
-El `downgrade` de `0003_soft_delete_excel_imports` quita `deleted_at`; al hacerlo, los registros desactivados dejan de estar marcados y podrían volver a aparecer en consultas. El de `0002_academic_dashboard` elimina las tablas académicas y sus snapshots; el de `0001_security_tables` elimina usuarios y tokens. Son operaciones destructivas: requieren un respaldo verificado y aprobación operativa, y no deben usarse como mecanismo habitual para corregir una importación.
+| Revisión | Efecto del `downgrade` |
+|---|---|
+| `0004_unify_programs` | Solo vuelve al índice no único. **No separa** los programas fusionados (cada resultado conserva su `program_name_raw`). |
+| `0003_soft_delete_excel_imports` | Quita `deleted_at`: los registros desactivados dejan de estar marcados y podrían volver a aparecer. |
+| `0002_academic_dashboard` | Elimina las tablas académicas y sus snapshots. |
+| `0001_security_tables` | Elimina usuarios y tokens. |
+
+Son operaciones destructivas: requieren una copia verificada y aprobación operativa, y no deben usarse para corregir una importación.
