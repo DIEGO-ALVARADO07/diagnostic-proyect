@@ -109,7 +109,7 @@ if ($resource === 'active') {
             dashboardJson(422, ['detail' => 'El número de página no es válido.']);
         }
         $params['page'] = $page;
-        $params['page_size'] = 12;
+        $params['page_size'] = 50;
         $endpoint = 'excel/dashboard/' . $importId;
     } else {
         $programId = $_GET['program_id'] ?? '';

@@ -45,7 +45,6 @@
 .kpi-card strong { color: #1d3b4e; display: block; font: 700 18px 'Manrope', sans-serif; margin: 2px 0 0; }
 .kpi-card small { font-size: 8px; margin-top: 1px; }
 
-.dashboard-chart-grid { align-items: start; display: grid; gap: 14px; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
 .chart-card, .students-panel, .student-detail-panel { margin-bottom: 15px; padding: 18px; }
 .chart-card-heading { align-items: flex-start; display: flex; gap: 10px; justify-content: space-between; margin-bottom: 12px; }
 .chart-card-heading .eyebrow { font-size: 8px; margin-bottom: 4px; }
@@ -54,22 +53,22 @@
 .chart-badge { background: #f0f7f3; border-radius: 5px; color: #5b7d6a; flex: 0 0 auto; font-size: 9px; padding: 5px 7px; }
 .chart-scroll { max-width: 100%; overflow: auto; }
 .dashboard-chart { display: block; max-width: 100%; overflow: visible; }
-.bubble-chart { min-width: 430px; width: 100%; }
-.comparison-chart, .competency-chart { min-width: 620px; width: 100%; }
+.competency-chart { min-width: 620px; width: 100%; }
 .chart-grid-line { stroke: #e8efeb; stroke-width: 1; }
 .chart-axis-label { fill: #81909b; font: 9px 'DM Sans', sans-serif; text-anchor: middle; }
 .chart-row-label { fill: #556b7a; font: 10px 'DM Sans', sans-serif; text-anchor: end; }
 .chart-value-label { fill: #3e5a69; font: 700 9px 'DM Sans', sans-serif; }
 .chart-bar { fill: #46ad7c; }
-.bubble-name { fill: #345364; font: 600 10px 'DM Sans', sans-serif; text-anchor: middle; }
-.bubble-value { fill: #087852; font: 700 13px 'Manrope', sans-serif; text-anchor: middle; }
-.program-bubble { cursor: pointer; outline: none; }
-.program-bubble circle { fill: #e9f5ee; stroke: #8bc9a6; stroke-width: 1.5; transition: fill .15s, stroke .15s, transform .15s; }
-.program-bubble:hover circle, .program-bubble:focus circle { fill: #d7eddf; stroke: #249761; stroke-width: 2.5; }
-.program-bubble:hover, .program-bubble:focus { transform: translateY(-2px); }
+.program-card-grid { display: grid; gap: 13px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.program-card { align-items: flex-start; background: linear-gradient(145deg, #fff, #f8fcf9); border: 1px solid #e1ece5; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; justify-content: center; min-height: 148px; padding: 19px 21px; text-align: left; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.program-card:hover, .program-card:focus-visible { border-color: #83c6a0; box-shadow: 0 8px 20px rgba(27, 105, 68, .1); outline: none; transform: translateY(-2px); }
+.program-card-name { color: #28495a; font: 700 14px 'Manrope', sans-serif; line-height: 1.45; overflow-wrap: anywhere; }
+.program-card-metric-label { color: #7b8d84; font-size: 10px; margin-top: 13px; }
+.program-card-metric { color: var(--green-dark); font: 700 22px 'Manrope', sans-serif; margin-top: 2px; }
 .chart-pagination { align-items: center; border-top: 1px solid #edf1f3; color: #788995; display: flex; font-size: 9px; justify-content: space-between; margin-top: 10px; padding-top: 11px; }
+.chart-pagination[hidden] { display: none !important; }
 .chart-pagination .button { font-size: 9px; min-height: 30px; padding: 0 10px; }
-.chart-pagination .button:disabled { opacity: .45; }
+.chart-pagination .button:disabled { cursor: not-allowed; opacity: .45; }
 .empty-chart { background: #f8fbf9; border: 1px dashed #dce8e1; border-radius: 7px; color: #73877a; font-size: 10px; margin: 12px 0; padding: 20px; text-align: center; }
 .selected-program-panel { margin: 0 0 15px; padding: 18px; }
 .selected-program-panel .chart-card-heading { align-items: center; }
@@ -90,7 +89,7 @@
 .students-panel { padding: 18px; }
 .students-panel > .chart-card-heading { margin-bottom: 13px; }
 .student-search { margin-bottom: 12px; max-width: 480px; min-height: 36px; }
-.student-search .search-status { color: #768a7d; font-size: 9px; white-space: nowrap; }
+.student-search .search-status { color: #768a7d; font-size: 9px; max-width: 230px; white-space: normal; }
 .student-results-table { min-width: 790px; }
 .student-results-table th { font-size: 8px; padding: 10px 9px; }
 .student-results-table td { font-size: 10px; padding: 10px 9px; }
@@ -112,7 +111,7 @@
 
 @media (max-width: 1050px) {
     .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .dashboard-chart-grid { grid-template-columns: 1fr; }
+    .program-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 760px) {
@@ -136,6 +135,8 @@
 @media (max-width: 420px) {
     .dashboard-kpis { grid-template-columns: 1fr; }
     .program-kpis, .student-kpis { grid-template-columns: 1fr; }
+    .program-card-grid { grid-template-columns: 1fr; }
+    .program-card { min-height: 120px; }
     .chart-pagination { gap: 6px; }
     .chart-pagination .button { padding: 0 7px; }
     .student-scores { grid-template-columns: 1fr; }

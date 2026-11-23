@@ -1,6 +1,8 @@
 (function () {
     'use strict';
 
+    var PROGRAMS_PER_PAGE = 6;
+
     var root = document.querySelector('[data-dashboard]');
     if (!root) {
         return;
@@ -263,13 +265,15 @@
             subjectFilter.value = 'global';
         }
 
-        var programs = state.filters && state.filters.programs ? state.filters.programs : [];
-        populateSelect(programFilter, programs.map(function (item) {
-            return { value: item.program_id, label: item.name };
-        }), state.selectedProgramId, 'Todos los programas');
-        if (!programs.some(function (item) { return item.program_id === state.selectedProgramId; })) {
-            state.selectedProgramId = '';
-            programFilter.value = '';
+        if (Array.isArray(overview.programs)) {
+            var programs = overview.programs;
+            populateSelect(programFilter, programs.map(function (item) {
+                return { value: item.program_id, label: item.name };
+            }), state.selectedProgramId, 'Todos los programas');
+            if (!programs.some(function (item) { return String(item.program_id) === state.selectedProgramId; })) {
+                state.selectedProgramId = '';
+                programFilter.value = '';
+            }
         }
         updateFilterContext();
     }
@@ -350,46 +354,39 @@
     }
 
     function drawBubbles(programs) {
-        var svg = root.querySelector('[data-program-bubbles]');
+        var container = root.querySelector('[data-program-bubbles]');
         var empty = root.querySelector('[data-empty-bubbles]');
+        container.replaceChildren();
         if (!programs.length) {
-            svg.replaceChildren();
             empty.hidden = false;
             return;
         }
         empty.hidden = true;
-        var columns = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(programs.length))));
-        var cellWidth = 210;
-        var cellHeight = 142;
-        var rows = Math.ceil(programs.length / columns);
-        var width = columns * cellWidth;
-        var height = rows * cellHeight;
-        prepareSvg(svg, 'Comparación de programas', 'Cada círculo representa un programa y su promedio para ' + selectedMetricLabel() + '.', '0 0 ' + width + ' ' + height);
-        programs.forEach(function (program, index) {
-            var column = index % columns;
-            var row = Math.floor(index / columns);
-            var x = column * cellWidth + cellWidth / 2;
-            var y = row * cellHeight + 64;
-            var group = chartElement(svg, 'g', {
-                class: 'program-bubble',
-                role: 'button',
-                tabindex: '0',
-                'aria-label': program.name + ', ' + selectedMetricLabel() + ': ' + formatNumber(selectedMetric(program.metrics))
-            });
-            var title = chartElement(svg, 'title', {}, group);
-            title.textContent = program.name + ' · ' + formatNumber(selectedMetric(program.metrics));
-            chartElement(svg, 'circle', { cx: x, cy: y, r: 51 }, group);
-            chartText(svg, truncate(program.name, 20), x, y - 5, 'bubble-name', group);
-            chartText(svg, formatNumber(selectedMetric(program.metrics)), x, y + 20, 'bubble-value', group);
-            group.addEventListener('click', function () {
+        programs.forEach(function (program) {
+            var card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'program-card';
+            card.setAttribute('aria-label', program.name + ', ' + selectedMetricLabel() + ': ' + formatNumber(selectedMetric(program.metrics)));
+
+            var name = document.createElement('span');
+            name.className = 'program-card-name';
+            name.textContent = program.name;
+            card.appendChild(name);
+
+            var label = document.createElement('span');
+            label.className = 'program-card-metric-label';
+            label.textContent = selectedMetricLabel();
+            card.appendChild(label);
+
+            var value = document.createElement('strong');
+            value.className = 'program-card-metric';
+            value.textContent = formatNumber(selectedMetric(program.metrics));
+            card.appendChild(value);
+
+            card.addEventListener('click', function () {
                 openProgram(program.program_id);
             });
-            group.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    openProgram(program.program_id);
-                }
-            });
+            container.appendChild(card);
         });
     }
 
@@ -454,16 +451,6 @@
         });
     }
 
-    function globalMetricEntries(programs) {
-        return programs.map(function (program) {
-            return {
-                label: program.name,
-                value: selectedMetric(program.metrics),
-                programId: program.program_id
-            };
-        });
-    }
-
     function programCompetencyEntries(metrics) {
         var competencies = competencyEntries(metrics);
         if (state.subject === 'global' || state.subject === 'all') {
@@ -515,24 +502,22 @@
         setText('[data-kpi-programs]', formatNumber(overview.kpis.programs));
         setText('[data-kpi-students]', formatNumber(overview.kpis.unique_students));
         setText('[data-kpi-presentations]', formatNumber(overview.kpis.presentations));
-        setText('[data-comparison-title]', selectedMetricLabel() + ' por programa');
 
         var programs = overview.programs || [];
-        drawBubbles(programs);
-        drawBars(
-            root.querySelector('[data-program-comparison]'),
-            globalMetricEntries(programs),
-            'Comparación de programas',
-            selectedMetricLabel() + ' por programa.',
-            root.querySelector('[data-empty-comparison]')
-        );
-        var label = programs.length
-            ? 'Página ' + overview.page + ' de ' + overview.total_pages + ' · ' + overview.total_programs + ' programas'
-            : '';
-        setText('[data-program-page-label]', label);
-        setText('[data-program-pages]', label);
-        root.querySelector('[data-program-prev]').disabled = overview.page <= 1;
-        root.querySelector('[data-program-next]').disabled = overview.page >= overview.total_pages;
+        var totalPages = Math.max(1, Math.ceil(programs.length / PROGRAMS_PER_PAGE));
+        if (state.page > totalPages) {
+            state.page = totalPages;
+            updateUrl(true);
+        }
+        var start = (state.page - 1) * PROGRAMS_PER_PAGE;
+        drawBubbles(programs.slice(start, start + PROGRAMS_PER_PAGE));
+
+        var totalPrograms = overview.total_programs;
+        setText('[data-program-page-label]', totalPrograms + ' programas');
+        setText('[data-program-pages]', 'Página ' + state.page + ' de ' + totalPages + ' · ' + totalPrograms + ' programas');
+        root.querySelector('[data-program-prev]').disabled = state.page <= 1;
+        root.querySelector('[data-program-next]').disabled = state.page >= totalPages;
+        root.querySelector('[data-program-pagination]').hidden = totalPages <= 1;
 
         if (programFilter.value !== state.selectedProgramId) {
             programFilter.value = state.selectedProgramId;
@@ -821,20 +806,22 @@
         updateFilterContext();
     }
 
-    function fetchOverview() {
+    function fetchOverview(requestNumber) {
         return apiRequest(Object.assign({
             resource: 'overview',
             import_id: state.importId,
-            page: state.page
+            page: 1
         }, buildFilterParams())).then(function (overview) {
-            state.overview = overview;
-            state.importId = overview.import_id;
-            state.filters = overview.filters;
+            if (requestNumber === undefined || requestNumber === state.requestNumber) {
+                state.overview = overview;
+                state.importId = overview.import_id;
+                state.filters = overview.filters;
+            }
             return overview;
         });
     }
 
-    function fetchProgram() {
+    function fetchProgram(requestNumber) {
         return apiRequest(Object.assign({
             resource: 'program',
             import_id: state.importId,
@@ -842,8 +829,10 @@
             page: state.page,
             search: state.studentSearch
         }, buildFilterParams())).then(function (program) {
-            state.program = program;
-            state.filters = program.filters;
+            if (requestNumber === undefined || requestNumber === state.requestNumber) {
+                state.program = program;
+                state.filters = program.filters;
+            }
             return program;
         });
     }
@@ -863,18 +852,18 @@
         showState('loading');
         var request;
         if (state.importId) {
-            request = requestCurrentData();
+            request = requestCurrentData(requestNumber);
         } else {
             request = apiRequest({ resource: 'active' }).then(function (result) {
                 state.importId = result.import_id;
                 state.filters = result.filters;
                 state.overview = result.overview;
                 if (state.level === 'program') {
-                    return fetchProgram();
+                    return fetchProgram(requestNumber);
                 }
                 if (state.level === 'student') {
                     if (!state.filters || !state.competencyOptions.length) {
-                        return fetchOverview().then(function (overview) {
+                        return fetchOverview(requestNumber).then(function (overview) {
                             configureFilters(overview);
                             return fetchStudent();
                         });
@@ -882,7 +871,7 @@
                     return fetchStudent();
                 }
                 if (state.page > 1 || state.year || state.simulation) {
-                    return fetchOverview();
+                    return fetchOverview(requestNumber);
                 }
                 return result.overview;
             });
@@ -911,14 +900,14 @@
         });
     }
 
-    function requestCurrentData() {
+    function requestCurrentData(requestNumber) {
         if (state.level === 'program') {
-            return fetchProgram();
+            return fetchProgram(requestNumber);
         }
         if (state.level === 'student') {
-            return requestCurrentData();
+            return fetchStudent();
         }
-        return fetchOverview();
+        return fetchOverview(requestNumber);
     }
 
     function loadSelectedProgram() {
@@ -950,6 +939,7 @@
     }
 
     function openProgram(programId) {
+        window.clearTimeout(state.searchTimer);
         state.level = 'program';
         state.programId = String(programId);
         state.page = 1;
@@ -961,6 +951,8 @@
     }
 
     function openStudent(documentNumber) {
+        ++state.requestNumber;
+        window.clearTimeout(state.searchTimer);
         showState('loading');
         apiRequest({ resource: 'student' }, {
             method: 'POST',
@@ -1019,14 +1011,15 @@
     }
 
     function changeGlobalPage(delta) {
-        var totalPages = state.overview ? state.overview.total_pages : 1;
+        var programs = state.overview ? state.overview.programs || [] : [];
+        var totalPages = Math.max(1, Math.ceil(programs.length / PROGRAMS_PER_PAGE));
         var nextPage = state.page + delta;
         if (nextPage < 1 || nextPage > totalPages) {
             return;
         }
         state.page = nextPage;
         updateUrl(true);
-        loadCurrentView();
+        renderOverview(state.overview, false);
     }
 
     function changeStudentPage(delta) {
@@ -1037,7 +1030,27 @@
         }
         state.page = nextPage;
         updateUrl(true);
-        loadCurrentView();
+        loadProgramStudents();
+    }
+
+    function loadProgramStudents() {
+        window.clearTimeout(state.searchTimer);
+        var requestNumber = ++state.requestNumber;
+        var status = root.querySelector('[data-student-search-status]');
+        status.textContent = state.studentSearch ? 'Buscando…' : 'Cargando resultados…';
+        fetchProgram(requestNumber).then(function (program) {
+            if (requestNumber !== state.requestNumber || state.level !== 'program') {
+                return;
+            }
+            renderProgramStudents(program);
+            status.textContent = state.studentSearch ? 'Búsqueda activa' : '';
+            updateUrl(true);
+        }).catch(function (error) {
+            if (requestNumber !== state.requestNumber || state.level !== 'program') {
+                return;
+            }
+            status.textContent = errorMessage(error);
+        });
     }
 
     yearFilter.addEventListener('change', changeFilters);
@@ -1071,10 +1084,10 @@
     studentSearch.addEventListener('input', function () {
         state.studentSearch = studentSearch.value.trim();
         state.page = 1;
+        ++state.requestNumber;
         window.clearTimeout(state.searchTimer);
         state.searchTimer = window.setTimeout(function () {
-            updateUrl(true);
-            loadCurrentView();
+            loadProgramStudents();
         }, 300);
     });
 

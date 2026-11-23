@@ -87,19 +87,15 @@ $dashboardPage = $_GET['page'] ?? '1';
                 <div class="chart-scroll"><svg class="dashboard-chart competency-chart" data-selected-program-chart role="img"></svg></div>
             </section>
 
-            <div class="dashboard-chart-grid">
-                <section class="panel chart-card bubble-card">
-                    <div class="chart-card-heading"><div><p class="eyebrow">COMPARACIÓN</p><h3>Programas</h3><p>Selecciona un programa para consultar su detalle.</p></div><span class="chart-badge" data-program-page-label></span></div>
-                    <div class="chart-scroll"><svg class="dashboard-chart bubble-chart" data-program-bubbles role="img"></svg></div>
-                    <div class="empty-chart" data-empty-bubbles hidden>No hay programas con resultados para estos filtros.</div>
-                    <div class="chart-pagination"><button type="button" class="button button-secondary" data-program-prev>Anterior</button><span data-program-pages></span><button type="button" class="button button-secondary" data-program-next>Siguiente</button></div>
-                </section>
-                <section class="panel chart-card comparison-card">
-                    <div class="chart-card-heading"><div><p class="eyebrow">DESEMPEÑO</p><h3 data-comparison-title>Promedio global por programa</h3><p>Valores reportados por la API para la consulta activa.</p></div></div>
-                    <div class="chart-scroll"><svg class="dashboard-chart comparison-chart" data-program-comparison role="img"></svg></div>
-                    <div class="empty-chart" data-empty-comparison hidden>No hay calificaciones disponibles para el indicador seleccionado.</div>
-                </section>
-            </div>
+            <section class="panel chart-card program-list-card">
+                <div class="chart-card-heading">
+                    <div><p class="eyebrow">COMPARACIÓN</p><h3>Programas</h3><p>Selecciona un programa para consultar su detalle.</p></div>
+                    <span class="chart-badge" data-program-page-label></span>
+                </div>
+                <div class="program-card-grid" data-program-bubbles aria-label="Programas disponibles"></div>
+                <div class="empty-chart" data-empty-bubbles hidden>No hay programas con resultados para estos filtros.</div>
+                <div class="chart-pagination" data-program-pagination><button type="button" class="button button-secondary" data-program-prev>Anterior</button><span data-program-pages></span><button type="button" class="button button-secondary" data-program-next>Siguiente</button></div>
+            </section>
         </section>
 
         <section class="dashboard-view" data-level-view="program" hidden>
@@ -121,7 +117,7 @@ $dashboardPage = $_GET['page'] ?? '1';
             </section>
             <section class="panel students-panel">
                 <div class="chart-card-heading"><div><p class="eyebrow">ESTUDIANTES</p><h3>Resultados por estudiante</h3><p>La búsqueda consulta por nombre o documento dentro de este programa.</p></div></div>
-                <label class="search-box student-search"><span>⌕</span><input type="search" data-student-search autocomplete="off" placeholder="Buscar por nombre o número de documento"><span class="search-status" data-student-search-status></span></label>
+                <label class="search-box student-search"><span>⌕</span><input type="search" data-student-search autocomplete="off" placeholder="Buscar por nombre o número de documento"><span class="search-status" data-student-search-status role="status" aria-live="polite"></span></label>
                 <div class="table-wrap">
                     <table class="student-results-table">
                         <thead><tr><th>ESTUDIANTE</th><th>DOCUMENTO</th><th>AÑO</th><th>SIMULACRO</th><th>GLOBAL</th><th>ESTADO</th><th></th></tr></thead>
