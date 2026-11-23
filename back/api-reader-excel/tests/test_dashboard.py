@@ -361,6 +361,8 @@ class DashboardTests(unittest.TestCase):
             student.history[0].program_average_global,
             90,
         )
+        self.assertEqual(student.history[0].program_average_general, 120)
+        self.assertEqual(student.history[1].program_average_general, 167.5)
         self.assertEqual(
             student.history[1].levels["comunicacion_escrita"],
             "Sin resultado",

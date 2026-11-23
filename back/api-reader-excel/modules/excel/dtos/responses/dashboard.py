@@ -18,6 +18,8 @@ class DashboardMetricsResponse(BaseModel):
     not_presented_records: int
     average_global: float | None
     global_standard_deviation: float | None
+    average_general: float | None
+    general_standard_deviation: float | None
     simple_competence_average: float | None
     competencies: dict[str, CompetencyMetricsResponse]
 
@@ -138,6 +140,7 @@ class DashboardStudentAttemptResponse(BaseModel):
     presented: bool | None
     global_score: float | None
     program_average_global: float | None
+    program_average_general: float | None
     scores: dict[str, float | None]
     levels: dict[str, str]
     ent: str | None

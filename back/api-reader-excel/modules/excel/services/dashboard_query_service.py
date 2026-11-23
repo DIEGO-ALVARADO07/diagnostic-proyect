@@ -11,6 +11,7 @@ from modules.excel.dtos.responses.dashboard import (
     DashboardFilterOptionsResponse,
     DashboardImportResponse,
     DashboardKpisResponse,
+    DashboardMetricsResponse,
     DashboardOverviewResponse,
     DashboardProgramResponse,
     DashboardStudentAttemptResponse,
@@ -172,8 +173,8 @@ class DashboardQueryService:
             record.program_id: dataset.program_names[record.program_id]
             for record in ordered_records
         }
-        # Promedio global del mismo programa y aplicación, calculado una vez por grupo.
-        comparison_cache: dict[tuple[Any, ...], float | None] = {}
+        # Promedios del mismo programa y aplicación, calculados una vez por grupo.
+        comparison_cache: dict[tuple[Any, ...], DashboardMetricsResponse] = {}
         history: list[DashboardStudentAttemptResponse] = []
         for record in ordered_records:
             comparison_key = _comparison_key(record)
@@ -185,7 +186,8 @@ class DashboardQueryService:
                 ]
                 comparison_cache[comparison_key] = mappers.metrics_response(
                     comparable_records
-                ).average_global
+                )
+            comparison_metrics = comparison_cache[comparison_key]
             history.append(
                 DashboardStudentAttemptResponse(
                     year=record.year,
@@ -197,7 +199,8 @@ class DashboardQueryService:
                     program=record.program_name,
                     presented=record.presented,
                     global_score=record.global_score,
-                    program_average_global=comparison_cache[comparison_key],
+                    program_average_global=comparison_metrics.average_global,
+                    program_average_general=comparison_metrics.average_general,
                     scores=mappers.scores(record),
                     levels=mappers.levels(record),
                     ent=record.ent,
@@ -281,11 +284,11 @@ class DashboardQueryService:
             )
             for program_id, records in program_records.items()
         ]
-        # Mejor promedio global primero; los programas sin promedio, al final.
+        # Mejor promedio general primero; los programas sin promedio, al final.
         summaries.sort(
             key=lambda item: (
-                item.metrics.average_global is None,
-                -(item.metrics.average_global or 0),
+                item.metrics.average_general is None,
+                -(item.metrics.average_general or 0),
                 normalized_key(item.name),
             )
         )

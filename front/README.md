@@ -19,7 +19,7 @@ La documentación técnica del backend, sus rutas, configuración, migraciones y
 
 Módulos actuales:
 
-- `partials/dashboard/`: saludo y espacio reservado para futuros gráficos.
+- `partials/dashboard/`: saludo, resumen histórico, filtros, tarjetas de programas y vistas de programa y estudiante con gráficos.
 - `partials/users/`: listado de cuentas para superadmin.
 - `partials/create_user/`: creación de instructores y estudiantes.
 - `partials/students/`: listado y búsqueda de estudiantes para instructor.
@@ -51,6 +51,7 @@ La vista no autorizada vuelve al inicio. Esta restricción es de navegación; el
 | Crear una cuenta (superadmin) | `POST /users` |
 | Desactivar una cuenta (superadmin) | `DELETE /users/{id}` |
 | Subir y leer una hoja de Excel | `POST /excel/read` |
+| Consultar el dashboard persistido | `GET /excel/dashboard/active`, `GET /excel/dashboard/{import_id}` y consultas de programa/estudiante |
 
 El frontend solicita `GET /users` únicamente al abrir la vista de usuarios o estudiantes. La búsqueda por texto y el filtro por rol se aplican sobre esos resultados en el navegador.
 
@@ -62,7 +63,7 @@ El frontend solicita `GET /users` únicamente al abrir la vista de usuarios o es
 4. Si la API responde `422` con `available_sheets`, se muestra un modal con el nombre ingresado y las hojas disponibles.
 5. El resultado y el error de hoja se mantienen temporalmente en la sesión PHP para el redireccionamiento posterior al formulario. No son un historial de reportes.
 
-**La API actual no persiste los libros ni sus resultados.** El espacio de gráficos del inicio es solo una preparación visual; para mostrar indicadores reales será necesario que el backend guarde los datos o exponga una fuente persistente.
+El dashboard usa los snapshots académicos que persiste la API al importar `BD GEN` y `TD PROGRAMAS`; no es necesario volver a subir el Excel para consultar los resultados. El promedio general mostrado en las tarjetas y los indicadores de programa corresponde al promedio de todas las notas de competencia no nulas. El valor `average_global` sigue disponible en la API con su significado original, basado en la columna GLOBAL del libro. Las tarjetas conservan hasta dos decimales y el detalle individual mantiene el puntaje GLOBAL propio del estudiante.
 
 ## Sesión y seguridad
 

@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from statistics import fmean, pstdev
+from statistics import fmean, pstdev, stdev
 
 from modules.excel.entities.competency import COMPETENCIES, classify_level
 from modules.excel.entities.dashboard import DashboardRecord
@@ -9,6 +9,7 @@ def calculate_metrics(records: Sequence[DashboardRecord]) -> dict[str, object]:
     presented = [record for record in records if record.presented]
     competency_results: dict[str, dict[str, object]] = {}
     competency_averages: list[float] = []
+    general_values: list[float] = []
 
     for competency in COMPETENCIES:
         values = [
@@ -16,6 +17,7 @@ def calculate_metrics(records: Sequence[DashboardRecord]) -> dict[str, object]:
             for record in presented
             if (score := record.scores[competency.key]) is not None
         ]
+        general_values.extend(values)
         levels = [classify_level(competency, score) for score in values]
         distribution_counts = {
             level: levels.count(level)
@@ -52,6 +54,10 @@ def calculate_metrics(records: Sequence[DashboardRecord]) -> dict[str, object]:
         "average_global": fmean(global_values) if global_values else None,
         "global_standard_deviation": (
             pstdev(global_values) if len(global_values) >= 2 else None
+        ),
+        "average_general": fmean(general_values) if general_values else None,
+        "general_standard_deviation": (
+            stdev(general_values) if len(general_values) >= 2 else None
         ),
         "simple_competence_average": (
             fmean(competency_averages) if competency_averages else None

@@ -190,6 +190,17 @@
         return typeof value === 'number' && Number.isFinite(value) ? value : null;
     }
 
+    function generalAverage(metrics) {
+        if (!metrics) {
+            return null;
+        }
+        var average = metrics.average_general;
+        if (average === undefined) {
+            average = metrics.average_global;
+        }
+        return numberOrNull(average);
+    }
+
     function setText(selector, value) {
         var element = root.querySelector(selector);
         if (element) {
@@ -337,7 +348,7 @@
             return null;
         }
         if (state.subject === 'global' || state.subject === 'all') {
-            return numberOrNull(metrics.average_global);
+            return generalAverage(metrics);
         }
         var competency = metrics.competencies && metrics.competencies[state.subject];
         return competency ? numberOrNull(competency.average) : null;
@@ -345,12 +356,12 @@
 
     function selectedMetricLabel() {
         if (state.subject === 'global' || state.subject === 'all') {
-            return 'Promedio global';
+            return 'Promedio general';
         }
         var selected = state.competencyOptions.find(function (item) {
             return item.key === state.subject;
         });
-        return selected ? selected.label : 'Promedio global';
+        return selected ? selected.label : 'Promedio general';
     }
 
     function drawBubbles(programs) {
@@ -470,7 +481,7 @@
         }
         panel.hidden = false;
         setText('[data-selected-program-name]', program.program.name);
-        setText('[data-selected-program-average]', formatNumber(program.metrics.average_global));
+        setText('[data-selected-program-average]', formatNumber(generalAverage(program.metrics)));
         var link = root.querySelector('[data-open-selected-program]');
         link.href = dashboardUrlForProgram(program.program.program_id);
         var entries = programCompetencyEntries(program.metrics);
@@ -498,7 +509,7 @@
         state.overview = overview;
         state.filters = overview.filters || state.filters;
         configureFilters(overview);
-        setText('[data-kpi-average]', formatNumber(overview.kpis.average_global));
+        setText('[data-kpi-average]', formatNumber(generalAverage(overview.kpis)));
         setText('[data-kpi-programs]', formatNumber(overview.kpis.programs));
         setText('[data-kpi-students]', formatNumber(overview.kpis.unique_students));
         setText('[data-kpi-presentations]', formatNumber(overview.kpis.presentations));
@@ -539,7 +550,7 @@
         state.filters = program.filters || state.filters;
         configureFilters({ filters: program.filters, metrics: program.metrics });
         setText('[data-program-title]', program.program.name);
-        setText('[data-program-average]', formatNumber(program.metrics.average_global));
+        setText('[data-program-average]', formatNumber(generalAverage(program.metrics)));
         setText('[data-program-students-count]', formatNumber(program.metrics.unique_students));
         setText('[data-program-presentations]', formatNumber(program.metrics.presentations));
 
@@ -644,7 +655,10 @@
         setText('[data-student-score-label]', scoreLabel);
         setText('[data-student-score]', formatNumber(score));
         setText('[data-student-program-average]', (state.subject === 'global' || state.subject === 'all') && latest
-            ? formatNumber(latest.program_average_global)
+            ? formatNumber(generalAverage({
+                average_general: latest.program_average_general,
+                average_global: latest.program_average_global
+            }))
             : 'No disponible');
 
         if (state.subject === 'all' && latest && latest.scores) {

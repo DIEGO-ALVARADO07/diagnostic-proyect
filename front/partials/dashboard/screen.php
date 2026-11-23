@@ -72,7 +72,7 @@ $dashboardPage = $_GET['page'] ?? '1';
             </div>
 
             <div class="dashboard-kpis">
-                <article class="kpi-card"><span class="kpi-icon">▥</span><div><span>Promedio global</span><strong data-kpi-average>—</strong><small>Según filtros activos</small></div></article>
+                <article class="kpi-card"><span class="kpi-icon">▥</span><div><span>Promedio general</span><strong data-kpi-average>—</strong><small>Según filtros activos</small></div></article>
                 <article class="kpi-card"><span class="kpi-icon">▤</span><div><span>Programas</span><strong data-kpi-programs>—</strong><small>En la consulta</small></div></article>
                 <article class="kpi-card"><span class="kpi-icon">♧</span><div><span>Estudiantes evaluados</span><strong data-kpi-students>—</strong><small>Identificados en los datos</small></div></article>
                 <article class="kpi-card"><span class="kpi-icon">✓</span><div><span>Presentaciones</span><strong data-kpi-presentations>—</strong><small>Intentos presentados</small></div></article>
@@ -80,10 +80,10 @@ $dashboardPage = $_GET['page'] ?? '1';
 
             <section class="panel selected-program-panel" data-selected-program-panel hidden>
                 <div class="chart-card-heading">
-                    <div><p class="eyebrow">ANÁLISIS DEL PROGRAMA</p><h3 data-selected-program-name></h3><p>Promedio global y resultados por asignatura con los filtros activos.</p></div>
+                    <div><p class="eyebrow">ANÁLISIS DEL PROGRAMA</p><h3 data-selected-program-name></h3><p>Promedio general y resultados por asignatura con los filtros activos.</p></div>
                     <a class="button button-secondary" data-open-selected-program href="#">Abrir detalle <span>→</span></a>
                 </div>
-                <div class="selected-program-kpis"><span>Promedio global</span><strong data-selected-program-average>—</strong></div>
+                <div class="selected-program-kpis"><span>Promedio general</span><strong data-selected-program-average>—</strong></div>
                 <div class="chart-scroll"><svg class="dashboard-chart competency-chart" data-selected-program-chart role="img"></svg></div>
             </section>
 
@@ -106,7 +106,7 @@ $dashboardPage = $_GET['page'] ?? '1';
                 <p>Desempeño, asignaturas y estudiantes para los filtros seleccionados.</p>
             </div>
             <div class="dashboard-kpis program-kpis">
-                <article class="kpi-card"><span class="kpi-icon">▥</span><div><span>Promedio global</span><strong data-program-average>—</strong><small>Programa seleccionado</small></div></article>
+                <article class="kpi-card"><span class="kpi-icon">▥</span><div><span>Promedio general</span><strong data-program-average>—</strong><small>Programa seleccionado</small></div></article>
                 <article class="kpi-card"><span class="kpi-icon">♧</span><div><span>Estudiantes evaluados</span><strong data-program-students-count>—</strong><small>Identificados en el periodo</small></div></article>
                 <article class="kpi-card"><span class="kpi-icon">✓</span><div><span>Presentaciones</span><strong data-program-presentations>—</strong><small>Intentos presentados</small></div></article>
             </div>
