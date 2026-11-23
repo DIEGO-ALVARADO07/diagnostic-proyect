@@ -12,11 +12,15 @@ En este documento, **snapshot** significa una versión completa e identificable 
 
 El libro tiene resultados de varios años y un mismo estudiante puede tener varios intentos. Mandar todas las filas al navegador en cada visita sería pesado y obligaría al frontend a reconstruir relaciones e indicadores. En cambio, la API persiste un snapshot y expone consultas escalonadas:
 
-1. **Global:** indicadores y hasta 50 programas por página.
+1. **Global:** indicadores y programas filtrados; el endpoint entrega hasta 50 por solicitud y el frontend muestra seis tarjetas por página.
 2. **Programa:** indicadores del programa y hasta 50 intentos/estudiantes por página.
 3. **Estudiante:** intentos de ese documento dentro del snapshot.
 
 El navegador nunca se conecta directamente a MySQL; solo consume la API autenticada.
+
+En el frontend, el resumen global muestra seis tarjetas de programa por página para mantener nombres y promedios legibles: con los 17 programas actuales son tres páginas. La API entrega hasta 50 programas en esa consulta global; la paginación visual no vuelve a solicitar el resumen al avanzar o retroceder. Por eso el filtro de programa se rellena con los programas que realmente coinciden con el año y simulacro consultados, no con el catálogo completo.
+
+En el detalle de programa, la búsqueda por nombre o documento consulta el siguiente bloque de estudiantes en segundo plano y reemplaza solo las filas de la tabla. No oculta la página ni reinicia el desplazamiento.
 
 ## Antes de usarlo
 
@@ -100,6 +104,16 @@ La respuesta de importación incluye:
 - `overview`: indicadores y primera página de programas, limitada a 50.
 
 Los indicadores de puntajes se calculan sobre filas con `APLICA SIMULACRO = Si`; los valores GLOBAL vacíos/no numéricos no entran al promedio. Las diferencias de auditoría se informan, no se corrigen ni bloquean una carga válida.
+
+### Promedio general y comparación con Power BI
+
+Las respuestas de métricas conservan `average_global` y `simple_competence_average` con sus definiciones existentes, y agregan `average_general`:
+
+- `average_global` promedia los valores numéricos de la columna GLOBAL de `BD GEN` (columna J). La regla institucional por fila puede tratar una competencia vacía como cero, por lo que este promedio no equivale a ignorar las competencias ausentes.
+- `simple_competence_average` promedia los promedios calculados por separado para cada competencia.
+- `average_general` reúne todas las notas no nulas de las cinco competencias de los registros presentados y calcula un solo promedio sobre esa lista. No promedia los cinco promedios; coincide con la medida de Power BI que despivota las competencias e ignora celdas vacías.
+
+El resumen global ordena los programas por `average_general` descendente y deja al final los que no tienen notas. `general_standard_deviation` usa desviación muestral (`STDEV.S`) y requiere al menos dos notas; `global_standard_deviation` y `standard_deviation` por competencia mantienen su desviación poblacional existente. La consulta individual añade `program_average_general` junto a `program_average_global`; los campos individuales `global_score` permanecen sin cambios. Estos valores se calculan en memoria desde el dataset cargado y no requieren una migración ni una invalidación especial de la caché.
 
 ## Cómo usarlo desde PowerShell
 

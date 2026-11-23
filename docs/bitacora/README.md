@@ -21,7 +21,7 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 3 | Enum de estados, limpieza de archivos de compatibilidad, errores uniformes | Completada |
 | 4 | División de `DashboardService`, puntajes por clave, `Base` y migraciones en `core` | Completada |
 | 5 | Identidad de programas, semestres, regla del global y calidad de datos | Completada |
-| 6 | Ajustes de seguridad, CI y frontend | Pendiente |
+| 6 | Ajustes de seguridad, CI y frontend | En curso |
 
 ## Índice
 
@@ -47,3 +47,5 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 018 | 5 | [Migración `0004_unify_programs`](018-migracion-0004-programas.md) |
 | 019 | 5 | [Semestres normalizados](019-semestres-normalizados.md) |
 | 020 | 5 | [Reporte de calidad de datos, regla del global y verificación](020-calidad-de-datos-y-regla-global.md) |
+| 021 | 6 | [Interacciones del dashboard frontend](021-dashboard-frontend-interacciones.md) |
+| 022 | 6 | [Promedio general del dashboard y contraste con Power BI](022-promedio-general-dashboard.md) |

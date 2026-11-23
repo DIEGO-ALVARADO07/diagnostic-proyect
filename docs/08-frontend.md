@@ -76,7 +76,15 @@ La API es la autoridad para los permisos. Ocultar una opción o restringir una v
 
 ### Inicio
 
-`partials/dashboard/` muestra el saludo y consulta el snapshot activo. La vista global presenta indicadores y programas paginados; desde allí se abre el análisis del programa, con búsqueda y paginación de estudiantes, y el historial individual. Los filtros de año, asignatura y simulacro se conservan al navegar. Las gráficas se construyen con SVG nativo y usan los valores agregados por la API.
+`partials/dashboard/` muestra el saludo y consulta el snapshot activo. La vista global presenta los indicadores y tarjetas grandes para los programas; cada tarjeta abre el detalle del programa, con su desempeño por asignatura y la tabla de estudiantes. Las tarjetas se muestran en páginas de seis, así que los 17 programas actuales se reparten en tres páginas y al filtrar por 2024 los 12 programas disponibles ocupan dos.
+
+La comparación lateral de gráficos se retiró para dar espacio a los programas y sus nombres. El filtro de programa se construye con los programas que devuelve la consulta ya filtrada por año y simulacro, por eso no ofrece programas ajenos al contexto seleccionado. Las tarjetas, el KPI institucional y los promedios del detalle muestran el `average_general` calculado sobre todas las notas de competencia no nulas de los intentos presentados. El backend ordena por esa misma métrica para que el orden visible de las tarjetas refleje el resultado general.
+
+La etiqueta es **Promedio general** y los valores conservan hasta dos decimales. Los puntajes `global_score` de cada estudiante no cambian: siguen mostrando el valor individual de la columna GLOBAL. Si una versión anterior de la API no envía `average_general`, el frontend conserva compatibilidad mostrando `average_global`.
+
+La búsqueda de estudiantes por nombre o documento se aplica con una solicitud asíncrona: actualiza la tabla y su paginación sin ocultar ni volver a cargar el resto del detalle. El campo conserva el foco y la interfaz no desplaza la página al inicio; el navegador puede ajustar el desplazamiento si la tabla más corta reduce la altura total del contenido. La paginación de programas también se resuelve en la vista, con límites explícitos y botones desactivados al llegar al inicio o al final.
+
+Los filtros de año, asignatura y simulacro se conservan al navegar. Las gráficas del detalle se construyen con SVG nativo y usan los valores agregados por la API.
 
 El detalle individual solicita una referencia aleatoria protegida por sesión en vez de incluir el documento del estudiante en la URL. La información del dashboard pasa por `partials/dashboard/data.php`; el navegador no envía peticiones a la base de datos ni recibe el token Bearer.
 

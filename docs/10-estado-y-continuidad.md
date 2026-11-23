@@ -1,12 +1,12 @@
 # Estado de entrega y continuidad entre sesiones
 
-> Actualizado el 22 de noviembre de 2026. Permite retomar el desarrollo en otra sesión o equipo sin depender del historial de chat. No contiene credenciales ni valores de `.env`.
+> Actualizado el 23 de noviembre de 2026. Permite retomar el desarrollo en otra sesión o equipo sin depender del historial de chat. No contiene credenciales ni valores de `.env`.
 
 ## Ramas del repositorio
 
 | Rama | Contenido |
 |---|---|
-| `dev` | Código: backend en `back/api-reader-excel/` y frontend en `front/`. Último commit: `2ae0476` (fase 5). |
+| `dev` | Código: backend en `back/api-reader-excel/` y frontend en `front/`. HEAD: `2e0d3b2`; los cambios de promedios descritos abajo siguen sin commit. |
 | `docs` | Esta documentación (`docs/`) y la [bitácora de cambios](bitacora/README.md). |
 | `main` | Rama principal; aún no recibe los cambios de las fases 1–5. |
 
@@ -59,6 +59,7 @@ Decisiones de negocio tomadas en la fase 5 (22/11/2026):
 - PHP con sesión del lado del servidor y llamadas autenticadas a la API; no requiere Node.js.
 - Pantallas por rol: dashboard, usuarios, estudiantes, reporte, perfil e importaciones (superadmin).
 - El dashboard usa el proxy `front/partials/dashboard/data.php` y dibuja gráficos SVG.
+- Ajuste de usabilidad del dashboard: tarjetas de seis programas por página, selector limitado por filtros activos y búsqueda de estudiantes sin recargar la vista.
 
 Guías: [Instalación y uso](03-instalacion-y-operacion.md), [API](04-api.md), [Flujo del dashboard](09-flujo-dashboard-academico.md), [Frontend](08-frontend.md).
 
@@ -70,6 +71,25 @@ Guías: [Instalación y uso](03-instalacion-y-operacion.md), [API](04-api.md), [
 - Uvicorn real: `/health` responde y las rutas protegidas sin token devuelven `401` con `WWW-Authenticate: Bearer`.
 
 Las pruebas de migraciones se ejecutan sobre SQLite; no demuestran que ya se aplicaron en el MySQL de cada equipo.
+
+## Mejora del dashboard frontend (23/11/2026)
+
+- Se reemplazó el gráfico comparativo lateral por una cuadrícula amplia de tarjetas; cada tarjeta abre el detalle del programa.
+- Se distribuyen seis programas por página: 17 programas generan 3 páginas y 12 programas del año 2024 generan 2. Los botones tienen límites y no repiten páginas.
+- El selector de programa usa la lista ya filtrada por año y simulacro, no el catálogo global.
+- La búsqueda del programa refresca solo la tabla de estudiantes mediante fetch y mantiene el foco sin desplazar intencionalmente la página al inicio.
+- Se corrigió la ruta de carga del nivel estudiante para solicitar su historial, en vez de llamarse recursivamente.
+- El proxy de overview pide hasta 50 programas en una sola respuesta, suficiente para el catálogo actual. Si en el futuro se exceden 50 programas, habrá que ampliar la paginación de overview manteniendo opciones de filtro completas.
+
+## Comparación de promedio general con Power BI (23/11/2026)
+
+- Se agregó `average_general`, promedio conjunto de las notas no nulas de las cinco competencias de intentos presentados. `average_global` (columna J) y `simple_competence_average` conservan sus significados.
+- La desviación `general_standard_deviation` es muestral; las desviaciones anteriores permanecen poblacionales.
+- El overview ordena por promedio general; el historial estudiantil entrega `program_average_general`. Las tarjetas y los KPI del frontend usan **Promedio general**, conservan hasta dos decimales y mantienen compatibilidad con una API anterior sin el nuevo campo.
+- La verificación autenticada contra el snapshot local de `CORHUILA.xlsm`, con `SIMULACRO 2026-2 MOMENTO 1`, reprodujo a dos decimales los 14 promedios reportados por Power BI. Sistemas `149,43`, Negocios Internacionales `142,03`, Industrial `140,61`, Financiera y Bursátil `140,44` y Administración Comercial `138,85`; el promedio GLOBAL existente se mantuvo en `144`, `136,57`, `123,8`, `137,82` y `126`, respectivamente.
+- `.\venv\Scripts\python.exe -m unittest discover -s tests`: 61 pruebas OK, incluidas las nuevas comprobaciones de promedio, desviación muestral, nulos y orden. `.\tasks.ps1 test` no pudo iniciarse porque la política de ejecución de PowerShell bloquea scripts en el entorno; se ejecutó el mismo `unittest` desde el venv.
+
+La bitácora técnica está en [mejora de interacción del dashboard](bitacora/021-dashboard-frontend-interacciones.md). Para ejecutar validaciones, sigue [Pruebas y desarrollo](07-pruebas-y-desarrollo.md).
 
 ## Archivos de referencia en el código (rama `dev`)
 
