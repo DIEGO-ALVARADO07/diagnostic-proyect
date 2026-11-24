@@ -1,5 +1,7 @@
 # Propósito y alcance
 
+> El alcance vigente está en [Visión y modelo de dominio](00-vision-y-modelo-de-dominio.md). Este documento describe lo que hace hoy el código, que solo procesa la prueba de ESE.
+
 ## Contexto del proyecto
 
 El planteamiento inicial, recogido en [`documentation.md`](../documentation.md), propone analizar resultados de pruebas diagnósticas de estudiantes para identificar áreas y niveles de desempeño y, en una etapa futura, orientar actividades o cursos de refuerzo.

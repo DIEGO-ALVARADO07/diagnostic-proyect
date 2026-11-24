@@ -49,3 +49,4 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 020 | 5 | [Reporte de calidad de datos, regla del global y verificación](020-calidad-de-datos-y-regla-global.md) |
 | 021 | 6 | [Interacciones del dashboard frontend](021-dashboard-frontend-interacciones.md) |
 | 022 | 6 | [Promedio general del dashboard y contraste con Power BI](022-promedio-general-dashboard.md) |
+| 023 | 7 | [Redefinición del proyecto: comparación ESE + CORHUILA](023-redefinicion-ese-corhuila.md) |

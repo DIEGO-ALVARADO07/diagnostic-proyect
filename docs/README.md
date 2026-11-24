@@ -2,10 +2,12 @@
 
 > Actualizada el 23 de noviembre de 2026. El código está en la rama `dev`; esta rama `docs` solo contiene documentación.
 
+> **24/11/2026:** el proyecto se redefinió para comparar dos pruebas (ESE y CORHUILA). Los documentos 01–10 describen el código actual, que solo maneja ESE. El objetivo y el plan están en [00](00-vision-y-modelo-de-dominio.md) y [11](11-plan-de-refactorizacion.md).
+
 Esta documentación cubre el backend FastAPI de `back/api-reader-excel` y el frontend PHP ubicado en `front/`. El archivo [`../documentation.md`](../documentation.md) conserva el planteamiento académico inicial del proyecto; los documentos de esta carpeta describen el software implementado y distinguen las capacidades actuales de las funcionalidades propuestas.
 
 ## Guía de lectura
-
+0. [**Visión y modelo de dominio**](00-vision-y-modelo-de-dominio.md) ← núcleo del proyecto (ESE + CORHUILA)
 1. [Propósito y alcance](01-proposito-y-alcance.md)
 2. [Arquitectura y flujo de datos](02-arquitectura.md)
 3. [**Instalación, uso y operación**](03-instalacion-y-operacion.md) ← empieza aquí
@@ -17,6 +19,7 @@ Esta documentación cubre el backend FastAPI de `back/api-reader-excel` y el fro
 9. [Flujo completo del dashboard académico](09-flujo-dashboard-academico.md)
 10. [Estado de entrega y continuidad entre sesiones](10-estado-y-continuidad.md)
 11. [Bitácora de cambios](bitacora/README.md): qué se cambió, dónde y por qué, en orden (revisión técnica de noviembre de 2026).
+12. [Plan de refactorización ESE + CORHUILA](11-plan-de-refactorizacion.md)
 
 ## Estado documentado
 
