@@ -52,3 +52,5 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 023 | 7 | [Redefinición del proyecto: comparación ESE + CORHUILA](023-redefinicion-ese-corhuila.md) |
 | 024 | 7 | [Escala común de niveles y 4 competencias comparables](024-escala-comun-de-niveles.md) |
 | 025 | 8 | [Fuente, periodo y momento; un activo por espacio](025-fuente-periodo-y-momento.md) |
+| 026 | 9 | [Identidad por correo y programa de CORHUILA desde ESE](026-identidad-por-correo.md) |
+| 027 | 9.1 | [Identidad por documento con correos como alias, búsqueda del programa y Momento 4](027-identidad-por-documento-y-momento-4.md) |

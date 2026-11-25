@@ -26,7 +26,9 @@ Cada cambio está explicado en orden (qué, dónde y por qué) en la [bitácora]
 | 6 | Seguridad (limpieza de tokens vencidos, cerrar sesiones al cambiar contraseña, límite de intentos de login), `requirements-dev.txt` con ruff/pytest, CI en GitHub Actions, frontend (URL de API configurable, CSRF en login) | **Pendiente** | — |
 | 7 | Escala común de niveles, 4 competencias comparables, nivel calculado | Completada | _(hash)_ |
 | 8 | Fuente, periodo y momento; un activo por espacio (migración `0005`) | Completada | _(hash)_ |
-| 9–13 | Comparación ESE + CORHUILA: escala común, fuente/periodo, identidad por correo, importación CORHUILA, API comparativa, frontend dividido, cursos genéricos | **Pendiente** — ver [plan](11-plan-de-refactorizacion.md) | — |
+| 9 | Identidad por correo; programa de CORHUILA guardado desde ESE M2 (migración `0006`) | Completada | _(hash)_ |
+| 9.1 | Identidad por documento con alias de correo, búsqueda del programa de CORHUILA, Momento 4 (migración `0007`) | Completada | _(hash)_ |
+| 10–13 | Comparación ESE + CORHUILA: escala común, fuente/periodo, identidad por correo, importación CORHUILA, API comparativa, frontend dividido, cursos genéricos | **Pendiente** — ver [plan](11-plan-de-refactorizacion.md) | — |
 
 Decisiones de negocio tomadas en la fase 5 (22/11/2026):
 

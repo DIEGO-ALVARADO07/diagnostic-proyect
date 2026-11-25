@@ -17,6 +17,7 @@ ESE separa sus pruebas por **momentos**. Un momento no es una fecha: es la etapa
 | Momento 1 | Semestre 1 | 1 a 3 |
 | Momento 2 | Semestre 4 | 4 a 6 |
 | Momento 3 | Semestre 7 | 7 en adelante |
+| Momento 4 (solo 2024) | — | 8 a 10 |
 
 Aplicar los tres momentos permite seguir el crecimiento de una misma cohorte. Cada archivo de ESE trae varios programas.
 
@@ -102,17 +103,17 @@ Comunicación escrita se sigue importando desde ESE para no perder el dato de or
 
 ### Identidad del estudiante
 
-- **La clave única es el correo institucional**, en minúsculas y sin espacios.
-- El nombre se toma del archivo. El número de identificación se toma de ESE (columna `Usuario`) o de CORHUILA (`Número de ID`) cuando exista.
-- Un mismo estudiante puede tener resultados en ESE (momentos 1, 2, 3) y en CORHUILA. Todos se vinculan por el correo.
+- **La identidad es el documento.** Todos los correos del estudiante (institucional y personal) se guardan como alias; se muestra el institucional más reciente.
+- En CORHUILA, el estudiante se busca en ESE por **documento → correo → nombre completo** (este último solo si coincide con una sola persona).
 
 ### Programa de los estudiantes de CORHUILA
 
 1. Se busca el correo del estudiante en los resultados de **ESE Momento 2**. Es el que se aplica en semestre 4, justo antes del semestre 5 de CORHUILA.
-2. Si hay varios registros de Momento 2, se usa el **más reciente**.
+2. 2. Se usa el registro de Momento 2 **más reciente con periodo igual o anterior** al de CORHUILA.
 3. El nombre del programa es el **programa unificado de ESE**.
 4. Si el correo no aparece en ESE Momento 2, el estudiante queda **"Sin programa"**. Se cuenta en la auditoría de la importación y no se descarta.
 5. Si después se carga un archivo ESE con ese correo, el programa se resuelve en ese momento (la vinculación se recalcula).
+6. El programa encontrado **se guarda** en la fila de CORHUILA; el dashboard no repite el cruce en cada consulta. Se recalcula al importar CORHUILA y al activar un ESE nuevo.
 
 ### Semestre
 
