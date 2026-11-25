@@ -78,7 +78,7 @@ No se ejecutan macros, no se procesan otras hojas y no se guarda el archivo bina
 - La unicidad del intento es `(import_id, source_row_number)`.
 - El puntaje GLOBAL principal viene de **J**, sin recalcularlo desde las competencias. Se guarda la representación original y, cuando se puede convertir, también el valor numérico. Un valor no numérico queda `NULL`.
 - El cálculo alternativo desde E:I se conserva separado; nunca sustituye el GLOBAL de J.
-- Los niveles de origen Q:U se conservan; no se vuelven a inferir desde los puntajes.
+- Los niveles se calculan con la escala común (0–125, 126–156, 157–198, 199–300; Inglés A1–B2 con los mismos límites). Los niveles Q:U del Excel se conservan solo para auditoría (`data_quality.source_level_mismatches`). Comunicación escrita se importa, pero no entra en métricas ni vistas.
 - Los nombres de programa que solo difieren en tildes, mayúsculas o espacios son el mismo programa (p. ej. `INGENIERIA DE SISTEMAS` e `INGENIERÍA DE SISTEMAS`). Ninguna fila se suma ni se fusiona: solo cambia el programa al que pertenece, y los promedios se calculan sobre todas sus filas. Cada escritura original queda como alias y en `program_name_raw`.
 - `4` y `SEMESTRE 4` se tratan como el mismo semestre; se guarda el texto original.
 - Los códigos no numéricos en puntajes (`N`, `N/A`, `P`) cuentan como sin puntaje y se informan en la auditoría.
@@ -111,7 +111,7 @@ Las respuestas de métricas conservan `average_global` y `simple_competence_aver
 
 - `average_global` promedia los valores numéricos de la columna GLOBAL de `BD GEN` (columna J). La regla institucional por fila puede tratar una competencia vacía como cero, por lo que este promedio no equivale a ignorar las competencias ausentes.
 - `simple_competence_average` promedia los promedios calculados por separado para cada competencia.
-- `average_general` reúne todas las notas no nulas de las cinco competencias de los registros presentados y calcula un solo promedio sobre esa lista. No promedia los cinco promedios; coincide con la medida de Power BI que despivota las competencias e ignora celdas vacías.
+- `average_general` reúne todas las notas no nulas de las cuatro competencias comunes (sin Comunicación escrita) de los registros presentados y calcula un solo promedio sobre esa lista. No promedia los cinco promedios; coincide con la medida de Power BI que despivota las competencias e ignora celdas vacías.
 
 El resumen global ordena los programas por `average_general` descendente y deja al final los que no tienen notas. `general_standard_deviation` usa desviación muestral (`STDEV.S`) y requiere al menos dos notas; `global_standard_deviation` y `standard_deviation` por competencia mantienen su desviación poblacional existente. La consulta individual añade `program_average_general` junto a `program_average_global`; los campos individuales `global_score` permanecen sin cambios. Estos valores se calculan en memoria desde el dataset cargado y no requieren una migración ni una invalidación especial de la caché.
 

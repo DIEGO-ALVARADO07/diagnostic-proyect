@@ -100,7 +100,7 @@ La respuesta de importación (y `GET /excel/dashboard/active`) incluye `source_a
 | `years_in_bd_gen`, `td_programas_visible_year` | Años de `BD GEN` y año seleccionado en `TD PROGRAMAS`. |
 | `compared_program_rows`, `compared_metrics`, `difference_count`, `differences` | Comparación de `TD PROGRAMAS` con lo calculado desde `BD GEN`, emparejando programa y simulacro por nombre normalizado (máximo 100 diferencias detalladas). |
 | `records_without_document` | Intentos sin documento. |
-| `data_quality` | `score_codes` (textos no numéricos en puntajes, por competencia), `levels_without_numeric_score` y `unknown_levels`. Es `null` en importaciones anteriores al 22/11/2026. |
+| `data_quality` | `score_codes` (textos no numéricos en puntajes, por competencia), `levels_without_numeric_score`, `unknown_levels`, `source_level_mismatches` (filas cuyo nivel del Excel difiere del calculado). Es `null` en importaciones anteriores al 22/11/2026. |
 
 Ejemplo de `data_quality` con el libro CORHUILA:
 

@@ -69,7 +69,7 @@ uvicorn==0.54.0
 
 - La columna J de `BD GEN` es el puntaje GLOBAL principal. Se almacena su representación original y su valor numérico; si la celda no es numérica, el puntaje numérico queda `NULL` y no participa en los promedios globales.
 - Los puntajes de competencia E:I se guardan por separado. Su suma dividida por cinco es solo un cálculo alternativo y no reemplaza J.
-- Los niveles Q:U se conservan desde el Excel; no se reconstruyen a partir de los puntajes.
+- Los niveles se calculan con la escala común (0–125, 126–156, 157–198, 199–300; Inglés A1–B2 con los mismos límites). Los niveles Q:U del Excel se conservan solo para auditoría (`data_quality.source_level_mismatches`). Comunicación escrita se importa, pero no entra en métricas ni vistas.
 - La suma de E:I dividida por cinco cuenta las competencias vacías como 0, igual que el Excel institucional (decisión del 22/11/2026).
 - **Programas:** dos nombres son el mismo programa si coinciden sin tildes, mayúsculas ni espacios extra (`normalized_key`, único desde la migración `0004`). El nombre visible es el de `TD PROGRAMAS` si existe; si no, la variante con más tildes y luego la más frecuente. Cada escritura se guarda en `academic_program_aliases`. Los promedios de un programa se calculan sobre todas sus filas; los intentos no se suman ni se fusionan.
 - **Semestres:** un número suelto (`4`) se trata como `SEMESTRE 4` en filtros y comparaciones; se conserva el texto original.
