@@ -40,7 +40,7 @@ El backend actual ya resuelve bien la prueba **ESE**: importación con snapshots
   - Índices por `(source, period, moment, program_id)`.
 - `entities/academic.py`, `entities/import_status.py`, `entities/dashboard.py`: nuevos campos.
 - `dashboard_import_service.py` y `dashboard_persistence_repository.py`: activar y desactivar por fuente y periodo.
-- ESE: obtener el **periodo** (`AAAA-1`/`AAAA-2`) y el **momento** del archivo. Verificar en el libro real si vienen de `SIM` (por ejemplo `SIMULACRO 2026-2 MOMENTO 1`), de `AÑO` o de `MOMENTO`.
+- ESE: obtener el **periodo** (`AAAA-1`/`AAAA-2`) y el **momento** del archivo. El periodo y el momento se toman de SIM, confirmados con GRUPO (hecho en la fase 8).
 - Migrar los datos existentes como `source = ESE`.
 - **Validación:** los resultados de ESE no cambian respecto a la fase 7.
 
@@ -79,6 +79,7 @@ Métricas nuevas en `dashboard_query_service.py` / `dashboard_metrics.py`:
 - **Competencia más débil por fuente.**
 
 Se quitan los filtros `semester`, `group` y `test_type` del dashboard (siguen disponibles en el módulo de niveles cuando aplique).
+Ver bocetos y métrica de crecimiento por programa en [12 · Diseño de pantallas](12-diseno-de-pantallas.md).
 
 ### Fase 12: frontend
 
@@ -88,6 +89,8 @@ Se quitan los filtros `semester`, `group` y `test_type` del dashboard (siguen di
 - `front/partials/students/`: se rehace como módulo de **Niveles**.
 - `front/partials/imports/`: columna de fuente y periodo.
 - `front/index.php`: navegación (Dashboard, ESE, CORHUILA, Niveles, Cursos, Importaciones).
+
+Ver bocetos y métrica de crecimiento por programa en [12 · Diseño de pantallas](12-diseno-de-pantallas.md).
 
 ### Fase 13: cursos genéricos
 

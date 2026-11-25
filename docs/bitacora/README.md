@@ -51,3 +51,4 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 022 | 6 | [Promedio general del dashboard y contraste con Power BI](022-promedio-general-dashboard.md) |
 | 023 | 7 | [Redefinición del proyecto: comparación ESE + CORHUILA](023-redefinicion-ese-corhuila.md) |
 | 024 | 7 | [Escala común de niveles y 4 competencias comparables](024-escala-comun-de-niveles.md) |
+| 025 | 8 | [Fuente, periodo y momento; un activo por espacio](025-fuente-periodo-y-momento.md) |

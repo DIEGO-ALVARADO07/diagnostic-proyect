@@ -20,6 +20,7 @@ Esta documentación cubre el backend FastAPI de `back/api-reader-excel` y el fro
 10. [Estado de entrega y continuidad entre sesiones](10-estado-y-continuidad.md)
 11. [Bitácora de cambios](bitacora/README.md): qué se cambió, dónde y por qué, en orden (revisión técnica de noviembre de 2026).
 12. [Plan de refactorización ESE + CORHUILA](11-plan-de-refactorizacion.md)
+13. [Diseño de pantallas (bocetos)](12-diseno-de-pantallas.md)
 
 ## Estado documentado
 

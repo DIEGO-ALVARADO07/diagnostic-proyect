@@ -15,8 +15,8 @@ ESE separa sus pruebas por **momentos**. Un momento no es una fecha: es la etapa
 | Momento | Se aplica en | Mide los semestres |
 |---|---|---|
 | Momento 1 | Semestre 1 | 1 a 3 |
-| Momento 2 | Semestre 4 | 4 a 6 **(confirmar)** |
-| Momento 3 | Semestre 7 | 7 en adelante **(confirmar)** |
+| Momento 2 | Semestre 4 | 4 a 6 |
+| Momento 3 | Semestre 7 | 7 en adelante |
 
 Aplicar los tres momentos permite seguir el crecimiento de una misma cohorte. Cada archivo de ESE trae varios programas.
 
@@ -116,7 +116,8 @@ Comunicación escrita se sigue importando desde ESE para no perder el dato de or
 
 ### Semestre
 
-- ESE trae la columna `SEMESTRE`. Se conserva y se normaliza (`4` = `SEMESTRE 4`).
+- ESE: desde 2025 casi no envía `SEMESTRE`. El semestre se trabaja por el **rango del momento** (M1 1–3, M2 4–6, M3 7 en adelante). El semestre exacto solo se muestra al consultar al estudiante, si el archivo lo trae.
+- El **periodo del año** (`2026-1`) se toma de `SIM`; el **momento**, de `SIM`, confirmado con `GRUPO`.
 - CORHUILA no trae semestre: se registra como **semestre 5** (rango medido 5–6).
 
 ### Promedio general
@@ -187,7 +188,7 @@ Reemplaza la pantalla actual de "Estudiantes" (que hoy lista cuentas de usuario)
 
 | # | Tema | Estado |
 |---|---|---|
-| 1 | Rangos que mide ESE Momento 2 y Momento 3 | Por confirmar (se asumen 4–6 y 7+) |
+| 1 | Rangos que mide ESE Momento 2 y Momento 3 | Confirmado (25/11/2026): M2 = 4–6, M3 = 7 en adelante.|
 | 2 | Fórmula de promedio general entre ESE y CORHUILA | Consulta con el superior |
 | 3 | Curso "más reciente" si un estudiante tiene ESE y CORHUILA en el mismo periodo | Por definir |
 | 4 | Significado de los códigos `N` y `P` en ESE | Pendiente con la institución (ya no afecta: Comunicación escrita sale del análisis) |
