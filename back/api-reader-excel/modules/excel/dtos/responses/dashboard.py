@@ -98,6 +98,21 @@ class DashboardPeriodMomentQualityResponse(BaseModel):
     """El año del periodo de ``SIM`` no coincide con ``AÑO``."""
 
 
+class DashboardIdentityQualityResponse(BaseModel):
+    """Identidad del estudiante (correo) en BD GEN; no impide importar."""
+
+    rows_without_email: int = 0
+    """Filas sin correo: no se pueden cruzar con CORHUILA."""
+    emails_with_multiple_documents: int = 0
+    """Correos con documentos distintos: el correo queda en el primer estudiante."""
+    documents_with_multiple_emails: int = 0
+    """Documentos con varios correos (institucional y personal): un estudiante,
+    todos sus correos como alias."""
+    names_with_multiple_documents: int = 0
+    """Nombres completos con documentos distintos: en CORHUILA el nombre no sirve
+    para identificarlos (``AMBIGUO``)."""
+
+
 class DashboardDataQualityResponse(BaseModel):
     """Hallazgos de BD GEN que no impiden importar, por clave de competencia."""
 
@@ -111,6 +126,8 @@ class DashboardDataQualityResponse(BaseModel):
     """Filas cuyo nivel del Excel difiere del calculado con la escala común."""
     period_moment: DashboardPeriodMomentQualityResponse | None = None
     """Ausente en importaciones anteriores a la fase 8."""
+    identity: DashboardIdentityQualityResponse | None = None
+    """Ausente en importaciones anteriores a la fase 9."""
 
 
 class DashboardSourceAuditResponse(BaseModel):
@@ -189,8 +206,25 @@ class DashboardStudentAttemptResponse(BaseModel):
     ent: str | None
 
 
+class ProgramLookupResponse(BaseModel):
+    """Qué estudiante de ESE y qué programa se asignarían a unos datos de CORHUILA."""
+
+    match: str
+    """``DOCUMENTO``, ``CORREO``, ``NOMBRE``, ``AMBIGUO`` o ``SIN_COINCIDENCIA``."""
+    student_id: int | None
+    name: str | None
+    document: str | None
+    emails: list[str]
+    program_id: int | None
+    program: str | None
+    """Programa de ESE Momento 2; ``None`` = sin programa."""
+    moment_two_period: str | None
+    ese_import_id: str | None
+
+
 class DashboardStudentResponse(BaseModel):
-    document: str
+    document: str | None
+    """``None`` si el estudiante solo tiene correo (CORHUILA)."""
     name: str
     email: str | None
     programs: list[ProgramOptionResponse]

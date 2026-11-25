@@ -14,6 +14,9 @@ from modules.excel.entities.competency import COMPETENCIES, classify_level
 from modules.excel.services.dashboard_normalizer import (
     clean_text,
     decimal_value,
+    document_value,
+    email_key,
+    normalized_key,
     numeric_value,
 )
 
@@ -35,16 +38,42 @@ def assess_data_quality(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     Solo incluye las competencias con algún hallazgo. Además, en
     ``period_moment`` cuenta filas sin periodo o sin momento reconocible, filas
     donde el momento de ``SIM`` no coincide con el de ``GRUPO`` y filas cuyo
-    periodo no es del mismo año que ``AÑO``.
+    periodo no es del mismo año que ``AÑO``. En ``identity`` cuenta filas sin
+    correo, correos con más de un documento y documentos con más de un correo
+    y nombres completos con más de un documento (la identidad es el documento;
+    los correos son alias y el nombre es respaldo para CORHUILA).
     """
     score_codes: dict[str, Counter[str]] = defaultdict(Counter)
     levels_without_score: Counter[str] = Counter()
     level_mismatches: Counter[str] = Counter()
     level_values: dict[str, Counter[str]] = defaultdict(Counter)
     period_moment: Counter[str] = Counter()
+    rows_without_email = 0
+    documents_by_email: dict[str, set[str]] = defaultdict(set)
+    emails_by_document: dict[str, set[str]] = defaultdict(set)
+    documents_by_name: dict[str, set[str]] = defaultdict(set)
 
     for row in rows:
         _count_period_and_moment(row, period_moment)
+        email = email_key(row.get("dirección de correo"))
+        document = document_value(row.get("usuario"))
+        name = normalized_key(
+            " ".join(
+                part
+                for part in (
+                    clean_text(row.get("nombre")),
+                    clean_text(row.get("apellido(s)")),
+                )
+                if part
+            )
+        )
+        if name and document is not None:
+            documents_by_name[name].add(document)
+        if email is None:
+            rows_without_email += 1
+        elif document is not None:
+            documents_by_email[email].add(document)
+            emails_by_document[document].add(email)
         for competency in COMPETENCIES:
             raw_score = clean_text(row.get(competency.score_header))
             numeric_score = decimal_value(raw_score)
@@ -89,6 +118,18 @@ def assess_data_quality(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
                 "moment_group_mismatches",
                 "period_year_mismatches",
             )
+        },
+        "identity": {
+            "rows_without_email": rows_without_email,
+            "emails_with_multiple_documents": sum(
+                len(documents) > 1 for documents in documents_by_email.values()
+            ),
+            "documents_with_multiple_emails": sum(
+                len(emails) > 1 for emails in emails_by_document.values()
+            ),
+            "names_with_multiple_documents": sum(
+                len(documents) > 1 for documents in documents_by_name.values()
+            ),
         },
     }
 

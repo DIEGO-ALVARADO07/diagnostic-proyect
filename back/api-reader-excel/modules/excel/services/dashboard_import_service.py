@@ -36,6 +36,7 @@ from modules.excel.services.dashboard_dataset_loader import DashboardDatasetLoad
 from modules.excel.services.dashboard_processor import DashboardProcessor
 from modules.excel.services.dashboard_query_service import DashboardQueryService
 from modules.excel.services.excel_service import MAX_UPLOAD_BYTES, ExcelService
+from modules.excel.services.program_resolution import refresh_corhuila_programs
 from modules.security.entities import Account
 
 
@@ -132,6 +133,10 @@ class DashboardImportService:
             import_row.status = ImportStatus.VALIDATED
             db.flush()
             self._activate(db, import_row)
+            db.flush()
+            # Un ESE nuevo puede traer correos que CORHUILA no encontraba: se
+            # recalcula y se guarda el programa de CORHUILA en la misma transacción.
+            refresh_corhuila_programs(db)
             db.commit()
             # La importación puede renombrar programas compartidos con otras
             # importaciones (nombre visible), así que se descartan los datasets

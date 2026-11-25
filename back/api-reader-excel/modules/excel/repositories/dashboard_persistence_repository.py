@@ -1,4 +1,5 @@
 from collections import defaultdict
+from collections.abc import Sequence
 from hashlib import sha256
 
 from sqlalchemy import select
@@ -6,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from modules.excel.entities.academic import (
     AcademicProgram,
+    AcademicStudentEmail,
     ActiveImport,
     AcademicProgramAlias,
     AcademicResult,
@@ -15,7 +17,10 @@ from modules.excel.entities.academic import (
     TdProgramasReference,
 )
 from modules.excel.entities.competency import COMPETENCIES
-from modules.excel.entities.dashboard import DashboardImportData
+from modules.excel.entities.dashboard import (
+    DashboardImportData,
+    DashboardImportRecord,
+)
 from modules.excel.entities.import_status import (
     DASHBOARD_STATE_ID,
     DEACTIVATABLE_STATUSES,
@@ -23,6 +28,11 @@ from modules.excel.entities.import_status import (
 from core.orm import utcnow
 
 _INSERT_BATCH_SIZE = 500
+INSTITUTIONAL_EMAIL_DOMAIN = "@corhuila.edu.co"
+
+
+def _document_key(document: str) -> str:
+    return sha256(document.encode("utf-8")).hexdigest()
 
 
 class DashboardPersistenceRepository:
@@ -107,54 +117,13 @@ class DashboardPersistenceRepository:
         data: DashboardImportData,
     ) -> None:
         records = data.records
-        document_keys = {
-            sha256(record.document.encode("utf-8")).hexdigest()
-            for record in records
-            if record.document is not None
-        }
-
-        students = {
-            student.document_key: student
-            for student in db.scalars(
-                select(AcademicStudent).where(
-                    AcademicStudent.document_key.in_(document_keys)
-                )
-            )
-        } if document_keys else {}
+        record_students = self._sync_students(db, records)
         programs = self._sync_programs(db, data)
-
-        now = utcnow()
-        for record in records:
-            if record.document is not None:
-                document_key = sha256(record.document.encode("utf-8")).hexdigest()
-                student = students.get(document_key)
-                if student is None:
-                    student = AcademicStudent(
-                        document_key=document_key,
-                        document_number=record.document,
-                        first_name=record.first_name,
-                        last_name=record.last_name,
-                        email=record.email,
-                        created_at=now,
-                        updated_at=now,
-                    )
-                    students[document_key] = student
-                    db.add(student)
-                else:
-                    student.document_number = record.document
-                    student.first_name = record.first_name or student.first_name
-                    student.last_name = record.last_name or student.last_name
-                    student.email = record.email or student.email
-                    student.updated_at = now
 
         db.flush()
         results: list[AcademicResult] = []
-        for record in records:
-            student_id = None
-            if record.document is not None:
-                student_id = students[
-                    sha256(record.document.encode("utf-8")).hexdigest()
-                ].id
+        for record, student in zip(records, record_students):
+            student_id = student.id if student is not None else None
             program = programs[record.program_normalized_key]
             results.append(
                 AcademicResult(
@@ -165,6 +134,7 @@ class DashboardPersistenceRepository:
                     first_name_source=record.first_name,
                     last_name_source=record.last_name,
                     email_source=record.email,
+                    email_key=record.email_key,
                     student_search_name=record.student_search_name,
                     program_id=program.id,
                     program_name_raw=record.program_name,
@@ -243,6 +213,112 @@ class DashboardPersistenceRepository:
             ),
             "data_quality": dict(data.data_quality),
         }
+
+    @staticmethod
+    def _sync_students(
+        db: Session, records: Sequence[DashboardImportRecord]
+    ) -> list[AcademicStudent | None]:
+        """Estudiante de cada registro. La identidad es el **documento**.
+
+        - Con documento: se busca por documento. Si no existe, se adopta el
+          estudiante sin documento que tenga ese correo (por ejemplo, uno creado
+          desde CORHUILA) o se crea uno nuevo.
+        - Sin documento: se busca por cualquiera de sus correos (alias).
+        - Cada correo de la fila queda como alias del estudiante. Si el correo ya
+          es de otro estudiante, no se mueve (``data_quality.identity``).
+        - El correo principal es el institucional más reciente.
+        """
+        email_keys = {record.email_key for record in records if record.email_key}
+        document_keys = {
+            _document_key(record.document)
+            for record in records
+            if record.document is not None
+        }
+        by_document: dict[str, AcademicStudent] = {
+            student.document_key: student
+            for student in db.scalars(
+                select(AcademicStudent).where(
+                    AcademicStudent.document_key.in_(document_keys)
+                )
+            )
+            if student.document_key is not None
+        } if document_keys else {}
+        by_email: dict[str, AcademicStudent] = {
+            email: student
+            for email, student in db.execute(
+                select(AcademicStudentEmail.email_key, AcademicStudent)
+                .join(
+                    AcademicStudent,
+                    AcademicStudent.id == AcademicStudentEmail.student_id,
+                )
+                .where(AcademicStudentEmail.email_key.in_(email_keys))
+            )
+        } if email_keys else {}
+        known_aliases = set(by_email)
+
+        now = utcnow()
+        assigned: list[AcademicStudent | None] = []
+        new_aliases: list[tuple[str, AcademicStudent]] = []
+        for record in records:
+            document_key = (
+                _document_key(record.document)
+                if record.document is not None
+                else None
+            )
+            student: AcademicStudent | None = None
+            if document_key is not None:
+                student = by_document.get(document_key)
+                if student is None and record.email_key is not None:
+                    candidate = by_email.get(record.email_key)
+                    if candidate is not None and candidate.document_key is None:
+                        student = candidate
+            elif record.email_key is not None:
+                student = by_email.get(record.email_key)
+            else:
+                assigned.append(None)
+                continue
+
+            if student is None:
+                student = AcademicStudent(
+                    first_name=record.first_name,
+                    last_name=record.last_name,
+                    email=record.email,
+                    created_at=now,
+                    updated_at=now,
+                )
+                db.add(student)
+            else:
+                student.first_name = record.first_name or student.first_name
+                student.last_name = record.last_name or student.last_name
+                student.updated_at = now
+
+            if document_key is not None and student.document_key is None:
+                student.document_key = document_key
+                by_document[document_key] = student
+            if document_key is not None and student.document_key == document_key:
+                student.document_number = record.document
+
+            if record.email_key is not None:
+                if record.email_key not in by_email:
+                    by_email[record.email_key] = student
+                    new_aliases.append((record.email_key, student))
+                if by_email[record.email_key] is student and (
+                    record.email_key.endswith(INSTITUTIONAL_EMAIL_DOMAIN)
+                    or student.email_key is None
+                    or not student.email_key.endswith(INSTITUTIONAL_EMAIL_DOMAIN)
+                ):
+                    student.email_key = record.email_key
+                    student.email = record.email or student.email
+            assigned.append(student)
+
+        if new_aliases:
+            db.flush()
+            db.add_all(
+                AcademicStudentEmail(email_key=email, student_id=student.id)
+                for email, student in new_aliases
+                if email not in known_aliases
+            )
+        return assigned
 
     @staticmethod
     def _sync_programs(

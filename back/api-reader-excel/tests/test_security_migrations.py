@@ -1,4 +1,5 @@
 import importlib.util
+from hashlib import sha256
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -14,6 +15,7 @@ from modules.excel.entities.academic import (
     AcademicProgramAlias,
     AcademicResult,
     AcademicStudent,
+    AcademicStudentEmail,
     ActiveImport,
     DashboardState,
     ExcelImport,
@@ -27,6 +29,7 @@ _ACADEMIC_MODELS = (
     AcademicProgramAlias,
     AcademicResult,
     AcademicStudent,
+    AcademicStudentEmail,
     ActiveImport,
     DashboardState,
     ExcelImport,
@@ -103,6 +106,10 @@ class SecurityMigrationTests(unittest.TestCase):
             "0004_unify_programs_by_normalized_key.py"
         )
         sources_migration = load_migration("0005_sources_periods_moments.py")
+        identity_migration = load_migration("0006_student_identity_by_email.py")
+        aliases_migration = load_migration(
+            "0007_document_identity_email_aliases.py"
+        )
 
         engine = create_engine("sqlite://")
         try:
@@ -114,6 +121,8 @@ class SecurityMigrationTests(unittest.TestCase):
                     soft_delete_migration.upgrade()
                     unify_programs_migration.upgrade()
                     sources_migration.upgrade()
+                    identity_migration.upgrade()
+                    aliases_migration.upgrade()
 
                 self.assertEqual(
                     set(inspect(connection).get_table_names()),
@@ -124,6 +133,8 @@ class SecurityMigrationTests(unittest.TestCase):
                 )
 
                 with Operations.context(context):
+                    aliases_migration.downgrade()
+                    identity_migration.downgrade()
                     sources_migration.downgrade()
                     unify_programs_migration.downgrade()
                     soft_delete_migration.downgrade()
@@ -267,6 +278,137 @@ class SecurityMigrationTests(unittest.TestCase):
                 )
         finally:
             engine.dispose()
+
+    def test_identity_migration_merges_students_by_email(self) -> None:
+        engine = create_engine("sqlite://")
+        try:
+            with engine.begin() as connection:
+                context = MigrationContext.configure(connection)
+                with Operations.context(context):
+                    for filename in (
+                        "0001_create_security_tables.py",
+                        "0002_academic_dashboard.py",
+                        "0003_soft_delete_excel_imports.py",
+                        "0004_unify_programs_by_normalized_key.py",
+                        "0005_sources_periods_moments.py",
+                    ):
+                        load_migration(filename).upgrade()
+
+                # 1 y 2 comparten correo (con distinta escritura); 3 es otra persona.
+                connection.exec_driver_sql(
+                    "INSERT INTO academic_students (id, document_key, "
+                    "document_number, email, created_at, updated_at) VALUES "
+                    "(1, 'k1', '101', 'Ana@X.co', '2026-01-01', '2026-01-01'), "
+                    "(2, 'k2', '201', ' ana@x.co', '2026-01-01', '2026-01-01'), "
+                    "(3, 'k3', '301', NULL, '2026-01-01', '2026-01-01')"
+                )
+                for row, (student_id, email) in enumerate(
+                    ((1, "Ana@X.co"), (2, " ana@x.co"), (3, None)), start=1
+                ):
+                    connection.exec_driver_sql(
+                        "INSERT INTO academic_results (import_id, "
+                        "source_row_number, student_id, email_source, "
+                        "program_name_raw, year, simulation_name, "
+                        "simulation_key, created_at) VALUES "
+                        "('imp', ?, ?, ?, 'x', 2026, 'S', 's', '2026-01-01')",
+                        (row, student_id, email),
+                    )
+
+                with Operations.context(context):
+                    load_migration("0006_student_identity_by_email.py").upgrade()
+
+                self.assertEqual(
+                    connection.exec_driver_sql(
+                        "SELECT id, email_key, document_number "
+                        "FROM academic_students ORDER BY id"
+                    ).all(),
+                    [(1, "ana@x.co", "101"), (3, None, "301")],
+                )
+                self.assertEqual(
+                    connection.exec_driver_sql(
+                        "SELECT source_row_number, student_id, email_key "
+                        "FROM academic_results ORDER BY source_row_number"
+                    ).all(),
+                    [(1, 1, "ana@x.co"), (2, 1, "ana@x.co"), (3, 3, None)],
+                )
+        finally:
+            engine.dispose()
+
+    def test_aliases_migration_merges_by_document_and_sets_moment_four(self) -> None:
+        engine = create_engine("sqlite://")
+        try:
+            with engine.begin() as connection:
+                context = MigrationContext.configure(connection)
+                with Operations.context(context):
+                    for filename in (
+                        "0001_create_security_tables.py",
+                        "0002_academic_dashboard.py",
+                        "0003_soft_delete_excel_imports.py",
+                        "0004_unify_programs_by_normalized_key.py",
+                        "0005_sources_periods_moments.py",
+                        "0006_student_identity_by_email.py",
+                    ):
+                        load_migration(filename).upgrade()
+
+                # Como quedaba tras la 0006: el documento 101 partido en dos
+                # estudiantes (correo institucional y personal).
+                doc_key = sha256(b"101").hexdigest()
+                connection.exec_driver_sql(
+                    "INSERT INTO academic_students (id, email_key, document_key, "
+                    "document_number, created_at, updated_at) VALUES "
+                    f"(1, 'ana@gmail.com', '{doc_key}', '101', '2026-01-01', '2026-01-01'), "
+                    "(2, 'ana-2024a@corhuila.edu.co', NULL, NULL, '2026-01-01', '2026-01-01')"
+                )
+                rows = (
+                    (1, "ana@gmail.com", "SIMULACRO 2025-1 MOMENTO 1", "MOMENTO 1", 1),
+                    (2, "ana-2024a@corhuila.edu.co", "SIMULACRO 2026-1 MOMENTO 2", "MOMENTO 2", 2),
+                    (2, "ana-2024a@corhuila.edu.co", "SIMULACRO 2024-1 MOMENTO 4", "MOMENTO 4", None),
+                )
+                for row, (student_id, email, simulation, group, moment) in enumerate(
+                    rows, start=1
+                ):
+                    connection.exec_driver_sql(
+                        "INSERT INTO academic_results (import_id, "
+                        "source_row_number, student_id, document_number_source, "
+                        "email_key, program_name_raw, year, simulation_name, "
+                        "simulation_key, group_name, moment, created_at) VALUES "
+                        "('imp', ?, ?, '101', ?, 'x', 2026, ?, 's', ?, ?, '2026-01-01')",
+                        (row, student_id, email, simulation, group, moment),
+                    )
+
+                with Operations.context(context):
+                    load_migration(
+                        "0007_document_identity_email_aliases.py"
+                    ).upgrade()
+
+                self.assertEqual(
+                    connection.exec_driver_sql(
+                        "SELECT id, email_key, document_number FROM academic_students"
+                    ).all(),
+                    [(1, "ana-2024a@corhuila.edu.co", "101")],
+                )
+                self.assertEqual(
+                    connection.exec_driver_sql(
+                        "SELECT email_key, student_id FROM academic_student_emails "
+                        "ORDER BY email_key"
+                    ).all(),
+                    [("ana-2024a@corhuila.edu.co", 1), ("ana@gmail.com", 1)],
+                )
+                self.assertEqual(
+                    connection.exec_driver_sql(
+                        "SELECT source_row_number, student_id, moment "
+                        "FROM academic_results ORDER BY source_row_number"
+                    ).all(),
+                    [(1, 1, 1), (2, 1, 2), (3, 1, 4)],
+                )
+        finally:
+            engine.dispose()
+
+    def test_revision_ids_fit_alembic_version_column(self) -> None:
+        # alembic_version.version_num es VARCHAR(32) en MySQL.
+        for path in sorted(_VERSIONS_DIR.glob("0*.py")):
+            with self.subTest(migration=path.name):
+                self.assertLessEqual(len(load_migration(path.name).revision), 32)
 
     def test_existing_unversioned_schema_is_stamped_only_when_it_matches(self) -> None:
         engine = create_engine("sqlite://")

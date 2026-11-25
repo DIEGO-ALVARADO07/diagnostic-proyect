@@ -117,14 +117,25 @@ class ActiveImport(Base):
 
 
 class AcademicStudent(Base):
+    """Un estudiante. Su identidad es el **documento** (``document_key``).
+
+    Un estudiante puede tener varios correos (institucional y personal): todos
+    quedan como alias en ``academic_student_emails``. Las filas sin documento se
+    identifican por cualquiera de esos correos.
+    """
+
     __tablename__ = "academic_students"
+    __table_args__ = (Index("ix_academic_students_email_key", "email_key"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    document_key: Mapped[str] = mapped_column(
-        String(64), nullable=False, unique=True
+    email_key: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    """Correo principal: el institucional más reciente; si no hay, el personal.
+    Todos sus correos están en ``academic_student_emails``."""
+    document_key: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, unique=True
     )
-    document_number: Mapped[str] = mapped_column(
-        String(80), nullable=False
+    document_number: Mapped[str | None] = mapped_column(
+        String(80), nullable=True
     )
     first_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
@@ -134,6 +145,20 @@ class AcademicStudent(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+
+class AcademicStudentEmail(Base):
+    """Correo (alias) de un estudiante. Cada correo pertenece a un solo estudiante."""
+
+    __tablename__ = "academic_student_emails"
+    __table_args__ = (
+        Index("ix_academic_student_emails_student_id", "student_id"),
+    )
+
+    email_key: Mapped[str] = mapped_column(String(320), primary_key=True)
+    student_id: Mapped[int] = mapped_column(
+        ForeignKey("academic_students.id", ondelete="CASCADE"), nullable=False
     )
 
 
@@ -229,6 +254,12 @@ class AcademicResult(Base):
             "period",
             "moment",
         ),
+        Index(
+            "ix_academic_results_import_email_moment",
+            "import_id",
+            "email_key",
+            "moment",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -252,6 +283,8 @@ class AcademicResult(Base):
     email_source: Mapped[str | None] = mapped_column(
         String(320), nullable=True
     )
+    email_key: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    """Correo normalizado: cruza ESE con CORHUILA."""
     student_search_name: Mapped[str | None] = mapped_column(
         String(500), nullable=True
     )
@@ -262,6 +295,21 @@ class AcademicResult(Base):
     program_name_raw: Mapped[str] = mapped_column(
         String(255), nullable=False
     )
+    student_match: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    """Solo CORHUILA: cómo se encontró al estudiante en ESE (``StudentMatch``)."""
+    program_resolution: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )
+    """Solo CORHUILA: ``ESE_M2`` (programa tomado de ESE Momento 2) o
+    ``SIN_PROGRAMA``. ``None`` en ESE, cuyo programa viene en el archivo."""
+    program_resolved_import_id: Mapped[str | None] = mapped_column(
+        ForeignKey("excel_imports.id", ondelete="SET NULL"), nullable=True
+    )
+    """Importación de ESE de la que se tomó el programa."""
+    program_resolved_period: Mapped[str | None] = mapped_column(
+        String(7), nullable=True
+    )
+    """Periodo de la fila de ESE Momento 2 usada."""
     reading_score: Mapped[Decimal | None] = mapped_column(
         Numeric(16, 6), nullable=True
     )

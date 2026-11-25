@@ -1,4 +1,5 @@
 from collections.abc import Awaitable, Callable
+from dataclasses import asdict
 from http import HTTPStatus
 import logging
 from time import perf_counter
@@ -18,10 +19,12 @@ from modules.excel.dtos.responses.dashboard import (
     DashboardOverviewResponse,
     DashboardProgramResponse,
     DashboardStudentResponse,
+    ProgramLookupResponse,
 )
 from modules.excel.dtos.responses.read_workbook import ReadWorkbookResponse
 from modules.excel.services.excel_service import ExcelService, MAX_UPLOAD_BYTES
 from modules.excel.services.dashboard_service import DashboardService, MAX_PAGE_SIZE
+from modules.excel.services.program_resolution import lookup_program
 from core.db_session import DbSession
 from core.exceptions import ApplicationError
 from modules.security.dependencies import CurrentAccount, require_roles
@@ -157,6 +160,34 @@ async def get_active_dashboard(
 
 
 @router.get(
+    "/dashboard/program-lookup",
+    response_model=ProgramLookupResponse,
+    dependencies=[Depends(require_roles(Role.INSTRUCTOR, Role.SUPERADMIN))],
+)
+async def lookup_student_program(
+    db: DbSession,
+    document: str | None = Query(default=None, max_length=80),
+    email: str | None = Query(default=None, max_length=320),
+    full_name: str | None = Query(default=None, max_length=500),
+    period: str | None = Query(default=None, pattern=PERIOD_PATTERN),
+) -> ProgramLookupResponse:
+    """Busca en el ESE activo al estudiante y su programa (Momento 2).
+
+    Orden: documento, correo y nombre completo único. ``period`` es el de
+    CORHUILA: solo vale un Momento 2 de ese periodo o anterior.
+    """
+    if not any((document, email, full_name)):
+        raise ApplicationError(
+            HTTPStatus.UNPROCESSABLE_ENTITY,
+            "Indica el documento, el correo o el nombre completo.",
+        )
+    result = await run_in_threadpool(
+        lookup_program, db, document, email, full_name, period
+    )
+    return ProgramLookupResponse(**{**asdict(result), "match": result.match.value})
+
+
+@router.get(
     "/dashboard/imports",
     response_model=DashboardImportListResponse,
     dependencies=[Depends(require_roles(Role.SUPERADMIN))],
@@ -204,7 +235,7 @@ async def get_dashboard_overview(
     import_id: str,
     year: int | None = None,
     period: str | None = Query(default=None, pattern=PERIOD_PATTERN),
-    moment: int | None = Query(default=None, ge=1, le=3),
+    moment: int | None = Query(default=None, ge=1, le=4),
     simulation: str | None = None,
     group: str | None = None,
     semester: str | None = None,
@@ -239,7 +270,7 @@ async def get_dashboard_program(
     program_id: str,
     year: int | None = None,
     period: str | None = Query(default=None, pattern=PERIOD_PATTERN),
-    moment: int | None = Query(default=None, ge=1, le=3),
+    moment: int | None = Query(default=None, ge=1, le=4),
     simulation: str | None = None,
     group: str | None = None,
     semester: str | None = None,
@@ -276,6 +307,7 @@ async def get_dashboard_student(
     import_id: str,
     document: str,
 ) -> DashboardStudentResponse:
+    """Historial del estudiante. ``document`` acepta el correo o el documento."""
     return await run_in_threadpool(
         dashboard_service.get_student,
         db,

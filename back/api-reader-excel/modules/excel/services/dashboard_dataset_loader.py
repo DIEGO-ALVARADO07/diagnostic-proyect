@@ -90,7 +90,10 @@ class DashboardDatasetLoader:
 
         records: list[DashboardRecord] = []
         records_by_program: dict[str, list[DashboardRecord]] = {}
-        records_by_student: dict[str, list[DashboardRecord]] = {}
+        # Filas por estudiante (``student_id``); se consultan por cualquiera de
+        # sus correos o por su documento.
+        student_rows: dict[object, list[DashboardRecord]] = {}
+        student_of_key: dict[str, object] = {}
         for result in results:
             program_id = str(result.program_id) if result.program_id else ""
             program_name = programs.get(program_id, result.program_name_raw)
@@ -132,11 +135,20 @@ class DashboardDatasetLoader:
                 period=result.period,
                 moment_number=result.moment,
                 source=import_row.source,
+                email_key=result.email_key,
+                program_resolution=result.program_resolution,
             )
             records.append(record)
             records_by_program.setdefault(program_id, []).append(record)
-            if record.document is not None:
-                records_by_student.setdefault(record.document, []).append(record)
+            group = (
+                ("student", result.student_id)
+                if result.student_id is not None
+                else record.student_key
+            )
+            if group is not None:
+                student_rows.setdefault(group, []).append(record)
+                for key in {record.email_key, record.document} - {None}:
+                    student_of_key.setdefault(key, group)
 
         td_summary: dict[tuple[str, str], dict[str, float | None]] = {}
         references = db.scalars(
@@ -174,7 +186,10 @@ class DashboardDatasetLoader:
                 {key: tuple(value) for key, value in records_by_program.items()}
             ),
             records_by_student=MappingProxyType(
-                {key: tuple(value) for key, value in records_by_student.items()}
+                {
+                    key: tuple(student_rows[group])
+                    for key, group in student_of_key.items()
+                }
             ),
             program_names=MappingProxyType(program_names),
             td_programs_year=import_row.td_programas_selected_year,

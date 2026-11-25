@@ -33,6 +33,7 @@ from modules.excel.services.dashboard_audit import build_source_audit
 from modules.excel.services.dashboard_dataset_loader import DashboardDatasetLoader
 from modules.excel.services.dashboard_normalizer import (
     document_value,
+    email_key,
     normalized_key,
 )
 from modules.security.entities import Account
@@ -161,10 +162,13 @@ class DashboardQueryService:
         account: Account | None = None,
     ) -> DashboardStudentResponse:
         dataset = self._visible_dataset(db, import_id, account)
-        normalized_document = document_value(document)
+        # Se acepta el correo (identidad del estudiante) o el documento.
+        student_key = (
+            email_key(document) if "@" in document else document_value(document)
+        )
         records = (
-            dataset.records_by_student.get(normalized_document, ())
-            if normalized_document is not None
+            dataset.records_by_student.get(student_key, ())
+            if student_key is not None
             else ()
         )
         if not records:
@@ -218,9 +222,12 @@ class DashboardQueryService:
         latest_first = list(reversed(ordered_records))
         return DashboardStudentResponse(
             document=next(
-                record.document
-                for record in latest_first
-                if record.document is not None
+                (
+                    record.document
+                    for record in latest_first
+                    if record.document is not None
+                ),
+                None,
             ),
             name=next(
                 (record.name for record in latest_first if record.name), ""

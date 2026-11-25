@@ -22,6 +22,34 @@ class Source(StrEnum):
     CORHUILA = "CORHUILA"
 
 
+class ProgramResolution(StrEnum):
+    """De dónde salió el programa de una fila de CORHUILA (que no lo trae)."""
+
+    ESE_M2 = "ESE_M2"
+    """Programa de la fila de ESE Momento 2 más reciente con el mismo correo,
+    de un periodo igual o anterior al de CORHUILA."""
+    SIN_PROGRAMA = "SIN_PROGRAMA"
+    """El correo no tiene un Momento 2 válido en el ESE activo."""
+
+
+SIN_PROGRAMA_LABEL = "Sin programa"
+
+
+class StudentMatch(StrEnum):
+    """Cómo se encontró en ESE al estudiante de una fila de CORHUILA."""
+
+    DOCUMENTO = "DOCUMENTO"
+    """Mismo documento de identidad (regla principal)."""
+    CORREO = "CORREO"
+    """Alguno de los correos del estudiante en ESE coincide."""
+    NOMBRE = "NOMBRE"
+    """El nombre completo coincide con un solo estudiante de ESE."""
+    AMBIGUO = "AMBIGUO"
+    """El nombre completo coincide con dos o más estudiantes: no se asigna."""
+    SIN_COINCIDENCIA = "SIN_COINCIDENCIA"
+    """No hay documento, correo ni nombre que coincida."""
+
+
 @dataclass(frozen=True)
 class SemesterRange:
     first: int
@@ -39,8 +67,17 @@ ESE_MOMENT_SEMESTERS: dict[int, SemesterRange] = {
     1: SemesterRange(1, 3),
     2: SemesterRange(4, 6),
     3: SemesterRange(7, None),
+    4: SemesterRange(8, 10),
 }
-"""Semestres que mide cada momento de ESE."""
+"""Semestres que mide cada momento de ESE.
+
+El Momento 4 solo existe en el histórico de 2024 (semestres 8–10). Desde 2025
+ESE aplica como máximo el Momento 3.
+"""
+
+CURRENT_ESE_MOMENTS: tuple[int, ...] = (1, 2, 3)
+"""Momentos del esquema actual: los que entran en la métrica de crecimiento
+(M1 → M2 → CORHUILA → M3). El Momento 4 queda solo en el histórico."""
 
 CORHUILA_SEMESTERS = SemesterRange(5, 6)
 """Semestres que mide la prueba institucional (momento único)."""
@@ -58,7 +95,7 @@ def parse_period(value: str | None) -> str | None:
 
 
 def parse_moment(value: str | None) -> int | None:
-    """``"MOMENTO 3"`` → ``3``; ``None`` si no es un momento de ESE (1–3)."""
+    """``"MOMENTO 3"`` → ``3``; ``None`` si no es un momento de ESE (1–4)."""
     if not value:
         return None
     match = _MOMENT_PATTERN.search(value)

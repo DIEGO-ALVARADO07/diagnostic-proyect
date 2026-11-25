@@ -18,6 +18,7 @@ from modules.excel.services.dashboard_normalizer import (
     clean_text,
     decimal_value,
     document_value,
+    email_key,
     normalized_key,
     numeric_value,
 )
@@ -180,6 +181,7 @@ class DashboardProcessor:
                     first_name=first_name,
                     last_name=last_name,
                     email=_raw_text(row.get("dirección de correo")),
+                    email_key=email_key(row.get("dirección de correo")),
                     student_search_name=search_name,
                     program_name=program_name,
                     program_normalized_key=normalized_key(program_name),

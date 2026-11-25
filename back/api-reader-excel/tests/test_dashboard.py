@@ -101,6 +101,8 @@ def make_dashboard_workbook(
     global_score: object = 90,
     td_title_row: bool = True,
     first_semester: object = "SEMESTRE 7",
+    second_email: str = "ana@example.com",
+    extra_records: list[list[object]] | None = None,
 ) -> bytes:
     first_record = [
         "101",
@@ -134,7 +136,7 @@ def make_dashboard_workbook(
         "101",
         "Ana",
         "Pérez",
-        "ana@example.com",
+        second_email,
         150,
         "N",
         180,
@@ -194,7 +196,16 @@ def make_dashboard_workbook(
         ["PROGRAMA A", 100, 110, 120, 130, 140, 120, 120],
     ]
     sheets = [
-        ("BD GEN", [BD_HEADERS, first_record, second_record, non_presented]),
+        (
+            "BD GEN",
+            [
+                BD_HEADERS,
+                first_record,
+                second_record,
+                non_presented,
+                *(extra_records or []),
+            ],
+        ),
         ("TD PROGRAMAS", td_rows),
         ("IGNORAR", [["Auxiliar"], ["no debe procesarse"]]),
     ]
@@ -589,7 +600,7 @@ class DashboardTests(unittest.TestCase):
             for operation in methods.values()
         ]
 
-        self.assertEqual(len(dashboard_operations), 8)
+        self.assertEqual(len(dashboard_operations), 9)
         for operation in dashboard_operations:
             with self.subTest(operation=operation["operationId"]):
                 self.assertIn({"HTTPBearer": []}, operation["security"])

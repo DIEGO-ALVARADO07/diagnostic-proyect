@@ -103,7 +103,7 @@ def selected_filters(
 def search_students(
     records: list[DashboardRecord], search: str | None
 ) -> list[DashboardRecord]:
-    """Busca por documento o nombre; sin texto devuelve la misma lista."""
+    """Busca por documento, nombre o correo; sin texto devuelve la misma lista."""
     query = clean_text(search)
     if query is None:
         return records
@@ -113,4 +113,5 @@ def search_students(
         for record in records
         if normalized_query in normalized_key(record.document)
         or normalized_query in normalized_key(record.name)
+        or normalized_query in normalized_key(record.email)
     ]

@@ -18,10 +18,12 @@ class PeriodAndMomentTests(unittest.TestCase):
         self.assertIsNone(parse_period("SIMULACRO 2026-3"))
         self.assertIsNone(parse_period(None))
 
-    def test_moment_is_one_to_three(self) -> None:
+    def test_moment_is_one_to_four(self) -> None:
         self.assertEqual(parse_moment("MOMENTO 3"), 3)
         self.assertEqual(parse_moment("simulacro 2026-1 momento 1"), 1)
-        self.assertIsNone(parse_moment("MOMENTO 4"))
+        # Momento 4: histórico de 2024 (semestres 8–10).
+        self.assertEqual(parse_moment("SIMULACRO 2024-1 MOMENTO 4"), 4)
+        self.assertIsNone(parse_moment("MOMENTO 5"))
         self.assertIsNone(parse_moment("GRUPO A"))
 
     def test_sim_wins_and_group_is_the_fallback(self) -> None:
@@ -37,6 +39,7 @@ class PeriodAndMomentTests(unittest.TestCase):
             for moment in (1, 2, 3)
         }
         self.assertEqual(labels, {1: "1–3", 2: "4–6", 3: "7 en adelante"})
+        self.assertEqual(semester_range(Source.ESE, 4).label, "8–10")
         self.assertEqual(semester_range(Source.CORHUILA, None).label, "5–6")
         self.assertIsNone(semester_range(Source.ESE, None))
 

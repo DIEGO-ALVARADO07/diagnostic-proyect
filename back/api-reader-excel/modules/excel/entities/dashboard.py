@@ -11,6 +11,8 @@ class DashboardImportRecord:
     first_name: str | None
     last_name: str | None
     email: str | None
+    email_key: str | None
+    """Correo normalizado: identidad del estudiante."""
     student_search_name: str | None
     program_name: str
     """Nombre tal como viene en el Excel."""
@@ -102,6 +104,15 @@ class DashboardRecord:
     """Momento de ESE (1–3); ``None`` si no se pudo determinar o es CORHUILA."""
     source: str = "ESE"
     """Prueba de origen (``Source``)."""
+    email_key: str | None = None
+    """Correo normalizado: identidad del estudiante."""
+    program_resolution: str | None = None
+    """Solo CORHUILA: ``ProgramResolution``."""
+
+    @property
+    def student_key(self) -> str | None:
+        """Clave del estudiante: el correo; si no hay, el documento."""
+        return self.email_key or self.document
 
 
 @dataclass(frozen=True)

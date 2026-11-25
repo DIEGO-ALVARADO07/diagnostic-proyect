@@ -95,6 +95,8 @@ class DataQualityTests(unittest.TestCase):
                     "sim": "SIMULACRO 2026-1 MOMENTO 3",
                     "grupo": "MOMENTO 3",
                     "año": 2026,
+                    "usuario": "101",
+                    "dirección de correo": "ana@corhuila.edu.co",
                 }
             ]
         )
@@ -110,6 +112,12 @@ class DataQualityTests(unittest.TestCase):
                     "rows_without_moment": 0,
                     "moment_group_mismatches": 0,
                     "period_year_mismatches": 0,
+                },
+                "identity": {
+                    "rows_without_email": 0,
+                    "emails_with_multiple_documents": 0,
+                    "documents_with_multiple_emails": 0,
+                    "names_with_multiple_documents": 0,
                 },
             },
         )

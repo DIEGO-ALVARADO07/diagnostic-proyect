@@ -75,6 +75,19 @@ def document_value(value: Any) -> str | None:
     return text
 
 
+def email_key(value: Any) -> str | None:
+    """Identidad del estudiante: correo en minúsculas y sin espacios.
+
+    ``" Ana.Perez@Corhuila.edu.co "`` → ``"ana.perez@corhuila.edu.co"``. Devuelve
+    ``None`` si el valor no parece un correo (sin ``@``).
+    """
+    text = clean_text(value)
+    if text is None:
+        return None
+    key = "".join(text.split()).casefold()
+    return key if "@" in key else None
+
+
 def accent_count(value: str) -> int:
     """Cantidad de letras con tilde o diacrítico (``Í``, ``ñ``…)."""
     return sum(
