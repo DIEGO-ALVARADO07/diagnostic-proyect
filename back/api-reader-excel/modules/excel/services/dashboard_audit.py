@@ -5,6 +5,7 @@ from modules.excel.dtos.responses.dashboard import (
     DashboardDataQualityResponse,
     DashboardSourceAuditResponse,
 )
+from modules.excel.entities.competency import COMPETENCIES
 from modules.excel.entities.dashboard import DashboardDataset
 from modules.excel.services.dashboard_mappers import metrics_response
 from modules.excel.services.dashboard_normalizer import normalized_key
@@ -42,7 +43,9 @@ def build_source_audit(dataset: DashboardDataset) -> DashboardSourceAuditRespons
             ]
             if not matched:
                 continue
-            calculated = metrics_response(matched)
+            # TD PROGRAMAS es la tabla del propio Excel de ESE: incluye las 5
+            # competencias, así que se audita con todas, no solo las comparables.
+            calculated = metrics_response(matched, COMPETENCIES)
             calculated_values: dict[str, float | None] = {
                 key: item.average
                 for key, item in calculated.competencies.items()

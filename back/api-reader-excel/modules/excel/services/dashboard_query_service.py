@@ -20,7 +20,7 @@ from modules.excel.dtos.responses.dashboard import (
     ProgramSummaryResponse,
 )
 from modules.excel.entities.academic import ExcelImport
-from modules.excel.entities.competency import COMPETENCIES
+from modules.excel.entities.competency import COMPARABLE_COMPETENCIES
 from modules.excel.entities.dashboard import DashboardDataset, DashboardRecord
 from modules.excel.entities.import_status import SNAPSHOT_STATUSES, ImportStatus
 from modules.excel.repositories.dashboard_persistence_repository import (
@@ -375,7 +375,7 @@ def _changes(records: list[DashboardRecord]) -> dict[str, str]:
             ]
         )
     }
-    for competency in COMPETENCIES:
+    for competency in COMPARABLE_COMPETENCIES:
         changes[competency.key] = compare(
             [
                 score

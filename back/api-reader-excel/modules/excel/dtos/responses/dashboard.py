@@ -88,6 +88,8 @@ class DashboardDataQualityResponse(BaseModel):
     """Filas con un nivel válido pero sin puntaje numérico."""
     unknown_levels: dict[str, dict[str, int]] = {}
     """Niveles que no son válidos ni un código conocido, p. ej. {"ingles": {"false": 2}}."""
+    source_level_mismatches: dict[str, int] = {}
+    """Filas cuyo nivel del Excel difiere del calculado con la escala común."""
 
 
 class DashboardSourceAuditResponse(BaseModel):

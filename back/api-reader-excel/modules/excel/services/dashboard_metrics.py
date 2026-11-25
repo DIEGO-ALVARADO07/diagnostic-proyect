@@ -1,17 +1,32 @@
 from collections.abc import Sequence
 from statistics import fmean, pstdev, stdev
 
-from modules.excel.entities.competency import COMPETENCIES, classify_level
+from modules.excel.entities.competency import (
+    COMPARABLE_COMPETENCIES,
+    Competency,
+    classify_level,
+)
 from modules.excel.entities.dashboard import DashboardRecord
 
 
-def calculate_metrics(records: Sequence[DashboardRecord]) -> dict[str, object]:
+def calculate_metrics(
+    records: Sequence[DashboardRecord],
+    competencies: Sequence[Competency] = COMPARABLE_COMPETENCIES,
+) -> dict[str, object]:
+    """Métricas; por defecto sobre las 4 competencias comunes a ESE y CORHUILA.
+
+    La auditoría de ``TD PROGRAMAS`` pasa todas las competencias, porque esa
+    tabla del Excel de ESE incluye Comunicación escrita.
+
+    Un ``0`` es un puntaje real; un valor vacío o no numérico (``None``) no entra.
+    ``average_global`` es la columna J de ESE y se conserva solo como referencia.
+    """
     presented = [record for record in records if record.presented]
     competency_results: dict[str, dict[str, object]] = {}
     competency_averages: list[float] = []
     general_values: list[float] = []
 
-    for competency in COMPETENCIES:
+    for competency in competencies:
         values = [
             score
             for record in presented
@@ -21,7 +36,7 @@ def calculate_metrics(records: Sequence[DashboardRecord]) -> dict[str, object]:
         levels = [classify_level(competency, score) for score in values]
         distribution_counts = {
             level: levels.count(level)
-            for level, _ in competency.thresholds
+            for level in competency.level_labels
         }
         average = fmean(values) if values else None
         if average is not None:

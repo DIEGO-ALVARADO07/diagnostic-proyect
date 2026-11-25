@@ -8,7 +8,11 @@ from modules.excel.dtos.responses.dashboard import (
     DashboardProgramStudentResponse,
 )
 from modules.excel.entities.academic import ExcelImport
-from modules.excel.entities.competency import COMPETENCIES
+from modules.excel.entities.competency import (
+    COMPARABLE_COMPETENCIES,
+    Competency,
+    classify_level,
+)
 from modules.excel.entities.dashboard import DashboardRecord
 from modules.excel.entities.import_status import DELETED_STATUS_LABEL
 from modules.excel.services.dashboard_metrics import calculate_metrics
@@ -18,21 +22,28 @@ NO_RESULT_LEVEL = "Sin resultado"
 
 def metrics_response(
     records: Sequence[DashboardRecord],
+    competencies: Sequence[Competency] = COMPARABLE_COMPETENCIES,
 ) -> DashboardMetricsResponse:
-    return DashboardMetricsResponse.model_validate(calculate_metrics(records))
+    return DashboardMetricsResponse.model_validate(
+        calculate_metrics(records, competencies)
+    )
 
 
 def scores(record: DashboardRecord) -> dict[str, float | None]:
     return {
         competency.key: record.scores[competency.key]
-        for competency in COMPETENCIES
+        for competency in COMPARABLE_COMPETENCIES
     }
 
 
 def levels(record: DashboardRecord) -> dict[str, str]:
+    """Nivel calculado con la escala común; el del Excel queda para auditoría."""
     return {
-        competency.key: record.levels[competency.key] or NO_RESULT_LEVEL
-        for competency in COMPETENCIES
+        competency.key: (
+            classify_level(competency, record.scores[competency.key])
+            or NO_RESULT_LEVEL
+        )
+        for competency in COMPARABLE_COMPETENCIES
     }
 
 

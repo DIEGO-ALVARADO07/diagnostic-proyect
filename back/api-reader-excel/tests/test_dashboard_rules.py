@@ -96,7 +96,26 @@ class DataQualityTests(unittest.TestCase):
                 "score_codes": {},
                 "levels_without_numeric_score": {},
                 "unknown_levels": {},
+                "source_level_mismatches": {},
             },
+        )
+
+    def test_reports_source_levels_that_differ_from_common_scale(self) -> None:
+        report = assess_data_quality(
+            [
+                # 125 es Nivel 1 en la escala común; el Excel dice 2.
+                {"lectura crítica": 125, "n: lectura crítica": "2"},
+                # 160 es B1 en la escala común; el Excel dice A2.
+                {"inglés": 160, "n: inglés": "A2"},
+                # Coincide: no se reporta.
+                {"razonamiento cuantitativo": 199, "n: razonamiento cuantitativo": "4"},
+                # Comunicación escrita no es comparable: no se reporta.
+                {"comunicación escrita": 100, "n: comunicación escrita": "3"},
+            ]
+        )
+        self.assertEqual(
+            report["source_level_mismatches"],
+            {"lectura_critica": 1, "ingles": 1},
         )
 
 

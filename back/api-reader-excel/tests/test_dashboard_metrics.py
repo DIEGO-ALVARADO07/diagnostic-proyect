@@ -72,14 +72,45 @@ class DashboardMetricsTests(unittest.TestCase):
         metrics = calculate_metrics(records)
 
         self.assertEqual(metrics["average_global"], 70)
-        self.assertAlmostEqual(metrics["average_general"], 700 / 6)
-        self.assertEqual(metrics["simple_competence_average"], 110)
+        # 4 competencias comunes: 4 × 100 + 200 (Comunicación escrita no entra).
+        self.assertAlmostEqual(metrics["average_general"], 600 / 5)
+        self.assertEqual(metrics["simple_competence_average"], 112.5)
         self.assertAlmostEqual(
             metrics["general_standard_deviation"],
-            stdev([100, 100, 100, 100, 100, 200]),
+            stdev([100, 100, 100, 100, 200]),
         )
         self.assertEqual(metrics["presentations"], 2)
         self.assertEqual(metrics["not_presented_records"], 1)
+
+    def test_writing_is_not_part_of_metrics(self) -> None:
+        scores = {competency.key: 150 for competency in COMPETENCIES}
+        scores["comunicacion_escrita"] = 0
+
+        metrics = calculate_metrics([make_record(scores=scores)])
+
+        self.assertNotIn("comunicacion_escrita", metrics["competencies"])
+        self.assertEqual(metrics["average_general"], 150)
+
+    def test_zero_counts_but_missing_score_does_not(self) -> None:
+        # Regla igual para ESE y CORHUILA: 0 es un puntaje real (Nivel 1);
+        # vacío, "-", "N"… llegan como None y no entran.
+        with_zero = {competency.key: None for competency in COMPETENCIES}
+        with_zero["lectura_critica"] = 0
+        without_score = {competency.key: None for competency in COMPETENCIES}
+        without_score["lectura_critica"] = 200
+
+        metrics = calculate_metrics(
+            [
+                make_record(source_row_number=2, scores=with_zero),
+                make_record(source_row_number=3, scores=without_score),
+            ]
+        )
+
+        reading = metrics["competencies"]["lectura_critica"]
+        self.assertEqual(reading["count"], 2)
+        self.assertEqual(reading["average"], 100)
+        self.assertEqual(reading["level_distribution"]["1"], 50)
+        self.assertEqual(metrics["competencies"]["ingles"]["count"], 0)
 
     def test_general_average_is_none_when_presented_records_have_no_scores(self) -> None:
         no_scores = {competency.key: None for competency in COMPETENCIES}

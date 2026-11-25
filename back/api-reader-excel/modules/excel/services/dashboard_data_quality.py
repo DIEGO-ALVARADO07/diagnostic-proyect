@@ -9,7 +9,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from modules.excel.entities.competency import COMPETENCIES
+from modules.excel.entities.competency import COMPETENCIES, classify_level
 from modules.excel.services.dashboard_normalizer import clean_text, decimal_value
 
 # Marcador que el Excel usa en los niveles cuando la prueba no aplica.
@@ -23,12 +23,15 @@ def assess_data_quality(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     - ``levels_without_numeric_score``: filas con un nivel válido (p. ej. ``4``)
       pero sin puntaje numérico;
     - ``unknown_levels``: niveles que no son un nivel válido ni un código conocido
-      (p. ej. ``false``).
+      (p. ej. ``false``);
+    - ``source_level_mismatches``: filas cuyo nivel en el Excel (Q:U) no coincide
+      con el que calcula la escala común (solo competencias comparables).
 
     Solo incluye las competencias con algún hallazgo.
     """
     score_codes: dict[str, Counter[str]] = defaultdict(Counter)
     levels_without_score: Counter[str] = Counter()
+    level_mismatches: Counter[str] = Counter()
     level_values: dict[str, Counter[str]] = defaultdict(Counter)
 
     for row in rows:
@@ -36,13 +39,20 @@ def assess_data_quality(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
             raw_score = clean_text(row.get(competency.score_header))
             numeric_score = decimal_value(raw_score)
             level = clean_text(row.get(competency.level_header))
-            valid_levels = {label for label, _ in competency.thresholds}
+            valid_levels = set(competency.level_labels)
             if raw_score is not None and numeric_score is None:
                 score_codes[competency.key][raw_score] += 1
             if numeric_score is None and level in valid_levels:
                 levels_without_score[competency.key] += 1
             if level is not None and level not in valid_levels:
                 level_values[competency.key][level] += 1
+            if (
+                competency.comparable
+                and numeric_score is not None
+                and level in valid_levels
+                and level != classify_level(competency, float(numeric_score))
+            ):
+                level_mismatches[competency.key] += 1
 
     known_codes = {_NOT_APPLICABLE} | {
         code for codes in score_codes.values() for code in codes
@@ -60,4 +70,5 @@ def assess_data_quality(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         "unknown_levels": {
             key: values for key, values in unknown_levels.items() if values
         },
+        "source_level_mismatches": dict(level_mismatches),
     }

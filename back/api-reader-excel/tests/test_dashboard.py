@@ -22,7 +22,12 @@ from modules.excel.repositories.dashboard_repository import (
     DashboardWorkbookRepository,
 )
 from modules.excel.routes import router as excel_router
-from modules.excel.entities.competency import COMPETENCIES, classify_level
+from modules.excel.entities.competency import (
+    COMPARABLE_COMPETENCIES,
+    COMPETENCIES,
+    classify_level,
+    level_number,
+)
 from modules.excel.services.dashboard_service import DashboardService
 from core.orm import Base
 from modules.security.entities import Account
@@ -361,12 +366,15 @@ class DashboardTests(unittest.TestCase):
             student.history[0].program_average_global,
             90,
         )
-        self.assertEqual(student.history[0].program_average_general, 120)
+        # Promedio general con las 4 competencias comunes (sin Comunicación escrita).
+        self.assertEqual(student.history[0].program_average_general, 122.5)
         self.assertEqual(student.history[1].program_average_general, 167.5)
-        self.assertEqual(
-            student.history[1].levels["comunicacion_escrita"],
-            "Sin resultado",
-        )
+        # Comunicación escrita se importa, pero no se muestra.
+        self.assertNotIn("comunicacion_escrita", student.history[1].levels)
+        self.assertNotIn("comunicacion_escrita", student.history[1].scores)
+        # El nivel se calcula con la escala común, no se lee de Q:U.
+        self.assertEqual(student.history[1].levels["lectura_critica"], "2")
+        self.assertEqual(student.history[1].levels["ingles"], "B1")
         self.assertEqual(student.changes["global"], "mejora")
 
     def test_import_hash_is_idempotent_and_activation_keeps_history(self) -> None:
@@ -674,22 +682,46 @@ class DashboardTests(unittest.TestCase):
             )
         self.assertEqual(error.exception.status_code, 422)
 
-    def test_levels_cover_each_competency_boundary(self) -> None:
-        expected = (
-            ((124, "1"), (125, "2"), (156, "2"), (157, "3"), (198, "3"), (199, "4")),
-            ((114, "1"), (115, "2"), (148, "2"), (149, "3"), (182, "3"), (183, "4")),
-            ((125, "1"), (126, "2"), (156, "2"), (157, "3"), (198, "3"), (199, "4")),
-            ((125, "1"), (126, "2"), (153, "2"), (154, "3"), (201, "3"), (202, "4")),
-            ((120, "A1"), (121, "A2"), (164, "A2"), (165, "B1"), (195, "B1"), (196, "B2")),
+    def test_levels_use_one_common_scale_for_every_competency(self) -> None:
+        # Escala común: 0–125, 126–156, 157–198, 199–300. Un 0 es Nivel 1.
+        boundaries = (
+            (0, 1), (125, 1), (126, 2), (156, 2), (157, 3),
+            (198, 3), (199, 4), (300, 4),
         )
-        for competency_index, boundaries in enumerate(expected):
+        for competency in COMPETENCIES:
             for score, level in boundaries:
-                with self.subTest(competency=competency_index, score=score):
+                with self.subTest(competency=competency.key, score=score):
                     self.assertEqual(
-                        classify_level(COMPETENCIES[competency_index], score),
+                        classify_level(competency, score),
+                        competency.level_labels[level - 1],
+                    )
+                    self.assertEqual(
+                        level_number(
+                            competency, classify_level(competency, score)
+                        ),
                         level,
                     )
         self.assertIsNone(classify_level(COMPETENCIES[0], None))
+
+    def test_english_shows_a1_to_b2_with_the_same_limits(self) -> None:
+        english = next(c for c in COMPETENCIES if c.key == "ingles")
+        self.assertEqual(
+            [classify_level(english, score) for score in (125, 156, 198, 199)],
+            ["A1", "A2", "B1", "B2"],
+        )
+        self.assertEqual(level_number(english, "B1"), 3)
+        self.assertIsNone(level_number(english, "C1"))
+
+    def test_only_writing_is_excluded_from_comparison(self) -> None:
+        self.assertEqual(
+            [competency.key for competency in COMPARABLE_COMPETENCIES],
+            [
+                "lectura_critica",
+                "competencias_ciudadanas",
+                "razonamiento_cuantitativo",
+                "ingles",
+            ],
+        )
 
 
 if __name__ == "__main__":

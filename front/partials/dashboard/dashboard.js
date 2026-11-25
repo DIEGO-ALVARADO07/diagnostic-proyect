@@ -720,7 +720,7 @@
                 card.appendChild(value);
                 if (entry.level) {
                     var level = document.createElement('small');
-                    level.textContent = entry.level === 'Sin resultado' ? entry.level : 'Nivel ' + entry.level;
+                    level.textContent = /^[1-4]$/.test(entry.level) ? 'Nivel ' + entry.level : entry.level;
                     card.appendChild(level);
                 }
                 scoresContainer.appendChild(card);
