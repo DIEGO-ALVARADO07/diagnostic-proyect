@@ -17,6 +17,7 @@ from modules.excel.dtos.responses.dashboard import (
     DashboardImportResponse,
 )
 from modules.excel.entities.academic import ExcelImport
+from modules.excel.entities.assessment import Source, active_slot
 from modules.excel.entities.import_status import (
     DEACTIVATABLE_STATUSES,
     SNAPSHOT_DATASET_MODE,
@@ -96,6 +97,8 @@ class DashboardImportService:
         import_row = ExcelImport(
             id=str(uuid4()),
             filename=safe_filename,
+            source=Source.ESE.value,
+            period=None,
             file_sha256=file_hash,
             imported_by_user_id=account.id,
             status=ImportStatus.PROCESSING,
@@ -191,37 +194,44 @@ class DashboardImportService:
                 "Solo se pueden desactivar importaciones activas, históricas o fallidas.",
             )
 
-        if dashboard_state.active_import_id == import_id:
-            dashboard_state.active_import_id = None
+        self.persistence.clear_active_import(db, import_id)
         import_row.deleted_at = utcnow()
         db.commit()
         # Libera memoria; la visibilidad ya la garantiza la consulta con deleted_at.
         self.loader.evict(import_id)
 
     def _activate(self, db: Session, import_row: ExcelImport) -> None:
-        """La nueva importación pasa a ACTIVE y la anterior a HISTORICAL."""
+        """La nueva importación pasa a ACTIVE y la anterior de su espacio a HISTORICAL.
+
+        Cada espacio es independiente: activar ESE no toca CORHUILA y viceversa.
+        """
         dashboard_state = self.persistence.lock_dashboard_state(db)
         if dashboard_state is None:
             raise RuntimeError(
                 "No existe el estado inicial del dashboard; "
                 "aplica las migraciones Alembic."
             )
-        active_import = (
-            db.get(ExcelImport, dashboard_state.active_import_id)
-            if dashboard_state.active_import_id is not None
-            else None
-        )
+        slot = active_slot(Source(import_row.source), import_row.period)
+        active_import = self.persistence.get_active_import(db, slot)
         if active_import is not None:
             active_import.status = ImportStatus.HISTORICAL
         import_row.status = ImportStatus.ACTIVE
         import_row.activated_at = utcnow()
-        dashboard_state.active_import_id = import_row.id
+        self.persistence.set_active_import(db, slot, import_row.id)
 
     def _import_list_response(
         self, db: Session, imports: list[ExcelImport]
     ) -> DashboardImportListResponse:
         return DashboardImportListResponse(
-            active_import_id=self.persistence.get_active_import_id(db),
+            active_import_id=self.persistence.get_active_import_id(
+                db, Source.ESE.value
+            ),
+            active_imports=[
+                mappers.active_import_response(
+                    active.slot, db.get(ExcelImport, active.import_id)
+                )
+                for active in self.persistence.list_active_imports(db)
+            ],
             imports=[mappers.import_list_item_response(item) for item in imports],
         )
 

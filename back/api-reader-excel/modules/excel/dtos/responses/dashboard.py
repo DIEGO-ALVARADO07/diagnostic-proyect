@@ -35,6 +35,10 @@ class ProgramOptionResponse(BaseModel):
 
 class DashboardFilterOptionsResponse(BaseModel):
     years: list[int]
+    periods: list[str] = []
+    """Periodos del año presentes (``2026-1``, ``2026-2``…)."""
+    moments: list[int] = []
+    """Momentos de ESE presentes (1, 2, 3)."""
     simulations: list[str]
     groups: list[str]
     programs: list[ProgramOptionResponse]
@@ -45,6 +49,8 @@ class DashboardFilterOptionsResponse(BaseModel):
 
 class DashboardSelectedFiltersResponse(BaseModel):
     year: int | None
+    period: str | None = None
+    moment: int | None = None
     simulation: str | None
     group: str | None
     semester: str | None
@@ -79,6 +85,19 @@ class DashboardAuditDifferenceResponse(BaseModel):
     absolute_difference: float
 
 
+class DashboardPeriodMomentQualityResponse(BaseModel):
+    """Filas de BD GEN con problemas de periodo o momento (no impiden importar)."""
+
+    rows_without_period: int = 0
+    """``SIM`` no trae ``AAAA-1``/``AAAA-2``."""
+    rows_without_moment: int = 0
+    """Ni ``SIM`` ni ``GRUPO`` traen ``MOMENTO 1``–``3``."""
+    moment_group_mismatches: int = 0
+    """El momento de ``SIM`` no coincide con el de ``GRUPO`` (se usa el de ``SIM``)."""
+    period_year_mismatches: int = 0
+    """El año del periodo de ``SIM`` no coincide con ``AÑO``."""
+
+
 class DashboardDataQualityResponse(BaseModel):
     """Hallazgos de BD GEN que no impiden importar, por clave de competencia."""
 
@@ -90,6 +109,8 @@ class DashboardDataQualityResponse(BaseModel):
     """Niveles que no son válidos ni un código conocido, p. ej. {"ingles": {"false": 2}}."""
     source_level_mismatches: dict[str, int] = {}
     """Filas cuyo nivel del Excel difiere del calculado con la escala común."""
+    period_moment: DashboardPeriodMomentQualityResponse | None = None
+    """Ausente en importaciones anteriores a la fase 8."""
 
 
 class DashboardSourceAuditResponse(BaseModel):
@@ -107,6 +128,8 @@ class DashboardSourceAuditResponse(BaseModel):
 class DashboardImportResponse(BaseModel):
     import_id: str
     filename: str
+    source: str = "ESE"
+    period: str | None = None
     status: str
     imported_at: datetime
     filters: DashboardFilterOptionsResponse
@@ -117,6 +140,8 @@ class DashboardImportResponse(BaseModel):
 class DashboardImportListItemResponse(BaseModel):
     import_id: str
     filename: str
+    source: str
+    period: str | None
     status: str
     imported_at: datetime
     activated_at: datetime | None
@@ -126,13 +151,29 @@ class DashboardImportListItemResponse(BaseModel):
     deleted_at: datetime | None = None
 
 
+class DashboardActiveImportResponse(BaseModel):
+    slot: str
+    """``ESE`` o ``CORHUILA:<periodo>``."""
+    source: str
+    period: str | None
+    import_id: str
+    filename: str
+
+
 class DashboardImportListResponse(BaseModel):
     active_import_id: str | None
+    """Importación activa de ESE (compatibilidad con el frontend actual)."""
+    active_imports: list[DashboardActiveImportResponse] = []
+    """Activas de todos los espacios."""
     imports: list[DashboardImportListItemResponse]
 
 
 class DashboardStudentAttemptResponse(BaseModel):
     year: int
+    period: str | None = None
+    moment: int | None = None
+    semester_range: str | None = None
+    """Semestres que mide la prueba según el momento (``"4–6"``)."""
     simulation: str
     group: str | None
     semester: str | None
@@ -164,6 +205,9 @@ class DashboardProgramStudentResponse(BaseModel):
     program_id: str
     program: str
     year: int
+    period: str | None = None
+    moment: int | None = None
+    semester_range: str | None = None
     simulation: str
     group: str | None
     semester: str | None

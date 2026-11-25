@@ -3,11 +3,13 @@
 from collections.abc import Sequence
 
 from modules.excel.dtos.responses.dashboard import (
+    DashboardActiveImportResponse,
     DashboardImportListItemResponse,
     DashboardMetricsResponse,
     DashboardProgramStudentResponse,
 )
 from modules.excel.entities.academic import ExcelImport
+from modules.excel.entities.assessment import Source, semester_range
 from modules.excel.entities.competency import (
     COMPARABLE_COMPETENCIES,
     Competency,
@@ -57,6 +59,9 @@ def program_student_response(
         program_id=record.program_id,
         program=record.program_name,
         year=record.year,
+        period=record.period,
+        moment=record.moment_number,
+        semester_range=semester_range_label(record),
         simulation=record.simulation,
         group=record.group,
         semester=record.semester,
@@ -68,12 +73,26 @@ def program_student_response(
     )
 
 
+def active_import_response(
+    slot: str, item: ExcelImport
+) -> DashboardActiveImportResponse:
+    return DashboardActiveImportResponse(
+        slot=slot,
+        source=item.source,
+        period=item.period,
+        import_id=item.id,
+        filename=item.filename,
+    )
+
+
 def import_list_item_response(
     item: ExcelImport,
 ) -> DashboardImportListItemResponse:
     return DashboardImportListItemResponse(
         import_id=item.id,
         filename=item.filename,
+        source=item.source,
+        period=item.period,
         status=(
             DELETED_STATUS_LABEL if item.deleted_at is not None else item.status
         ),
@@ -84,6 +103,12 @@ def import_list_item_response(
         td_programas_selected_year=item.td_programas_selected_year,
         deleted_at=item.deleted_at,
     )
+
+
+def semester_range_label(record: DashboardRecord) -> str | None:
+    """Semestres que mide la prueba del registro (``"4–6"``), según su momento."""
+    measured = semester_range(Source(record.source), record.moment_number)
+    return measured.label if measured is not None else None
 
 
 def total_pages(total_items: int, page_size: int) -> int:

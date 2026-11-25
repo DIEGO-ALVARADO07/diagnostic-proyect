@@ -90,8 +90,10 @@ class DashboardService:
 
     # --- Consulta -------------------------------------------------------------
 
-    def get_active_import(self, db: Session) -> DashboardImportResponse:
-        return self.queries.get_active_import(db)
+    def get_active_import(
+        self, db: Session, slot: str = "ESE"
+    ) -> DashboardImportResponse:
+        return self.queries.get_active_import(db, slot)
 
     def get_overview(
         self,

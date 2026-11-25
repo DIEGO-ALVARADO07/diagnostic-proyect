@@ -1,6 +1,7 @@
 from math import isfinite
 from typing import Any
 
+from modules.excel.entities.assessment import parse_period, resolve_ese_moment
 from modules.excel.entities.competency import COMPETENCIES
 from modules.excel.entities.dashboard import (
     DashboardImportData,
@@ -194,6 +195,8 @@ class DashboardProcessor:
                         / len(COMPETENCIES)
                     ),
                     moment=_raw_text(row.get("momento")),
+                    period=parse_period(simulation),
+                    moment_number=resolve_ese_moment(simulation, group),
                     test_type=assessment_type,
                     test_type_key=(
                         normalized_key(assessment_type)

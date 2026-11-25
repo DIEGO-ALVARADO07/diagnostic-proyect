@@ -14,6 +14,7 @@ from modules.excel.entities.academic import (
     AcademicProgramAlias,
     AcademicResult,
     AcademicStudent,
+    ActiveImport,
     DashboardState,
     ExcelImport,
     TdProgramasReference,
@@ -26,6 +27,7 @@ _ACADEMIC_MODELS = (
     AcademicProgramAlias,
     AcademicResult,
     AcademicStudent,
+    ActiveImport,
     DashboardState,
     ExcelImport,
     TdProgramasReference,
@@ -100,6 +102,7 @@ class SecurityMigrationTests(unittest.TestCase):
         unify_programs_migration = load_migration(
             "0004_unify_programs_by_normalized_key.py"
         )
+        sources_migration = load_migration("0005_sources_periods_moments.py")
 
         engine = create_engine("sqlite://")
         try:
@@ -110,6 +113,7 @@ class SecurityMigrationTests(unittest.TestCase):
                     academic_migration.upgrade()
                     soft_delete_migration.upgrade()
                     unify_programs_migration.upgrade()
+                    sources_migration.upgrade()
 
                 self.assertEqual(
                     set(inspect(connection).get_table_names()),
@@ -120,6 +124,7 @@ class SecurityMigrationTests(unittest.TestCase):
                 )
 
                 with Operations.context(context):
+                    sources_migration.downgrade()
                     unify_programs_migration.downgrade()
                     soft_delete_migration.downgrade()
                     academic_migration.downgrade()
@@ -197,6 +202,69 @@ class SecurityMigrationTests(unittest.TestCase):
                     if index["name"] == "ix_academic_programs_normalized_key"
                 )
                 self.assertTrue(unique_index["unique"])
+        finally:
+            engine.dispose()
+
+    def test_sources_migration_fills_period_moment_and_ese_slot(self) -> None:
+        engine = create_engine("sqlite://")
+        try:
+            with engine.begin() as connection:
+                context = MigrationContext.configure(connection)
+                with Operations.context(context):
+                    for filename in (
+                        "0001_create_security_tables.py",
+                        "0002_academic_dashboard.py",
+                        "0003_soft_delete_excel_imports.py",
+                        "0004_unify_programs_by_normalized_key.py",
+                    ):
+                        load_migration(filename).upgrade()
+
+                connection.exec_driver_sql(
+                    "INSERT INTO excel_imports (id, filename, file_sha256, "
+                    "imported_at, status, dataset_mode, bd_gen_row_count, "
+                    "td_programas_row_count, inserted_count, rejected_count) "
+                    "VALUES ('imp', 'ese.xlsm', 'hash', '2026-01-01 00:00:00', "
+                    "'ACTIVE', 'SNAPSHOT', 3, 0, 3, 0)"
+                )
+                connection.exec_driver_sql(
+                    "UPDATE excel_dashboard_state SET active_import_id = 'imp'"
+                )
+                rows = (
+                    ("SIMULACRO 2026-1 MOMENTO 3", "MOMENTO 3"),
+                    ("SIMULACRO 2024", "MOMENTO 2"),
+                    ("OTRO", None),
+                )
+                for row, (simulation, group) in enumerate(rows, start=1):
+                    connection.exec_driver_sql(
+                        "INSERT INTO academic_results (import_id, "
+                        "source_row_number, program_name_raw, year, "
+                        "simulation_name, simulation_key, group_name, created_at) "
+                        "VALUES (?, ?, 'x', 2026, ?, 's', ?, '2026-01-01 00:00:00')",
+                        ("imp", row, simulation, group),
+                    )
+
+                with Operations.context(context):
+                    load_migration("0005_sources_periods_moments.py").upgrade()
+
+                self.assertEqual(
+                    connection.exec_driver_sql(
+                        "SELECT source_row_number, period, moment "
+                        "FROM academic_results ORDER BY source_row_number"
+                    ).all(),
+                    [(1, "2026-1", 3), (2, None, 2), (3, None, None)],
+                )
+                self.assertEqual(
+                    connection.exec_driver_sql(
+                        "SELECT slot, import_id FROM excel_active_imports"
+                    ).all(),
+                    [("ESE", "imp")],
+                )
+                self.assertEqual(
+                    connection.exec_driver_sql(
+                        "SELECT source, period FROM excel_imports"
+                    ).all(),
+                    [("ESE", None)],
+                )
         finally:
             engine.dispose()
 

@@ -17,6 +17,10 @@ def matches(record: DashboardRecord, filters: DashboardFilterQuery) -> bool:
     """Los textos se comparan sin mayúsculas, tildes ni espacios extra."""
     if filters.year is not None and record.year != filters.year:
         return False
+    if filters.period is not None and record.period != filters.period.strip():
+        return False
+    if filters.moment is not None and record.moment_number != filters.moment:
+        return False
     if filters.simulation is not None and normalized_key(
         record.simulation
     ) != normalized_key(filters.simulation):
@@ -61,6 +65,16 @@ def filter_options(dataset: DashboardDataset) -> DashboardFilterOptionsResponse:
 
     return DashboardFilterOptionsResponse(
         years=sorted({record.year for record in dataset.records}),
+        periods=sorted(
+            {record.period for record in dataset.records if record.period}
+        ),
+        moments=sorted(
+            {
+                record.moment_number
+                for record in dataset.records
+                if record.moment_number is not None
+            }
+        ),
         simulations=values_for("simulation"),
         groups=values_for("group"),
         programs=[

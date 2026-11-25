@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from modules.excel.entities.academic import (
     AcademicProgram,
+    ActiveImport,
     AcademicProgramAlias,
     AcademicResult,
     AcademicStudent,
@@ -35,16 +36,16 @@ class DashboardPersistenceRepository:
     def get_import(self, db: Session, import_id: str) -> ExcelImport | None:
         return db.get(ExcelImport, import_id)
 
-    def get_active_import(self, db: Session) -> ExcelImport | None:
-        state = db.get(DashboardState, DASHBOARD_STATE_ID)
-        if state is None or state.active_import_id is None:
-            return None
-        return db.get(ExcelImport, state.active_import_id)
+    def get_active_import(self, db: Session, slot: str) -> ExcelImport | None:
+        """Importación activa de un espacio (``ESE`` o ``CORHUILA:<periodo>``)."""
+        active = db.get(ActiveImport, slot)
+        return db.get(ExcelImport, active.import_id) if active is not None else None
 
     def lock_dashboard_state(self, db: Session) -> DashboardState | None:
         """Bloquea (SELECT ... FOR UPDATE) la fila única del estado del dashboard.
 
-        Serializa activaciones y desactivaciones concurrentes de importaciones.
+        Serializa activaciones y desactivaciones concurrentes de importaciones,
+        de cualquier espacio.
         """
         return db.scalar(
             select(DashboardState)
@@ -52,9 +53,28 @@ class DashboardPersistenceRepository:
             .with_for_update()
         )
 
-    def get_active_import_id(self, db: Session) -> str | None:
-        state = db.get(DashboardState, DASHBOARD_STATE_ID)
-        return state.active_import_id if state is not None else None
+    def get_active_import_id(self, db: Session, slot: str) -> str | None:
+        active = db.get(ActiveImport, slot)
+        return active.import_id if active is not None else None
+
+    def list_active_imports(self, db: Session) -> list[ActiveImport]:
+        return list(db.scalars(select(ActiveImport).order_by(ActiveImport.slot)))
+
+    def set_active_import(self, db: Session, slot: str, import_id: str) -> None:
+        """Debe llamarse con ``lock_dashboard_state`` tomado."""
+        active = db.get(ActiveImport, slot)
+        if active is None:
+            db.add(ActiveImport(slot=slot, import_id=import_id))
+        else:
+            active.import_id = import_id
+
+    def clear_active_import(self, db: Session, import_id: str) -> None:
+        """Quita la importación de su espacio activo, si lo tiene."""
+        active = db.scalar(
+            select(ActiveImport).where(ActiveImport.import_id == import_id)
+        )
+        if active is not None:
+            db.delete(active)
 
     def list_imports(self, db: Session, limit: int) -> list[ExcelImport]:
         return list(
@@ -156,6 +176,8 @@ class DashboardPersistenceRepository:
                     global_score=record.global_score,
                     global_calculated_score=record.global_calculated_score,
                     moment_raw=record.moment,
+                    period=record.period,
+                    moment=record.moment_number,
                     assessment_type=record.test_type,
                     assessment_type_key=record.test_type_key,
                     semester_raw=record.semester,

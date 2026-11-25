@@ -22,6 +22,11 @@ class DashboardImportRecord:
     global_score: Decimal | None
     global_calculated_score: Decimal
     moment: str | None
+    """Texto original de la columna ``Momento``."""
+    period: str | None
+    """Periodo del año (``2026-1``), de ``SIM``."""
+    moment_number: int | None
+    """Momento de ESE (1–3), de ``SIM`` o ``GRUPO``."""
     test_type: str | None
     test_type_key: str | None
     semester: str | None
@@ -91,6 +96,12 @@ class DashboardRecord:
     levels: Mapping[str, str | None]
     """Nivel del archivo por ``Competency.key``."""
     ent: str | None
+    period: str | None = None
+    """Periodo del año (``2026-1``)."""
+    moment_number: int | None = None
+    """Momento de ESE (1–3); ``None`` si no se pudo determinar o es CORHUILA."""
+    source: str = "ESE"
+    """Prueba de origen (``Source``)."""
 
 
 @dataclass(frozen=True)

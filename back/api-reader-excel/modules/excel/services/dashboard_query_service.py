@@ -20,6 +20,7 @@ from modules.excel.dtos.responses.dashboard import (
     ProgramSummaryResponse,
 )
 from modules.excel.entities.academic import ExcelImport
+from modules.excel.entities.assessment import Source
 from modules.excel.entities.competency import COMPARABLE_COMPETENCIES
 from modules.excel.entities.dashboard import DashboardDataset, DashboardRecord
 from modules.excel.entities.import_status import SNAPSHOT_STATUSES, ImportStatus
@@ -51,8 +52,10 @@ class DashboardQueryService:
 
     # --- Casos de uso -----------------------------------------------------
 
-    def get_active_import(self, db: Session) -> DashboardImportResponse:
-        import_row = self.persistence.get_active_import(db)
+    def get_active_import(
+        self, db: Session, slot: str = Source.ESE.value
+    ) -> DashboardImportResponse:
+        import_row = self.persistence.get_active_import(db, slot)
         if import_row is None or import_row.deleted_at is not None:
             raise ApplicationError(
                 HTTPStatus.NOT_FOUND, "No hay una importación activa."
@@ -68,6 +71,8 @@ class DashboardQueryService:
         return DashboardImportResponse(
             import_id=import_row.id,
             filename=import_row.filename,
+            source=import_row.source,
+            period=import_row.period,
             status=import_row.status,
             imported_at=import_row.imported_at,
             filters=options,
@@ -191,6 +196,9 @@ class DashboardQueryService:
             history.append(
                 DashboardStudentAttemptResponse(
                     year=record.year,
+                    period=record.period,
+                    moment=record.moment_number,
+                    semester_range=mappers.semester_range_label(record),
                     simulation=record.simulation,
                     group=record.group,
                     semester=record.semester,

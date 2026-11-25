@@ -1,4 +1,5 @@
 from collections.abc import Awaitable, Callable
+from http import HTTPStatus
 import logging
 from time import perf_counter
 
@@ -9,6 +10,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from modules.excel.dtos.requests.dashboard import DashboardFilterQuery
+from modules.excel.entities.assessment import Source, active_slot
 from modules.excel.dtos.requests.read_workbook import ReadWorkbookRequest
 from modules.excel.dtos.responses.dashboard import (
     DashboardImportListResponse,
@@ -21,6 +23,7 @@ from modules.excel.dtos.responses.read_workbook import ReadWorkbookResponse
 from modules.excel.services.excel_service import ExcelService, MAX_UPLOAD_BYTES
 from modules.excel.services.dashboard_service import DashboardService, MAX_PAGE_SIZE
 from core.db_session import DbSession
+from core.exceptions import ApplicationError
 from modules.security.dependencies import CurrentAccount, require_roles
 from modules.security.entities.role import Role
 
@@ -107,6 +110,10 @@ async def upload_dashboard_workbook(
     )
 
 
+# Periodo del año: AAAA-1 (antes de junio) o AAAA-2 (después de junio).
+PERIOD_PATTERN = r"^\d{4}-[12]$"
+
+
 def _dashboard_filters(
     year: int | None,
     simulation: str | None,
@@ -114,9 +121,13 @@ def _dashboard_filters(
     semester: str | None,
     test_type: str | None,
     presented: bool | None,
+    period: str | None = None,
+    moment: int | None = None,
 ) -> DashboardFilterQuery:
     return DashboardFilterQuery(
         year=year,
+        period=period,
+        moment=moment,
         simulation=simulation,
         group=group,
         semester=semester,
@@ -130,8 +141,19 @@ def _dashboard_filters(
     response_model=DashboardImportResponse,
     dependencies=[Depends(require_roles(Role.INSTRUCTOR, Role.SUPERADMIN))],
 )
-async def get_active_dashboard(db: DbSession) -> DashboardImportResponse:
-    return await run_in_threadpool(dashboard_service.get_active_import, db)
+async def get_active_dashboard(
+    db: DbSession,
+    source: Source = Source.ESE,
+    period: str | None = Query(default=None, pattern=PERIOD_PATTERN),
+) -> DashboardImportResponse:
+    """Importación activa de ESE (por defecto) o de CORHUILA en un periodo."""
+    try:
+        slot = active_slot(source, period)
+    except ValueError as error:
+        raise ApplicationError(
+            HTTPStatus.UNPROCESSABLE_ENTITY, str(error)
+        ) from None
+    return await run_in_threadpool(dashboard_service.get_active_import, db, slot)
 
 
 @router.get(
@@ -181,6 +203,8 @@ async def get_dashboard_overview(
     account: CurrentAccount,
     import_id: str,
     year: int | None = None,
+    period: str | None = Query(default=None, pattern=PERIOD_PATTERN),
+    moment: int | None = Query(default=None, ge=1, le=3),
     simulation: str | None = None,
     group: str | None = None,
     semester: str | None = None,
@@ -194,7 +218,8 @@ async def get_dashboard_overview(
         db,
         import_id,
         _dashboard_filters(
-            year, simulation, group, semester, test_type, presented
+            year, simulation, group, semester, test_type, presented,
+            period, moment,
         ),
         page,
         page_size,
@@ -213,6 +238,8 @@ async def get_dashboard_program(
     import_id: str,
     program_id: str,
     year: int | None = None,
+    period: str | None = Query(default=None, pattern=PERIOD_PATTERN),
+    moment: int | None = Query(default=None, ge=1, le=3),
     simulation: str | None = None,
     group: str | None = None,
     semester: str | None = None,
@@ -228,7 +255,8 @@ async def get_dashboard_program(
         import_id,
         program_id,
         _dashboard_filters(
-            year, simulation, group, semester, test_type, presented
+            year, simulation, group, semester, test_type, presented,
+            period, moment,
         ),
         search,
         page,

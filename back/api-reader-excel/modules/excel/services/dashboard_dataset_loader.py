@@ -129,6 +129,9 @@ class DashboardDatasetLoader:
                     }
                 ),
                 ent=result.ent_raw,
+                period=result.period,
+                moment_number=result.moment,
+                source=import_row.source,
             )
             records.append(record)
             records_by_program.setdefault(program_id, []).append(record)

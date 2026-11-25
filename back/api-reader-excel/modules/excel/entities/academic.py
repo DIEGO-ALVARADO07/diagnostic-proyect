@@ -18,6 +18,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
+from modules.excel.entities.assessment import Source, source_sql_check
 from modules.excel.entities.import_status import (
     SNAPSHOT_DATASET_MODE,
     ImportStatus,
@@ -37,11 +38,18 @@ class ExcelImport(Base):
             f"dataset_mode = '{SNAPSHOT_DATASET_MODE}'",
             name="ck_excel_imports_dataset_mode",
         ),
+        CheckConstraint(source_sql_check(), name="ck_excel_imports_source"),
         Index("ix_excel_imports_status_imported_at", "status", "imported_at"),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    source: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=Source.ESE.value
+    )
+    """Prueba de origen: ``ESE`` o ``CORHUILA``."""
+    period: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    """Periodo del archivo (``2026-2``). Solo CORHUILA: ESE trae toda la historia."""
     file_sha256: Mapped[str] = mapped_column(
         String(64), nullable=False, unique=True
     )
@@ -85,12 +93,26 @@ class ExcelImport(Base):
 
 
 class DashboardState(Base):
+    """Fila única que se bloquea para serializar activaciones y desactivaciones."""
+
     __tablename__ = "excel_dashboard_state"
 
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
-    active_import_id: Mapped[str | None] = mapped_column(
-        ForeignKey("excel_imports.id", ondelete="SET NULL"),
-        nullable=True,
+
+
+class ActiveImport(Base):
+    """Importación activa de cada espacio (ver ``assessment.active_slot``).
+
+    ``ESE`` tiene un solo activo; CORHUILA, uno por periodo (``CORHUILA:2026-2``).
+    """
+
+    __tablename__ = "excel_active_imports"
+
+    slot: Mapped[str] = mapped_column(String(40), primary_key=True)
+    import_id: Mapped[str] = mapped_column(
+        ForeignKey("excel_imports.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
     )
 
 
@@ -201,6 +223,12 @@ class AcademicResult(Base):
             "import_id",
             "student_search_name",
         ),
+        Index(
+            "ix_academic_results_import_period_moment",
+            "import_id",
+            "period",
+            "moment",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -257,6 +285,10 @@ class AcademicResult(Base):
         Numeric(16, 6), nullable=True
     )
     moment_raw: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    period: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    """Periodo del año (``2026-1``), tomado de ``SIM``."""
+    moment: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    """Momento de ESE (1–3), de ``SIM`` o ``GRUPO``. ``None`` en CORHUILA."""
     assessment_type: Mapped[str | None] = mapped_column(
         String(100), nullable=True
     )

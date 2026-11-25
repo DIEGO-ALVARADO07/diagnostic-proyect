@@ -88,7 +88,15 @@ class DataQualityTests(unittest.TestCase):
 
     def test_clean_rows_report_nothing(self) -> None:
         report = assess_data_quality(
-            [{"lectura crítica": 150, "n: lectura crítica": "2"}]
+            [
+                {
+                    "lectura crítica": 150,
+                    "n: lectura crítica": "2",
+                    "sim": "SIMULACRO 2026-1 MOMENTO 3",
+                    "grupo": "MOMENTO 3",
+                    "año": 2026,
+                }
+            ]
         )
         self.assertEqual(
             report,
@@ -97,6 +105,35 @@ class DataQualityTests(unittest.TestCase):
                 "levels_without_numeric_score": {},
                 "unknown_levels": {},
                 "source_level_mismatches": {},
+                "period_moment": {
+                    "rows_without_period": 0,
+                    "rows_without_moment": 0,
+                    "moment_group_mismatches": 0,
+                    "period_year_mismatches": 0,
+                },
+            },
+        )
+
+    def test_reports_period_and_moment_problems(self) -> None:
+        report = assess_data_quality(
+            [
+                # SIM sin periodo; el momento sale de GRUPO.
+                {"sim": "SIMULACRO MOMENTO 1", "grupo": "MOMENTO 1", "año": 2025},
+                # Sin momento en SIM ni en GRUPO.
+                {"sim": "SIMULACRO 2025-2", "grupo": "A", "año": 2025},
+                # SIM dice momento 2 y GRUPO momento 3.
+                {"sim": "SIMULACRO 2026-1 MOMENTO 2", "grupo": "MOMENTO 3", "año": 2026},
+                # El periodo es de 2026 pero AÑO dice 2025.
+                {"sim": "SIMULACRO 2026-1 MOMENTO 1", "grupo": "MOMENTO 1", "año": 2025},
+            ]
+        )
+        self.assertEqual(
+            report["period_moment"],
+            {
+                "rows_without_period": 1,
+                "rows_without_moment": 1,
+                "moment_group_mismatches": 1,
+                "period_year_mismatches": 1,
             },
         )
 
