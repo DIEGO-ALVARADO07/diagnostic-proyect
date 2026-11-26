@@ -120,4 +120,4 @@ La bitácora técnica está en [mejora de interacción del dashboard](bitacora/0
 1. `git fetch` y revisa `git status` en `dev` y en el worktree de `docs`.
 2. Lee la [bitácora](bitacora/README.md) para entender los cambios recientes.
 3. Sigue [Instalación y uso](03-instalacion-y-operacion.md) y aplica las migraciones pendientes.
-4. Aplica las migraciones pendientes (`0009`–`0011` si vienes de la fase 13a). Continúa con la 13c (exportar o cargar estudiantes para la plataforma oficial), la 12c (crecimiento por programa) o la fase 6 (seguridad y CI). El inicio de sesión de estudiantes queda pendiente y se revisará aparte.
+4. **Respaldo diario:** en cada equipo donde corra la base, programa la copia con `.\tasks.ps1 schedule-backup -At 02:30` (requiere `APP_MASTER_KEY` en las variables de entorno del usuario). En el equipo de desarrollo ya está programada desde el 26/11/2026.

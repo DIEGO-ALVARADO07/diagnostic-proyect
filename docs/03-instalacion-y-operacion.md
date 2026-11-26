@@ -41,6 +41,11 @@ Todas las tareas del backend se ejecutan con `back/api-reader-excel/tasks.ps1`. 
 | `.\tasks.ps1 bootstrap` | Aplica migraciones y crea el primer superadmin (una sola vez). |
 | `.\tasks.ps1 run` | Arranca la API con recarga automática en `http://127.0.0.1:8000`. Opcional: `-Port 8080`, `-BindHost 0.0.0.0`. |
 | `.\tasks.ps1 test` | Ejecuta las pruebas automatizadas (no necesitan MySQL). |
+| `.\tasks.ps1 backup` | Copia de seguridad completa de la base con `mysqldump`. Opcional: `-Label antes-0011` para nombrar la copia. |
+| `.\tasks.ps1 backup-daily` | Copia con la etiqueta `diario` **solo si los datos cambiaron** desde la última copia; si no, no crea archivo. Opcional: `-Keep 30` para conservar solo las 30 copias diarias más recientes. |
+| `.\tasks.ps1 schedule-backup` | Programa `backup-daily` en Windows todos los días (por defecto a las 22:00; en este equipo, `-At 02:30`). |
+| `.\tasks.ps1 unschedule-backup` | Quita la tarea programada. Las copias ya creadas se conservan. |
+| `.\tasks.ps1 reset` | **Vacía todos los datos académicos** para empezar desde cero. Antes hace una copia `antes-vaciar` y pide escribir el nombre de la base. Conserva las cuentas; con `-IncludeUsers` también las borra. |
 | `.\tasks.ps1 help` | Muestra la ayuda. |
 
 Antes de `run`, `migrate` y `bootstrap`, el script comprueba que exista `core/.env` y que esté definida `APP_MASTER_KEY` cuando las credenciales están cifradas. Si falta algo, se detiene con un mensaje claro en lugar de arrancar a medias.
@@ -195,6 +200,53 @@ El servidor nunca crea ni modifica tablas por sí solo. Usa siempre `.\tasks.ps1
 
 > **Pendiente en las bases existentes:** la migración `0004` se publicó el 22/11/2026. Hasta aplicarla, los programas de las importaciones anteriores siguen separados por escritura y la base no impide duplicados nuevos.
 
+## Respaldos y vaciado de la base
+
+Las copias se guardan en `%USERPROFILE%\respaldos\<base>` (por ejemplo, `C:\Users\<usuario>\respaldos\excel_reader`), **fuera del repositorio**: contienen datos personales y nunca deben ir a Git. Cada copia es un `.sql` con `DROP DATABASE` + `CREATE DATABASE`; al restaurarla (HeidiSQL → *Archivo → Ejecutar archivo SQL*), la base vuelve exactamente al estado de la copia.
+
+### Copia manual
+
+    .\tasks.ps1 backup -Label antes-0011
+
+Úsala antes de cada migración o de cualquier cambio grande. El nombre queda como `excel_reader_2026-11-26_1519_antes-0011.sql`.
+
+### Copia diaria automática (solo si hubo cambios)
+
+    .\tasks.ps1 backup-daily
+
+- Calcula una huella de los datos (`CHECKSUM TABLE` de cada tabla) y la compara con la de la última copia, guardada en `.ultimo-respaldo.json` en la misma carpeta.
+- **Si nada cambió, no crea otro archivo**, para no llenar el disco. Hay cambio cuando se sube un Excel, se crea o elimina un curso, se asigna un programa, etc.
+- **Iniciar sesión no cuenta como cambio**: la tabla de sesiones (`api_access_tokens`) no entra en la huella.
+- Cualquier copia, manual o diaria, actualiza la huella.
+- Con `-Keep 30` se borran las copias `diario` más viejas y quedan las 30 más recientes. Las copias manuales (`antes-…`) nunca se borran. Sin `-Keep` no se borra nada.
+
+Para que se haga sola todos los días:
+
+    .\tasks.ps1 schedule-backup -At 02:30
+
+- Crea en el Programador de tareas de Windows la tarea **"Diagnostico academico - respaldo diario"**, que ejecuta `backup-daily` con tu usuario (así tiene `APP_MASTER_KEY`, que debe estar en las variables de entorno de tu usuario).
+- Si el equipo estaba apagado a esa hora, se ejecuta al encenderlo. Si falla (por ejemplo, Laragon/MySQL apagado), reintenta cada hora, hasta 6 veces.
+- El resultado de cada ejecución queda en `%USERPROFILE%\respaldos\respaldo-diario.log`.
+- Para comprobarla: Programador de tareas → *Diagnostico academico - respaldo diario* → *Ejecutar*, y revisa el log.
+- Para quitarla: `.\tasks.ps1 unschedule-backup`.
+
+### Vaciar la base para empezar desde cero
+
+    .\tasks.ps1 reset
+
+Sirve para mostrar el recorrido completo desde una base vacía (por ejemplo, en una demostración).
+
+1. Hace una copia `antes-vaciar`; **si la copia falla, no borra nada**.
+2. Pide escribir el nombre de la base (`excel_reader`) para confirmar; si no coincide, no hace nada.
+3. Borra todos los datos académicos: importaciones de Excel (ESE y CORHUILA), resultados, estudiantes y sus correos, programas, TD PROGRAMAS, cursos e inscripciones. Los contadores de id vuelven a 1.
+4. Conserva las tablas, las migraciones aplicadas, el estado del dashboard y las **cuentas de usuario**, para poder iniciar sesión y empezar por "Importar Excel".
+5. **Reinicia la API** (`.\tasks.ps1 run`): guarda en memoria los datos de las importaciones.
+
+Con `.\tasks.ps1 reset -IncludeUsers` también se borran las cuentas y sesiones; después crea el superadmin con `.\tasks.ps1 bootstrap`.
+
+Para deshacer el vaciado, restaura la copia `…_antes-vaciar.sql`.
+
+
 ## Pruebas
 
 ```powershell
@@ -213,6 +265,8 @@ El servidor nunca crea ni modifica tablas por sí solo. Usa siempre `.\tasks.ps1
 | PowerShell no deja ejecutar `tasks.ps1` | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. |
 | `/health` responde pero las rutas con base de datos dan `500` | Credenciales o clave incorrectas, o MySQL no accesible. Revisa la terminal de Uvicorn: el error de configuración aparece en la primera petición que usa la base. |
 | Error de migración por esquema "incompleto" o "no coincide" | Base antigua sin historial Alembic que no coincide con los modelos. No la fuerces: respáldala y revísala (ver [Seguridad y migraciones](06-seguridad-y-migraciones.md)). |
-| La importación responde `409` | Ese mismo archivo ya fue importado y luego desactivado, o falló. Cualquier cambio en el contenido genera una importación nueva. |
+| La importación responde `409` | Ese mismo archivo ya fue importado y luego desactivado (restáuralo desde **Importaciones**, solo superadmin), o falló. Cualquier cambio en el contenido genera una importación nueva. |
 | La importación responde `422` | Faltan las hojas `BD GEN`/`TD PROGRAMAS`, columnas requeridas o la fila `AÑO` de `TD PROGRAMAS`. El mensaje indica cuál. |
 | El puerto 8000 está ocupado | `.\tasks.ps1 run -Port 8001` y ajusta `API_BASE_URL` en el frontend. |
+| No aparece la copia diaria de un día | Si no hubo cambios, no se crea (es lo esperado). Si no, revisa `%USERPROFILE%\respaldos\respaldo-diario.log`: lo más común es que Laragon/MySQL estuviera apagado durante los 6 reintentos. |
+| La API sigue mostrando datos después de `reset` | Guarda las importaciones en memoria: reiníciala con `.\tasks.ps1 run`. |

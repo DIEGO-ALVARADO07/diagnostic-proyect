@@ -74,9 +74,9 @@ back/api-reader-excel/
 ├── modules/
 │   ├── security/   autenticación, usuarios, roles y permisos
 │   └── excel/      lectura de Excel y dashboard académico
-├── scripts/        utilidades (benchmark)
+├── scripts/        utilidades: backup_db (copias), reset_db (vaciar la base), benchmark
 ├── tests/
-└── tasks.ps1       install / migrate / bootstrap / run / test
+└── tasks.ps1       install / migrate / bootstrap / run / test / backup / backup-daily / schedule-backup / reset
 ```
 
 ## Guía para agregar una funcionalidad

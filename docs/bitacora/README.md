@@ -59,3 +59,4 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 030 | 12 | [Frontend en módulos, dashboard lado a lado y módulos ESE y CORHUILA](030-frontend-modular-y-dashboard-lado-a-lado.md) |
 | 031 | 13a | [Estudiantes por nivel, filtros por periodo y "Ver módulo" con filtros](031-estudiantes-por-nivel-y-filtros-por-periodo.md) |
 | 032 | 13b | [Cursos por nivel y materia, eliminación lógica con auditoría y restauración del administrador](032-cursos-por-nivel-y-materia-y-eliminacion-logica.md) |
+| 033 | Operación | [Copia diaria solo con cambios y vaciado de la base para empezar desde cero](033-respaldo-diario-y-vaciado.md) |
