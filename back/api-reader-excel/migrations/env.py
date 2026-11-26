@@ -15,8 +15,11 @@ from modules.excel.entities.academic import (
     ExcelImport,
     TdProgramasReference,
 )
+from modules.courses.entities import Course, CourseEnrollment
 
 _IMPORTED_MODELS = (
+    Course,
+    CourseEnrollment,
     AccessToken,
     Account,
     AcademicProgram,

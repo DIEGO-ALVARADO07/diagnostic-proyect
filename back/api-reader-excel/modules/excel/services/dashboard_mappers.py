@@ -1,6 +1,6 @@
 """Conversión de registros y filas ORM a DTOs de respuesta del dashboard."""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from modules.excel.dtos.responses.dashboard import (
     DashboardActiveImportResponse,
@@ -87,7 +87,10 @@ def active_import_response(
 
 def import_list_item_response(
     item: ExcelImport,
+    user_names: Mapping[int, str] | None = None,
 ) -> DashboardImportListItemResponse:
+    """``user_names``: nombre de los usuarios que desactivaron o restauraron."""
+    names = user_names or {}
     return DashboardImportListItemResponse(
         import_id=item.id,
         filename=item.filename,
@@ -102,6 +105,9 @@ def import_list_item_response(
         td_programas_row_count=item.td_programas_row_count,
         td_programas_selected_year=item.td_programas_selected_year,
         deleted_at=item.deleted_at,
+        deleted_by=names.get(item.deleted_by_user_id),
+        restored_at=item.restored_at,
+        restored_by=names.get(item.restored_by_user_id),
     )
 
 

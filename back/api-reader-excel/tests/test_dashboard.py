@@ -584,6 +584,62 @@ class DashboardTests(unittest.TestCase):
             service.delete_import(self.db, "missing-import")
         self.assertEqual(missing_error.exception.status_code, 404)
 
+    def test_restore_deactivated_import_with_audit(self) -> None:
+        service = DashboardService()
+        first = service.import_workbook(
+            ReadWorkbookRequest(filename="first.xlsx", content=make_dashboard_workbook()),
+            self.instructor,
+            self.db,
+        )
+        service.delete_import(self.db, first.import_id, self.instructor)
+        row = self.db.get(ExcelImport, first.import_id)
+        self.assertEqual(row.deleted_by_user_id, self.instructor.id)
+
+        # Subir el mismo archivo otra vez no se permite: se pide restaurarlo.
+        with self.assertRaises(ApplicationError) as reupload:
+            service.import_workbook(
+                ReadWorkbookRequest(filename="first.xlsx", content=make_dashboard_workbook()),
+                self.instructor,
+                self.db,
+            )
+        self.assertIn("Restáuralo", reupload.exception.detail)
+
+        # Sin otra activa de ESE, al restaurarla vuelve a ser la activa.
+        restored = service.restore_import(self.db, first.import_id, self.instructor)
+        self.assertTrue(restored.activated)
+        self.assertEqual(restored.status, "ACTIVE")
+        self.assertEqual(service.get_active_import(self.db).import_id, first.import_id)
+        self.db.refresh(row)
+        self.assertIsNone(row.deleted_at)
+        self.assertIsNone(row.deleted_by_user_id)
+        self.assertIsNotNone(row.restored_at)
+        self.assertEqual(row.restored_by_user_id, self.instructor.id)
+        listed = next(
+            item
+            for item in service.list_admin_imports(self.db, 10).imports
+            if item.import_id == first.import_id
+        )
+        self.assertEqual(listed.status, "ACTIVE")
+        self.assertEqual(listed.restored_by, self.instructor.full_name)
+
+        with self.assertRaises(ApplicationError) as not_deleted:
+            service.restore_import(self.db, first.import_id, self.instructor)
+        self.assertEqual(not_deleted.exception.status_code, 409)
+
+        # Si después se subió otra, la restaurada queda histórica.
+        service.delete_import(self.db, first.import_id, self.instructor)
+        second = service.import_workbook(
+            ReadWorkbookRequest(
+                filename="second.xlsx", content=make_dashboard_workbook(global_score=95)
+            ),
+            self.instructor,
+            self.db,
+        )
+        again = service.restore_import(self.db, first.import_id, self.instructor)
+        self.assertFalse(again.activated)
+        self.assertEqual(again.status, "HISTORICAL")
+        self.assertEqual(service.get_active_import(self.db).import_id, second.import_id)
+
     def test_non_numeric_global_remains_null(self) -> None:
         content = make_dashboard_workbook(global_score=None)
         service = DashboardService()
@@ -605,7 +661,7 @@ class DashboardTests(unittest.TestCase):
             for operation in methods.values()
         ]
 
-        self.assertEqual(len(dashboard_operations), 15)
+        self.assertEqual(len(dashboard_operations), 16)
         for operation in dashboard_operations:
             with self.subTest(operation=operation["operationId"]):
                 self.assertIn({"HTTPBearer": []}, operation["security"])

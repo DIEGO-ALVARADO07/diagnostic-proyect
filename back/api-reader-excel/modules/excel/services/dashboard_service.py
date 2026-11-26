@@ -38,6 +38,7 @@ from modules.excel.dtos.responses.dashboard import (
     ProgramOptionResponse,
     DashboardImportListResponse,
     DashboardImportResponse,
+    DashboardImportRestoreResponse,
     DashboardOverviewResponse,
     DashboardProgramResponse,
     DashboardStudentResponse,
@@ -182,8 +183,15 @@ class DashboardService:
     ) -> DashboardImportListResponse:
         return self.imports.list_admin_imports(db, limit)
 
-    def delete_import(self, db: Session, import_id: str) -> None:
-        self.imports.delete_import(db, import_id)
+    def delete_import(
+        self, db: Session, import_id: str, account: Account | None = None
+    ) -> None:
+        self.imports.delete_import(db, import_id, account)
+
+    def restore_import(
+        self, db: Session, import_id: str, account: Account
+    ) -> DashboardImportRestoreResponse:
+        return self.imports.restore_import(db, import_id, account)
 
     # --- Consulta -------------------------------------------------------------
 

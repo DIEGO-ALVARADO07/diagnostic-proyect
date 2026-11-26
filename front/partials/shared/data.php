@@ -112,6 +112,81 @@ if ($resource === 'resolve' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     dashboardForward(llamarBackend('POST', 'excel/dashboard/corhuila/resolve'));
 }
 
+// --- Cursos por nivel (fase 13b): cambios con CSRF ---------------------------
+
+/** Id positivo de un campo del cuerpo JSON, o un 422. */
+function dashboardBodyId(array $payload, string $key, string $message): int {
+    $value = $payload[$key] ?? null;
+    if (!is_int($value) || $value < 1) {
+        dashboardJson(422, ['detail' => $message]);
+    }
+    return $value;
+}
+
+/** Las respuestas 204 (sin cuerpo) se devuelven como {"ok": true}. */
+function dashboardForwardEmpty(array $respuesta): void {
+    if (empty($respuesta['error']) && $respuesta['status'] === 204) {
+        dashboardJson(200, ['ok' => true]);
+    }
+    dashboardForward($respuesta);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($resource, ['course_create', 'course_enroll', 'course_delete', 'course_restore', 'course_remove_student'], true)) {
+    dashboardRequireCsrf();
+    $payload = dashboardJsonBody();
+
+    if ($resource === 'course_create') {
+        $name = $payload['name'] ?? '';
+        $level = $payload['level'] ?? null;
+        $competency = $payload['competency'] ?? '';
+        $description = $payload['description'] ?? '';
+        $methodology = $payload['methodology'] ?? '';
+        if (!is_string($name) || mb_strlen(trim($name)) < 3 || mb_strlen($name) > 150) {
+            dashboardJson(422, ['detail' => 'El nombre del curso debe tener entre 3 y 150 caracteres.']);
+        }
+        if (!is_int($level) || $level < 1 || $level > 4) {
+            dashboardJson(422, ['detail' => 'Elige un nivel del 1 al 4.']);
+        }
+        if (!is_string($competency) || !preg_match('/^(lectura_critica|competencias_ciudadanas|razonamiento_cuantitativo|ingles)$/', $competency)) {
+            dashboardJson(422, ['detail' => 'Elige una de las 4 materias evaluadas.']);
+        }
+        foreach (['descripción' => $description, 'metodología' => $methodology] as $campo => $texto) {
+            if (!is_string($texto) || mb_strlen(trim($texto)) < 10 || mb_strlen($texto) > 2000) {
+                dashboardJson(422, ['detail' => 'La ' . $campo . ' debe tener entre 10 y 2.000 caracteres.']);
+            }
+        }
+        dashboardForward(llamarBackend('POST', 'courses', [
+            'name' => trim($name),
+            'level' => $level,
+            'competency' => $competency,
+            'description' => trim($description),
+            'methodology' => trim($methodology),
+        ]));
+    }
+
+    $courseId = dashboardBodyId($payload, 'course_id', 'El curso seleccionado no es válido.');
+    if ($resource === 'course_enroll') {
+        $period = $payload['period'] ?? null;
+        if ($period !== null && $period !== 'all' && (!is_string($period) || !preg_match(DASHBOARD_PERIOD_PATTERN, $period))) {
+            dashboardJson(422, ['detail' => 'El periodo seleccionado no es válido.']);
+        }
+        dashboardForward(llamarBackend('POST', 'courses/' . $courseId . '/enroll', ['period' => $period]));
+    }
+    if ($resource === 'course_delete') {
+        // Eliminación lógica: el curso queda en "Cursos eliminados".
+        dashboardForward(llamarBackend('DELETE', 'courses/' . $courseId));
+    }
+    if ($resource === 'course_restore') {
+        // Solo el administrador habilita cursos eliminados (la API también lo exige).
+        if ($role !== 'superadmin') {
+            dashboardJson(403, ['detail' => 'Solo el administrador puede habilitar cursos eliminados.']);
+        }
+        dashboardForward(llamarBackend('POST', 'courses/' . $courseId . '/restore'));
+    }
+    $studentId = dashboardBodyId($payload, 'student_id', 'El estudiante seleccionado no es válido.');
+    dashboardForwardEmpty(llamarBackend('DELETE', 'courses/' . $courseId . '/students/' . $studentId));
+}
+
 if ($resource === 'student' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $payload = dashboardJsonBody();
     dashboardRequireCsrf();
@@ -220,6 +295,22 @@ if ($resource === 'active') {
     $params['page'] = $page;
     $params['page_size'] = 50;
     $endpoint = 'excel/dashboard/students';
+} elseif ($resource === 'courses') {
+    $endpoint = 'courses';
+    $params = [];
+} elseif ($resource === 'courses_deleted') {
+    if ($role !== 'superadmin') {
+        dashboardJson(403, ['detail' => 'Solo el administrador puede ver los cursos eliminados.']);
+    }
+    $endpoint = 'courses/deleted';
+    $params = [];
+} elseif ($resource === 'course_students') {
+    $courseId = $_GET['course_id'] ?? '';
+    if (!dashboardIdentifier($courseId, '/^[1-9][0-9]{0,9}$/')) {
+        dashboardJson(422, ['detail' => 'El curso seleccionado no es válido.']);
+    }
+    $endpoint = 'courses/' . $courseId . '/students';
+    $params = [];
 } elseif ($resource === 'catalog') {
     $endpoint = 'excel/dashboard/catalog/programs';
     $params = [];

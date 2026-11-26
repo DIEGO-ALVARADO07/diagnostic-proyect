@@ -16,6 +16,7 @@ from modules.excel.dtos.requests.read_workbook import ReadWorkbookRequest
 from modules.excel.dtos.responses.dashboard import (
     DashboardImportListResponse,
     DashboardImportResponse,
+    DashboardImportRestoreResponse,
 )
 from modules.excel.entities.academic import ExcelImport
 from modules.excel.entities.assessment import (
@@ -111,7 +112,8 @@ class DashboardImportService:
             if existing.deleted_at is not None:
                 raise ApplicationError(
                     HTTPStatus.CONFLICT,
-                    "Este archivo fue desactivado y no se puede importar de nuevo.",
+                    "Este archivo ya se había importado y está desactivado. "
+                    "Restáuralo desde Importaciones en vez de subirlo de nuevo.",
                 )
             if existing.status in SNAPSHOT_STATUSES:
                 return self.queries.import_response(db, existing)
@@ -264,8 +266,10 @@ class DashboardImportService:
             db, self.persistence.list_all_imports(db, limit)
         )
 
-    def delete_import(self, db: Session, import_id: str) -> None:
-        """Desactivación lógica: marca ``deleted_at`` y conserva la instantánea."""
+    def delete_import(
+        self, db: Session, import_id: str, account: Account | None = None
+    ) -> None:
+        """Desactivación lógica: marca ``deleted_at`` (y quién) y conserva la instantánea."""
         dashboard_state = self.persistence.lock_dashboard_state(db)
         if dashboard_state is None:
             raise ApplicationError(
@@ -292,9 +296,73 @@ class DashboardImportService:
 
         self.persistence.clear_active_import(db, import_id)
         import_row.deleted_at = utcnow()
+        import_row.deleted_by_user_id = account.id if account is not None else None
         db.commit()
         # Libera memoria; la visibilidad ya la garantiza la consulta con deleted_at.
         self.loader.evict(import_id)
+
+    def restore_import(
+        self, db: Session, import_id: str, account: Account
+    ) -> DashboardImportRestoreResponse:
+        """Deshace la desactivación lógica.
+
+        Si su espacio (ESE, o CORHUILA de ese periodo) quedó sin importación
+        activa, vuelve a ser la activa. Si después se subió otra, queda como
+        histórica (no reemplaza a la más reciente). Las fallidas siguen fallidas.
+        """
+        dashboard_state = self.persistence.lock_dashboard_state(db)
+        if dashboard_state is None:
+            raise ApplicationError(
+                HTTPStatus.CONFLICT,
+                "No se pudo verificar la importación activa.",
+            )
+        import_row = db.scalar(
+            select(ExcelImport).where(ExcelImport.id == import_id).with_for_update()
+        )
+        if import_row is None:
+            raise ApplicationError(HTTPStatus.NOT_FOUND, "La importación no existe.")
+        if import_row.deleted_at is None:
+            raise ApplicationError(
+                HTTPStatus.CONFLICT, "La importación no está desactivada."
+            )
+
+        import_row.deleted_at = None
+        import_row.deleted_by_user_id = None
+        import_row.restored_at = utcnow()
+        import_row.restored_by_user_id = account.id
+
+        activated = False
+        if import_row.status != ImportStatus.FAILED:
+            slot = active_slot(Source(import_row.source), import_row.period)
+            if self.persistence.get_active_import(db, slot) is None:
+                import_row.status = ImportStatus.ACTIVE
+                import_row.activated_at = utcnow()
+                self.persistence.set_active_import(db, slot, import_row.id)
+                activated = True
+            else:
+                import_row.status = ImportStatus.HISTORICAL
+        db.flush()
+        if activated and import_row.source == Source.ESE.value:
+            # Vuelve el histórico de ESE: CORHUILA recupera su cruce de programas.
+            refresh_corhuila_programs(db)
+        db.commit()
+        self.loader.cache.clear()
+
+        if activated:
+            message = "La importación se restauró y volvió a ser la activa."
+        elif import_row.status == ImportStatus.FAILED:
+            message = "La importación se restauró; sigue como fallida."
+        else:
+            message = (
+                "La importación se restauró como histórica: después se subió otra "
+                "más reciente, que sigue siendo la activa."
+            )
+        return DashboardImportRestoreResponse(
+            import_id=import_row.id,
+            status=ImportStatus(import_row.status).value,
+            activated=activated,
+            message=message,
+        )
 
     def _activate(self, db: Session, import_row: ExcelImport) -> None:
         """La nueva importación pasa a ACTIVE y la anterior de su espacio a HISTORICAL.
@@ -328,8 +396,27 @@ class DashboardImportService:
                 )
                 for active in self.persistence.list_active_imports(db)
             ],
-            imports=[mappers.import_list_item_response(item) for item in imports],
+            imports=[
+                mappers.import_list_item_response(item, self._user_names(db, imports))
+                for item in imports
+            ],
         )
+
+    @staticmethod
+    def _user_names(db: Session, imports: list[ExcelImport]) -> dict[int, str]:
+        """Nombre de quien desactivó o restauró cada importación (auditoría)."""
+        ids = {
+            user_id
+            for item in imports
+            for user_id in (item.deleted_by_user_id, item.restored_by_user_id)
+            if user_id is not None
+        }
+        if not ids:
+            return {}
+        return {
+            account.id: account.full_name or account.username
+            for account in db.scalars(select(Account).where(Account.id.in_(ids)))
+        }
 
     @staticmethod
     def _mark_failed(db: Session, import_id: str, error: Exception) -> None:

@@ -1,0 +1,83 @@
+/* Módulo Cursos (fase 13b). Usa shared/style.css y students/style.css (insignias de nivel). */
+
+.courses-app { margin: 0 auto; max-width: 1180px; }
+.courses-create { margin-bottom: 14px; padding: 17px 19px 12px; }
+/* 6 columnas: Nivel (1) · Materia (2) · Nombre (3); Descripción y Metodología (3 y 3). */
+.courses-create-form { align-items: start; display: grid; gap: 12px 14px; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.courses-create-form > label { grid-column: span 2; }
+.courses-create-form > label:first-child { grid-column: span 1; }
+.courses-create-form .courses-name { grid-column: span 3; }
+.courses-create-form .courses-text { grid-column: span 3; }
+.courses-create-form input,
+.courses-create-form textarea { background: #fff; border: 1px solid #dfe7ea; border-radius: 6px; color: #445a6b; font: inherit; font-size: 11px; outline: none; padding: 9px 10px; width: 100%; }
+.courses-create-form input { min-height: 37px; padding-block: 0; }
+.courses-create-form textarea { line-height: 1.5; min-height: 74px; resize: vertical; }
+.courses-create-form input:focus,
+.courses-create-form textarea:focus { border-color: #65b896; box-shadow: 0 0 0 3px rgba(12,155,107,.1); }
+.courses-create-actions { display: flex; grid-column: 1 / -1; justify-content: flex-end; }
+.courses-create-form .button { min-height: 37px; white-space: nowrap; }
+.courses-status { color: #5b7d6a; font-size: 10px; margin: 9px 0 0; min-height: 14px; }
+.courses-status.is-error { color: #b4572f; }
+
+.courses-period { align-items: center; display: grid; gap: 16px; grid-template-columns: 300px minmax(0, 1fr); margin-bottom: 16px; padding: 14px 19px; }
+.courses-period p { color: #6c7f8c; font-size: 10px; line-height: 1.6; margin: 0; }
+.courses-period strong { color: #3d5d4d; }
+
+.course-levels { display: flex; flex-direction: column; gap: 12px; }
+.course-level { border-left: 4px solid var(--accent); overflow: hidden; }
+.course-level-toggle { align-items: center; background: transparent; border: 0; color: var(--ink); cursor: pointer; display: flex; font: inherit; gap: 13px; padding: 14px 18px; text-align: left; width: 100%; }
+.course-level-toggle:hover { background: var(--soft); }
+.course-level-toggle:focus-visible { outline: 3px solid rgba(12,155,107,.25); outline-offset: -3px; }
+.course-level-mark { align-items: center; background: var(--soft); border-radius: 9px; color: var(--accent); display: inline-flex; font: 700 14px 'Manrope', sans-serif; height: 38px; justify-content: center; width: 42px; }
+.course-level-text { display: flex; flex: 1; flex-direction: column; gap: 2px; }
+.course-level-text strong { color: #1d3b4e; font: 700 14px 'Manrope', sans-serif; }
+.course-level-text small { color: #81909b; font-size: 10px; }
+.course-level-chevron { color: #8a98a3; font-size: 13px; transition: transform .15s; }
+.course-level.is-open .course-level-chevron { transform: rotate(180deg); }
+.course-level-body { border-top: 1px solid #edf1f3; padding: 12px 18px 16px; }
+
+.course-level-available { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.course-available-title { color: #81909b; font-size: 10px; margin-right: 2px; }
+.course-available-chip { background: var(--soft); border-radius: 20px; color: #4f6474; font-size: 10px; padding: 4px 10px; }
+.course-available-chip strong { color: var(--accent); }
+
+.course-list { display: flex; flex-direction: column; gap: 10px; }
+.course-card { border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; }
+.course-card-header { align-items: center; display: flex; gap: 14px; justify-content: space-between; }
+.course-card h3 { align-items: center; color: #1d3b4e; display: flex; flex-wrap: wrap; font: 700 13px 'Manrope', sans-serif; gap: 8px; margin: 0 0 3px; }
+.course-subject { background: #eef3f6; border-radius: 20px; color: #4f6474; font: 700 9px 'Inter', sans-serif; letter-spacing: .3px; padding: 3px 9px; text-transform: uppercase; }
+.course-card-header p { color: #81909b; font-size: 10px; margin: 0; }
+.course-card-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.course-card-actions .button { font-size: 10px; min-height: 32px; padding: 0 12px; }
+.course-card-actions .button:disabled { cursor: progress; opacity: .55; }
+.course-details { display: grid; gap: 4px 12px; grid-template-columns: 90px minmax(0, 1fr); margin: 10px 0 0; }
+.course-details dt { color: #526779; font-size: 10px; font-weight: 700; }
+.course-details dd { color: #5d6f7c; font-size: 10px; line-height: 1.55; margin: 0; white-space: pre-line; }
+.course-link-danger { background: transparent; border: 0; color: #b4572f; cursor: pointer; font-size: 10px; font-weight: 700; padding: 6px; }
+.course-link-danger:hover { text-decoration: underline; }
+.course-students { border-top: 1px dashed #e2e9ed; color: #81909b; font-size: 10px; margin-top: 12px; padding-top: 10px; }
+.course-students .table-wrap { max-height: 460px; overflow-y: auto; }
+.course-students-table { min-width: 820px; }
+.course-students-table thead th { background: #fff; position: sticky; top: 0; z-index: 1; }
+.course-period { color: #8a98a3; display: block; font-size: 9px; margin-top: 3px; }
+.course-empty { color: #8a98a3; font-size: 10px; margin: 4px 0; }
+
+@media (max-width: 900px) {
+    .courses-create-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .courses-create-form > label,
+    .courses-create-form > label:first-child { grid-column: span 1; }
+    .courses-create-form .courses-name,
+    .courses-create-form .courses-text { grid-column: 1 / -1; }
+    .courses-period { grid-template-columns: 1fr; gap: 8px; }
+    .course-card-header { align-items: flex-start; flex-direction: column; }
+    .course-card-actions { justify-content: flex-start; }
+}
+
+@media (max-width: 560px) {
+    .courses-create-form { grid-template-columns: 1fr; }
+    .courses-create-form > label { grid-column: 1 / -1; }
+    .courses-create-actions .button { justify-content: center; width: 100%; }
+    .course-details { grid-template-columns: 1fr; }
+    .course-level-toggle { padding: 12px 14px; }
+    .course-level-body { padding: 10px 14px 14px; }
+}

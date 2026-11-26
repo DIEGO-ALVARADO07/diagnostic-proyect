@@ -23,6 +23,8 @@ from modules.excel.entities.academic import (
 )
 from core.orm import Base
 from migrations.runner import DatabaseMigrationService
+from modules.courses.entities import Course, CourseEnrollment  # noqa: F401 (registra tablas)
+from modules.security.entities import AccessToken, Account  # noqa: F401 (registra tablas)
 
 _ACADEMIC_MODELS = (
     AcademicProgram,
@@ -111,6 +113,9 @@ class SecurityMigrationTests(unittest.TestCase):
             "0007_document_identity_email_aliases.py"
         )
         manual_migration = load_migration("0008_manual_program_assignment.py")
+        courses_migration = load_migration("0009_courses.py")
+        audit_migration = load_migration("0010_soft_delete_audit.py")
+        details_migration = load_migration("0011_course_competency_details.py")
 
         engine = create_engine("sqlite://")
         try:
@@ -125,6 +130,9 @@ class SecurityMigrationTests(unittest.TestCase):
                     identity_migration.upgrade()
                     aliases_migration.upgrade()
                     manual_migration.upgrade()
+                    courses_migration.upgrade()
+                    audit_migration.upgrade()
+                    details_migration.upgrade()
 
                 self.assertEqual(
                     set(inspect(connection).get_table_names()),
@@ -135,6 +143,9 @@ class SecurityMigrationTests(unittest.TestCase):
                 )
 
                 with Operations.context(context):
+                    details_migration.downgrade()
+                    audit_migration.downgrade()
+                    courses_migration.downgrade()
                     manual_migration.downgrade()
                     aliases_migration.downgrade()
                     identity_migration.downgrade()

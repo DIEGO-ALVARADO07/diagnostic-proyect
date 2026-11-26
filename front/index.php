@@ -137,6 +137,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirigir('imports');
     }
 
+    if ($accion === 'restore_excel_import' && $rolSesion === 'superadmin') {
+        $importId = $_POST['import_id'] ?? '';
+        if (!is_string($importId) || preg_match('/^[a-f0-9-]{36}$/i', $importId) !== 1) {
+            $_SESSION['flash'] = ['type' => 'error', 'message' => 'La importación seleccionada no es válida.'];
+        } else {
+            $respuesta = llamarBackend(
+                'POST',
+                'excel/dashboard/imports/' . rawurlencode($importId) . '/restore'
+            );
+            if ($respuesta['status'] === 200) {
+                $_SESSION['flash'] = ['type' => 'success', 'message' => (string) ($respuesta['data']['message'] ?? 'La importación se restauró.')];
+            } else {
+                $_SESSION['flash'] = ['type' => 'error', 'message' => mensajeDeRespuesta($respuesta, 'No se pudo restaurar la importación.')];
+            }
+        }
+        redirigir('imports');
+    }
+
     if ($accion === 'upload_excel' && in_array($rolSesion, ['instructor', 'superadmin'], true)) {
         $uploadedFile = $_FILES['file'] ?? null;
         $fuente = $_POST['source'] ?? '';
@@ -237,6 +255,18 @@ $vistas = [
         'style' => ['shared/style.css', 'students/style.css'],
         'script' => 'partials/students/js/main.js',
     ],
+    'courses' => [
+        'title' => 'Cursos',
+        'screen' => 'courses/screen.php',
+        'style' => ['shared/style.css', 'students/style.css', 'courses/style.css'],
+        'script' => 'partials/courses/js/main.js',
+    ],
+    'courses_deleted' => [
+        'title' => 'Cursos eliminados',
+        'screen' => 'courses_deleted/screen.php',
+        'style' => ['shared/style.css', 'students/style.css', 'courses/style.css', 'courses_deleted/style.css'],
+        'script' => 'partials/courses_deleted/js/main.js',
+    ],
     'report' => [
         'title' => 'Importar Excel',
         'screen' => 'report/screen.php',
@@ -260,6 +290,9 @@ $menuPorRol = [
         ['view' => 'ese', 'label' => 'ESE', 'icon' => '▥'],
         ['view' => 'corhuila', 'label' => 'CORHUILA', 'icon' => '◧'],
         ['view' => 'report', 'label' => 'Importar Excel', 'icon' => '↑'],
+        ['view' => 'students', 'label' => 'Estudiantes', 'icon' => '♧'],
+        ['view' => 'courses', 'label' => 'Cursos', 'icon' => '◫'],
+        ['view' => 'courses_deleted', 'label' => 'Cursos eliminados', 'icon' => '⟲'],
         ['view' => 'imports', 'label' => 'Importaciones', 'icon' => '▤'],
         ['view' => 'users', 'label' => 'Usuarios', 'icon' => '♧'],
         ['view' => 'create_user', 'label' => 'Crear cuenta', 'icon' => '＋'],
@@ -271,6 +304,7 @@ $menuPorRol = [
         ['view' => 'corhuila', 'label' => 'CORHUILA', 'icon' => '◧'],
         ['view' => 'report', 'label' => 'Importar Excel', 'icon' => '↑'],
         ['view' => 'students', 'label' => 'Estudiantes', 'icon' => '♧'],
+        ['view' => 'courses', 'label' => 'Cursos', 'icon' => '◫'],
         ['view' => 'profile', 'label' => 'Mi perfil', 'icon' => '○'],
     ],
     'estudiante' => [

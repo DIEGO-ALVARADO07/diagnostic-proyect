@@ -10,7 +10,7 @@
 <section class="panel module-panel imports-panel">
     <div class="imports-notice">
         <span aria-hidden="true">i</span>
-        <p>La desactivación es lógica: el registro se conserva con estado <strong>Desactivada</strong> para el superadmin, pero deja de aparecer en las consultas del resto de usuarios. Si desactivas el snapshot activo, el dashboard quedará sin datos hasta una nueva importación.</p>
+        <p>La desactivación es lógica: el registro se conserva con estado <strong>Desactivada</strong> (con quién y cuándo) y deja de aparecer en las consultas del resto de usuarios. Puedes <strong>restaurarla</strong> cuando quieras: vuelve a ser la activa si su prueba y periodo no tienen otra; si después se subió otra, queda como histórica.</p>
     </div>
 
     <?php if ($errorImportaciones): ?>
@@ -53,7 +53,10 @@
                             <td>
                                 <span class="imports-status imports-status-<?= h(strtolower($estadoImportacion)) ?>"><?= h($etiquetasEstado[$estadoImportacion] ?? $estadoImportacion) ?></span>
                                 <?php if ($estadoImportacion === 'DELETED' && !empty($importacion['deleted_at'])): ?>
-                                    <small class="imports-deleted-date">Desactivada: <?= h($importacion['deleted_at']) ?></small>
+                                    <small class="imports-deleted-date">Desactivada: <?= h($importacion['deleted_at']) ?><?= !empty($importacion['deleted_by']) ? ' por ' . h($importacion['deleted_by']) : '' ?></small>
+                                <?php endif; ?>
+                                <?php if (!empty($importacion['restored_at'])): ?>
+                                    <small class="imports-deleted-date imports-restored-date">Restaurada: <?= h($importacion['restored_at']) ?><?= !empty($importacion['restored_by']) ? ' por ' . h($importacion['restored_by']) : '' ?></small>
                                 <?php endif; ?>
                             </td>
                             <td><?= h(number_format((int) ($importacion['bd_gen_row_count'] ?? 0), 0, ',', '.')) ?></td>
@@ -66,8 +69,13 @@
                                         <input type="hidden" name="import_id" value="<?= h($importId) ?>">
                                         <button class="text-button deactivate-import-button" type="submit">Desactivar</button>
                                     </form>
-                                <?php elseif ($estadoImportacion === 'DELETED'): ?>
-                                    <span class="imports-active-label">Ya desactivada</span>
+                                <?php elseif ($estadoImportacion === 'DELETED' && is_string($importId) && $importId !== ''): ?>
+                                    <form method="post" data-confirm="¿Restaurar esta importación? Si su prueba y periodo no tienen otra activa, volverá a ser la activa; si después se subió otra, quedará como histórica.">
+                                        <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
+                                        <input type="hidden" name="action" value="restore_excel_import">
+                                        <input type="hidden" name="import_id" value="<?= h($importId) ?>">
+                                        <button class="text-button restore-import-button" type="submit">Restaurar</button>
+                                    </form>
                                 <?php else: ?>
                                     <span class="imports-active-label">No disponible</span>
                                 <?php endif; ?>

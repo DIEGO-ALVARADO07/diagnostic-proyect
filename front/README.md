@@ -27,6 +27,8 @@ Módulos actuales:
 - `partials/users/`: listado de cuentas para superadmin.
 - `partials/create_user/`: creación de instructores y estudiantes.
 - `partials/students/`: todos los estudiantes de los Excel (ESE y CORHUILA juntos, sin crearlos a mano) en 5 grupos: Nivel 1–4 y Sin resultado. Filtro Año → Periodo como el dashboard (arranca en el último periodo; "Todo el histórico" al final de los años); elegir un nivel no cambia el periodo. Nivel de cada estudiante: promedio de los niveles de las 4 competencias comunes en ese periodo, redondeado hacia abajo (en el histórico, su periodo más reciente con puntajes). Búsqueda y programa como filtros extra. Las cuentas de usuario siguen en `users/`.
+- `partials/courses/`: Nivel → Curso → Estudiantes. Cada curso tiene nivel (1–4), materia evaluada (Lectura crítica, Competencias ciudadanas, Razonamiento cuantitativo o Inglés), nombre, descripción y metodología; el nombre no se repite en el mismo nivel y materia. Al abrir un nivel se ven cuántos estudiantes tienen ese nivel en cada materia y sus cursos. "Agregar estudiantes" inscribe a todos los que tienen el nivel del curso **en su materia** en el periodo elegido (ej.: Inglés Nivel 1 = A1 en Inglés), sin repetir; "Ver estudiantes" muestra programa, nivel al inscribirse y nivel actual en la materia, con "Quitar". "Eliminar" (instructor y superadmin) es lógico: se conserva con sus estudiantes y con quién y cuándo.
+- `partials/courses_deleted/`: panel del superadmin "Cursos eliminados": tabla con materia, nivel, descripción, metodología, estudiantes, quién lo creó y quién lo eliminó (con fecha), y el botón "Habilitar". El instructor no lo ve ni puede habilitar.
 - `partials/report/`: "Importar Excel". Prueba (ESE o CORHUILA) y periodo: solo el actual y el anterior (`periodosDeCarga()` en `index.php`), validado también al recibir el formulario. Acepta `?source=` y `?period=` para llegar con la prueba y el periodo elegidos.
 - `partials/profile/`: consulta y edición del perfil propio.
 
@@ -36,8 +38,8 @@ La vista se selecciona con el parámetro `view`; por ejemplo, `index.php?view=da
 
 | Rol | Vistas del menú |
 |---|---|
-| `superadmin` | Dashboard, ESE, CORHUILA, importar Excel, importaciones, usuarios, crear cuenta y mi perfil |
-| `instructor` | Dashboard, ESE, CORHUILA, importar Excel, estudiantes y mi perfil |
+| `superadmin` | Dashboard, ESE, CORHUILA, importar Excel, estudiantes, cursos, cursos eliminados, importaciones, usuarios, crear cuenta y mi perfil |
+| `instructor` | Dashboard, ESE, CORHUILA, importar Excel, estudiantes, cursos y mi perfil |
 | `estudiante` | Mi perfil |
 
 La vista no autorizada vuelve al inicio. Esta restricción es de navegación; el backend sigue siendo quien autoriza cada operación.
@@ -58,6 +60,9 @@ La vista no autorizada vuelve al inicio. Esta restricción es de navegación; el
 | Consultar el histórico de ESE | `GET /excel/dashboard/active`, `GET /excel/dashboard/{import_id}` y consultas de programa/estudiante |
 | Dashboard comparativo y módulo CORHUILA | `GET /excel/dashboard/compare?period=&moment=&program_id=` |
 | Estudiantes por nivel | `GET /excel/dashboard/students` (`period` o `all`, `level`, `program_id`, `search`, `page`) |
+| Cursos por nivel y materia | `GET /courses`, `POST /courses` (`name`, `level`, `competency`, `description`, `methodology`), `DELETE /courses/{id}` (lógico), `GET /courses/{id}/students`, `POST /courses/{id}/enroll` (`{"period": ...}`) y `DELETE /courses/{id}/students/{student_id}` |
+| Cursos eliminados (superadmin) | `GET /courses/deleted` y `POST /courses/{id}/restore` |
+| Desactivar y restaurar importaciones (superadmin) | `DELETE /excel/dashboard/imports/{id}` y `POST /excel/dashboard/imports/{id}/restore` |
 | Estudiantes "Sin programa" y asignación manual | `GET /excel/dashboard/review/without-program`, `GET /excel/dashboard/catalog/programs`, `PUT /excel/dashboard/review/students/{id}/program` y `POST /excel/dashboard/corhuila/resolve` |
 
 El frontend solicita `GET /users` únicamente al abrir la vista de usuarios o estudiantes. La búsqueda por texto y el filtro por rol se aplican sobre esos resultados en el navegador.

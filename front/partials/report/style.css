@@ -4,7 +4,9 @@
 .guidance-mark { align-items: center; background: #dcefe4; border-radius: 50%; color: var(--green-dark); display: inline-flex; flex: 0 0 auto; font-size: 10px; font-weight: 700; height: 19px; justify-content: center; margin-top: 1px; width: 19px; }
 .report-guidance p { color: #647a6d; font-size: 10px; line-height: 1.65; margin: 0; }
 .report-guidance strong { color: #3d5d4d; }
-.upload-form { align-items: end; display: grid; gap: 14px; grid-template-columns: 1.2fr 1fr; }
+.upload-form { align-items: start; display: grid; gap: 14px 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.upload-form .field select { width: 100%; }
+.upload-form .field-hint { display: block; line-height: 1.5; margin-top: 2px; }
 .file-input-wrap { align-items: flex-start; background: #fff; border: 1px dashed #cddfd4; border-radius: 7px; display: flex; flex-direction: column; gap: 5px; padding: 7px 10px; }
 .file-input-wrap input { border: 0; min-height: 26px; padding: 0; }
 .file-input-wrap input:focus { box-shadow: none; }

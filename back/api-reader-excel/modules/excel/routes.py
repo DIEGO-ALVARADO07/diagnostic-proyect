@@ -16,6 +16,7 @@ from modules.excel.dtos.requests.read_workbook import ReadWorkbookRequest
 from modules.excel.dtos.responses.dashboard import (
     DashboardImportListResponse,
     DashboardImportResponse,
+    DashboardImportRestoreResponse,
     DashboardOverviewResponse,
     DashboardProgramResponse,
     AssignProgramRequest,
@@ -370,9 +371,30 @@ async def list_admin_dashboard_imports(
     response_class=Response,
     dependencies=[Depends(require_roles(Role.SUPERADMIN))],
 )
-async def delete_dashboard_import(db: DbSession, import_id: str) -> Response:
-    await run_in_threadpool(dashboard_service.delete_import, db, import_id)
+async def delete_dashboard_import(
+    db: DbSession, account: CurrentAccount, import_id: str
+) -> Response:
+    """Desactivación lógica: se conserva y se puede restaurar."""
+    await run_in_threadpool(dashboard_service.delete_import, db, import_id, account)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/dashboard/imports/{import_id}/restore",
+    response_model=DashboardImportRestoreResponse,
+    dependencies=[Depends(require_roles(Role.SUPERADMIN))],
+)
+async def restore_dashboard_import(
+    db: DbSession, account: CurrentAccount, import_id: str
+) -> DashboardImportRestoreResponse:
+    """Restaura una importación desactivada.
+
+    Vuelve a ser la activa si su espacio (ESE, o CORHUILA del periodo) no tiene
+    otra; si no, queda como histórica.
+    """
+    return await run_in_threadpool(
+        dashboard_service.restore_import, db, import_id, account
+    )
 
 
 @router.get(

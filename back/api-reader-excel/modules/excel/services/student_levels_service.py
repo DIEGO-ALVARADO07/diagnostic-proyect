@@ -127,28 +127,7 @@ class StudentLevelsService:
         page_size: int = 50,
         period: str | None = None,
     ) -> StudentLevelsResponse:
-        grouped = self._group(db)
-        periods = sorted(
-            {
-                entry.record.period
-                for entries in grouped.values()
-                for entry in entries
-                if entry.record.period
-            },
-            reverse=True,
-        )
-        if period is None:
-            period = periods[0] if periods else ALL_PERIODS
-
-        students: list[StudentLevelItemResponse] = []
-        for entries in grouped.values():
-            selected = (
-                entries
-                if period == ALL_PERIODS
-                else [e for e in entries if e.record.period == period]
-            )
-            if selected:
-                students.append(self._item(selected, entries))
+        period, periods, students = self.students_in(db, period)
         programs = {item.program_id: item.program for item in students}
 
         if program_id is not None:
@@ -205,6 +184,39 @@ class StudentLevelsService:
             rule=LEVEL_RULE,
         )
 
+    def students_in(
+        self, db: Session, period: str | None = None
+    ) -> tuple[str, list[str], list[StudentLevelItemResponse]]:
+        """Todos los estudiantes del periodo (sin filtros ni páginas).
+
+        Devuelve el periodo usado (el último si ``period`` es ``None``), los
+        periodos con datos y los estudiantes. Lo usa también el módulo de cursos
+        para inscribir por nivel.
+        """
+        grouped = self._group(db)
+        periods = sorted(
+            {
+                entry.record.period
+                for entries in grouped.values()
+                for entry in entries
+                if entry.record.period
+            },
+            reverse=True,
+        )
+        if period is None:
+            period = periods[0] if periods else ALL_PERIODS
+
+        students: list[StudentLevelItemResponse] = []
+        for entries in grouped.values():
+            selected = (
+                entries
+                if period == ALL_PERIODS
+                else [e for e in entries if e.record.period == period]
+            )
+            if selected:
+                students.append(self._item(selected, entries))
+        return period, periods, students
+
     # --- Carga -----------------------------------------------------------------
 
     def _group(self, db: Session) -> dict[object, list[_Entry]]:
@@ -259,6 +271,7 @@ class StudentLevelsService:
             student_key=(
                 f"s{identity[1]}" if isinstance(identity, tuple) else str(identity)
             ),
+            student_id=identity[1] if isinstance(identity, tuple) else None,
             name=latest.record.name,
             document=next(
                 (e.record.document for e in all_entries if e.record.document),

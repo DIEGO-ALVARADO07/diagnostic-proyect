@@ -20,6 +20,9 @@
 .imports-actions form { margin: 0; }
 .deactivate-import-button { color: #aa514d; font-size: 10px; }
 .deactivate-import-button:hover { color: #843a38; text-decoration: underline; }
+.restore-import-button { color: var(--green-dark); font-size: 10px; }
+.restore-import-button:hover { color: #065c3f; text-decoration: underline; }
+.imports-restored-date { color: #5b7d6a; }
 .imports-active-label { color: #738391; font-size: 9px; }
 .imports-empty { background: #f7faf8; border: 1px dashed #dce8e1; border-radius: 7px; color: #73877a; font-size: 10px; margin: 0; padding: 20px; text-align: center; }
 

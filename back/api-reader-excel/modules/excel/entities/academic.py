@@ -90,6 +90,20 @@ class ExcelImport(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True
     )
+    deleted_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "api_users.id", ondelete="SET NULL", name="fk_excel_imports_deleted_by"
+        ),
+        nullable=True,
+    )
+    restored_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    """Última restauración tras una desactivación lógica."""
+    restored_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "api_users.id", ondelete="SET NULL", name="fk_excel_imports_restored_by"
+        ),
+        nullable=True,
+    )
 
 
 class DashboardState(Base):

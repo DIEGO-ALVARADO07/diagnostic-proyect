@@ -1,0 +1,18 @@
+/* Panel del administrador: cursos eliminados. Usa shared, students y courses/style.css. */
+
+.courses-deleted-app .module-panel { padding: 18px; }
+.courses-deleted-app .module-heading p:not(.eyebrow) { max-width: 720px; }
+.deleted-courses-table { min-width: 1080px; width: 100%; }
+.deleted-courses-table th { font-size: 8px; padding: 10px 9px; }
+.deleted-courses-table td { font-size: 10px; padding: 11px 9px; vertical-align: top; }
+.deleted-course-name { min-width: 170px; }
+.deleted-course-name .course-subject { display: inline-block; margin-bottom: 5px; }
+.deleted-course-name strong { color: #31495b; display: block; font-weight: 700; }
+.deleted-course-text { color: #5d6f7c; line-height: 1.5; max-width: 260px; min-width: 180px; white-space: pre-line; }
+.deleted-course-count { color: #31495b; font-weight: 700; text-align: center; }
+.deleted-course-audit strong { color: #445a6b; display: block; font-weight: 600; }
+.deleted-course-audit small { color: #8a98a3; display: block; font-size: 9px; margin-top: 2px; white-space: nowrap; }
+.deleted-course-action { text-align: right; }
+.deleted-course-action .button { font-size: 10px; min-height: 32px; padding: 0 12px; white-space: nowrap; }
+.deleted-course-action .button:disabled { cursor: progress; opacity: .55; }
+.courses-deleted-app .courses-status { margin: 0 0 10px; }

@@ -197,6 +197,17 @@ class DashboardImportListItemResponse(BaseModel):
     td_programas_row_count: int
     td_programas_selected_year: int | None
     deleted_at: datetime | None = None
+    deleted_by: str | None = None
+    restored_at: datetime | None = None
+    restored_by: str | None = None
+
+
+class DashboardImportRestoreResponse(BaseModel):
+    import_id: str
+    status: str
+    """``ACTIVE`` si volvió a ser la activa de su espacio; si no, ``HISTORICAL`` o ``FAILED``."""
+    activated: bool
+    message: str
 
 
 class DashboardActiveImportResponse(BaseModel):
@@ -413,6 +424,8 @@ class StudentLevelItemResponse(BaseModel):
     """Un estudiante de los Excel (ESE y CORHUILA juntos) con su nivel actual."""
 
     student_key: str
+    student_id: int | None = None
+    """``academic_students.id``; ``None`` si la fila no tiene estudiante resuelto."""
     name: str
     document: str | None
     email: str | None
