@@ -42,6 +42,8 @@ class DashboardFilterOptionsResponse(BaseModel):
     moments: list[int] = []
     """Momentos de ESE presentes (1, 2, 3)."""
     simulations: list[str]
+    simulations_by_year: dict[int, list[str]] = {}
+    """Simulacros de cada año: el filtro solo ofrece los del año elegido."""
     groups: list[str]
     programs: list[ProgramOptionResponse]
     test_types: list[str]
@@ -359,19 +361,24 @@ class CommonCompetencyResponse(BaseModel):
 
 
 class CompareFiltersResponse(BaseModel):
+    periods: list[str] = []
+    """Periodos con datos (filas de ESE o carga de CORHUILA), del más reciente al más antiguo."""
+    corhuila_periods: list[str] = []
+    """Periodos con archivo de CORHUILA, del más reciente al más antiguo."""
     moments: list[int]
     """Momentos de ESE en el periodo actual (CORHUILA tiene momento único)."""
     programs: list[ProgramOptionResponse]
 
 
 class CompareSelectedFiltersResponse(BaseModel):
+    period: str | None = None
     moment: int | None
     program_id: str | None
 
 
 class DashboardCompareResponse(BaseModel):
     period: str | None
-    """Último periodo cargado. ``None`` si no hay importaciones."""
+    """Periodo mostrado: el pedido o el último cargado. ``None`` si no hay importaciones."""
     filters: CompareFiltersResponse
     selected_filters: CompareSelectedFiltersResponse
     ese: CompareSideResponse | None

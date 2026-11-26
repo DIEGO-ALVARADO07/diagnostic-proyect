@@ -36,6 +36,35 @@ function dashboardFilters(array $input): array {
     return $filters;
 }
 
+function dashboardRequireCsrf(): void {
+    $csrf = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!is_string($csrf) || empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrf)) {
+        dashboardJson(403, ['detail' => 'La sesión de consulta venció. Actualiza la página e inténtalo de nuevo.']);
+    }
+}
+
+function dashboardJsonBody(): array {
+    $payload = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($payload)) {
+        dashboardJson(400, ['detail' => 'La solicitud no es válida.']);
+    }
+    return $payload;
+}
+
+/** Reenvía la respuesta de la API tal cual (o un 502 si no respondió). */
+function dashboardForward(array $respuesta): void {
+    if (!empty($respuesta['error'])) {
+        dashboardJson(502, ['detail' => 'No fue posible consultar el dashboard. Verifica que la API esté disponible.']);
+    }
+    dashboardJson(
+        $respuesta['status'] ?: 502,
+        is_array($respuesta['data']) ? $respuesta['data'] : ['detail' => 'La API devolvió una respuesta inválida.']
+    );
+}
+
+const DASHBOARD_PERIOD_PATTERN = '/^\d{4}-[12]$/';
+const DASHBOARD_COMPARE_PROGRAM_PATTERN = '/^([1-9][0-9]{0,9}|sin-programa)$/';
+
 $role = $_SESSION['user']['role'] ?? '';
 if (!in_array($role, ['instructor', 'superadmin'], true)) {
     dashboardJson(403, ['detail' => 'No tienes permiso para consultar el dashboard académico.']);
@@ -46,15 +75,31 @@ if (!is_string($resource)) {
     dashboardJson(400, ['detail' => 'La consulta del dashboard no es válida.']);
 }
 
+// Asignar (o quitar con null) el programa de un estudiante de CORHUILA.
+if ($resource === 'assign_program' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    dashboardRequireCsrf();
+    $payload = dashboardJsonBody();
+    $studentId = $payload['student_id'] ?? null;
+    $programId = $payload['program_id'] ?? null;
+    if (!is_int($studentId) || $studentId < 1 || ($programId !== null && (!is_int($programId) || $programId < 1))) {
+        dashboardJson(422, ['detail' => 'Elige un estudiante y un programa válidos.']);
+    }
+    dashboardForward(llamarBackend(
+        'PUT',
+        'excel/dashboard/review/students/' . $studentId . '/program',
+        ['program_id' => $programId]
+    ));
+}
+
+// Recalcular el programa de todas las filas de CORHUILA.
+if ($resource === 'resolve' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    dashboardRequireCsrf();
+    dashboardForward(llamarBackend('POST', 'excel/dashboard/corhuila/resolve'));
+}
+
 if ($resource === 'student' && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    $payload = json_decode(file_get_contents('php://input'), true);
-    if (!is_array($payload)) {
-        dashboardJson(400, ['detail' => 'La solicitud del estudiante no es válida.']);
-    }
-    $csrf = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-    if (!is_string($csrf) || empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrf)) {
-        dashboardJson(403, ['detail' => 'La sesión de consulta venció. Actualiza la página e inténtalo de nuevo.']);
-    }
+    $payload = dashboardJsonBody();
+    dashboardRequireCsrf();
 
     $importId = $payload['import_id'] ?? '';
     $document = $payload['document'] ?? '';
@@ -96,6 +141,44 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 if ($resource === 'active') {
     $endpoint = 'excel/dashboard/active';
     $params = [];
+} elseif ($resource === 'compare') {
+    // Dashboard principal: ESE frente a CORHUILA en un periodo.
+    $params = [];
+    $period = $_GET['period'] ?? '';
+    if ($period !== '') {
+        if (!dashboardIdentifier($period, DASHBOARD_PERIOD_PATTERN)) {
+            dashboardJson(422, ['detail' => 'El periodo seleccionado no es válido.']);
+        }
+        $params['period'] = $period;
+    }
+    $moment = $_GET['moment'] ?? '';
+    if ($moment !== '') {
+        if (!dashboardIdentifier($moment, '/^[1-4]$/')) {
+            dashboardJson(422, ['detail' => 'El momento seleccionado no es válido.']);
+        }
+        $params['moment'] = (int) $moment;
+    }
+    $programId = $_GET['program_id'] ?? '';
+    if ($programId !== '') {
+        if (!dashboardIdentifier($programId, DASHBOARD_COMPARE_PROGRAM_PATTERN)) {
+            dashboardJson(422, ['detail' => 'El programa seleccionado no es válido.']);
+        }
+        $params['program_id'] = $programId;
+    }
+    $endpoint = 'excel/dashboard/compare';
+} elseif ($resource === 'catalog') {
+    $endpoint = 'excel/dashboard/catalog/programs';
+    $params = [];
+} elseif ($resource === 'without_program') {
+    $params = [];
+    $period = $_GET['period'] ?? '';
+    if ($period !== '') {
+        if (!dashboardIdentifier($period, DASHBOARD_PERIOD_PATTERN)) {
+            dashboardJson(422, ['detail' => 'El periodo seleccionado no es válido.']);
+        }
+        $params['period'] = $period;
+    }
+    $endpoint = 'excel/dashboard/review/without-program';
 } elseif (in_array($resource, ['overview', 'program'], true)) {
     $importId = $_GET['import_id'] ?? '';
     if (!dashboardIdentifier($importId, '/^[a-f0-9-]{36}$/i')) {
@@ -143,11 +226,4 @@ if ($resource === 'active') {
     dashboardJson(404, ['detail' => 'La consulta solicitada no existe.']);
 }
 
-$respuesta = llamarBackend('GET', $endpoint, $params);
-if (!empty($respuesta['error'])) {
-    dashboardJson(502, ['detail' => 'No fue posible consultar el dashboard. Verifica que la API esté disponible.']);
-}
-dashboardJson(
-    $respuesta['status'] ?: 502,
-    is_array($respuesta['data']) ? $respuesta['data'] : ['detail' => 'La API devolvió una respuesta inválida.']
-);
+dashboardForward(llamarBackend('GET', $endpoint, $params));

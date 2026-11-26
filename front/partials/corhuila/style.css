@@ -1,0 +1,29 @@
+/* Módulo CORHUILA (fase 12b). Usa shared/style.css y dashboard/style.css. */
+
+.corhuila-filter-controls { grid-template-columns: minmax(0, 320px); }
+.corhuila-app .compare-side { margin-bottom: 15px; }
+.corhuila-app .compare-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.corhuila-app .compare-waiting { min-height: 200px; }
+
+.without-program-panel { padding: 18px; }
+.without-program-panel h3 { align-items: center; display: flex; gap: 8px; }
+.without-program-panel .chart-card-heading p:not(.eyebrow) { max-width: 680px; }
+.without-program-status { color: #5b7d6a; font-size: 10px; margin: 0 0 8px; min-height: 14px; }
+.without-program-status.is-error { color: #b4572f; }
+.without-program-table { min-width: 760px; width: 100%; }
+.without-program-table th { font-size: 8px; padding: 10px 9px; }
+.without-program-table td { font-size: 10px; padding: 8px 9px; vertical-align: middle; }
+.without-program-table td:first-child { color: #31495b; font-weight: 600; }
+.without-program-table select { background: #fff; border: 1px solid #dfe7ea; border-radius: 6px; color: #445a6b; font-size: 10px; min-height: 32px; max-width: 280px; padding: 0 8px; width: 100%; }
+.without-program-table .button { font-size: 10px; min-height: 30px; padding: 0 12px; }
+.without-program-table .button:disabled { cursor: not-allowed; opacity: .5; }
+
+@media (max-width: 1050px) {
+    .corhuila-app .compare-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+    .corhuila-app .dashboard-welcome .button { align-self: stretch; justify-content: center; }
+    .corhuila-filter-controls { grid-template-columns: 1fr; }
+    .without-program-panel { padding: 14px; }
+}

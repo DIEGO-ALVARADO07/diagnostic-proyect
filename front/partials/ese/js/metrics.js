@@ -1,6 +1,6 @@
 // Lectura de las métricas que devuelve la API según la asignatura elegida.
 
-import { numberOrNull } from './format.js';
+import { numberOrNull } from '../../shared/js/format.js';
 
 function isGeneralSubject(state) {
     return state.subject === 'global' || state.subject === 'all';

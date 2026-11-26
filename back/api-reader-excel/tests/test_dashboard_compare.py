@@ -138,6 +138,51 @@ class CompareDashboardTests(unittest.TestCase):
         self.assertIsNone(response.ese)
         self.assertEqual(response.corhuila.period, "2026-2")
 
+    def test_choose_another_period(self) -> None:
+        self._import_ese("2026-1")
+        self._import_corhuila("2026-1")
+
+        latest = self.service.compare(self.db)
+        # Periodos con datos, del más reciente al más antiguo (ESE trae el histórico).
+        self.assertEqual(latest.filters.periods, ["2026-1", "2025-2", "2025-1", "2024-1"])
+        self.assertEqual(latest.selected_filters.period, "2026-1")
+        self.assertEqual(latest.filters.corhuila_periods, ["2026-1"])
+
+        older = self.service.compare(self.db, period="2025-1")
+        self.assertEqual(older.period, "2025-1")
+        self.assertEqual(older.selected_filters.period, "2025-1")
+        self.assertEqual(older.ese.kpis.presentations, 2)
+        self.assertIsNone(older.corhuila)  # No hay CORHUILA de 2025-1.
+        # Solo se ofrecen los momentos del periodo elegido.
+        self.assertEqual(older.filters.moments, [1])
+        # La lista de periodos no cambia al elegir uno.
+        self.assertEqual(older.filters.periods, latest.filters.periods)
+
+        empty = self.service.compare(self.db, period="2030-1")
+        self.assertIsNone(empty.ese)
+        self.assertIsNone(empty.corhuila)
+        self.assertEqual(empty.filters.moments, [])
+
+    def test_ese_simulations_grouped_by_year(self) -> None:
+        """El filtro de simulacro del módulo ESE solo ofrece los del año elegido."""
+        self._import_ese("2026-1")
+
+        filters = self.service.get_active_import(self.db).filters
+
+        self.assertEqual(
+            filters.simulations_by_year,
+            {
+                2024: ["SIMULACRO 2024-1 MOMENTO 4"],
+                2025: ["SIMULACRO 2025-1 MOMENTO 1", "SIMULACRO 2025-2 MOMENTO 2"],
+                2026: ["SIMULACRO 2026-1 MOMENTO 2"],
+            },
+        )
+        # La lista completa sigue disponible para "Todos los años".
+        self.assertEqual(
+            sorted(filters.simulations),
+            sorted(s for group in filters.simulations_by_year.values() for s in group),
+        )
+
     def test_filters_by_moment_and_program(self) -> None:
         self._import_ese("2026-1")
         self._import_corhuila("2026-1")

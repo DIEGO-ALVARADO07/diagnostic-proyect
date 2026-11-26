@@ -16,26 +16,25 @@
         <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
         <input type="hidden" name="action" value="upload_excel">
         <?php
-        $anioActual = (int) date('Y');
-        $periodoActual = $anioActual . '-' . ((int) date('n') <= 6 ? '1' : '2');
-        $periodos = [];
-        for ($anio = $anioActual + 1; $anio >= $anioActual - 3; $anio--) {
-            $periodos[] = $anio . '-2';
-            $periodos[] = $anio . '-1';
-        }
+        // Solo el periodo actual y el anterior (ver periodosDeCarga en index.php).
+        $periodos = periodosDeCarga();
+        $periodoElegido = in_array($_GET['period'] ?? '', $periodos, true) ? $_GET['period'] : $periodos[0];
+        $fuenteElegida = in_array($_GET['source'] ?? '', ['ESE', 'CORHUILA'], true) ? $_GET['source'] : 'ESE';
         ?>
         <label class="field"><span>Prueba</span>
             <select name="source" required>
-                <option value="ESE">ESE</option>
-                <option value="CORHUILA">CORHUILA</option>
+                <?php foreach (['ESE', 'CORHUILA'] as $fuente): ?>
+                    <option value="<?= h($fuente) ?>"<?= $fuente === $fuenteElegida ? ' selected' : '' ?>><?= h($fuente) ?></option>
+                <?php endforeach; ?>
             </select>
         </label>
         <label class="field"><span>Periodo de la carga</span>
             <select name="period" required>
-                <?php foreach ($periodos as $periodo): ?>
-                    <option value="<?= h($periodo) ?>"<?= $periodo === $periodoActual ? ' selected' : '' ?>><?= h($periodo) ?></option>
+                <?php foreach ($periodos as $indice => $periodo): ?>
+                    <option value="<?= h($periodo) ?>"<?= $periodo === $periodoElegido ? ' selected' : '' ?>><?= h($periodo) ?><?= $indice === 0 ? ' (actual)' : ' (anterior)' ?></option>
                 <?php endforeach; ?>
             </select>
+            <small class="field-hint">Solo el periodo actual o el anterior, para no mezclar archivos de otros años.</small>
         </label>
         <label class="field upload-file"><span>Archivo de Excel</span>
             <span class="file-input-wrap"><input type="file" name="file" accept=".xlsx,.xlsm,.xls,.ods" required><small>Formatos permitidos: .xlsx, .xlsm, .xls y .ods</small></span>

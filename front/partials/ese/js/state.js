@@ -1,6 +1,6 @@
 // Estado del dashboard y su reflejo en la URL.
 
-import { parsePositiveInteger } from './format.js';
+import { parsePositiveInteger } from '../../shared/js/format.js';
 
 export const PROGRAMS_PER_PAGE = 6;
 
@@ -57,7 +57,7 @@ export function buildFilterParams(state) {
 
 export function dashboardUrl(state) {
     const url = new URL('index.php', window.location.href);
-    url.searchParams.set('view', 'dashboard');
+    url.searchParams.set('view', 'ese');
     url.searchParams.set('level', state.level);
     if (state.importId) {
         url.searchParams.set('import_id', state.importId);

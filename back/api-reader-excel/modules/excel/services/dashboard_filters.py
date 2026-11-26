@@ -43,10 +43,12 @@ def filter_records(
 
 
 def filter_options(dataset: DashboardDataset) -> DashboardFilterOptionsResponse:
-    def values_for(attribute: str) -> list[str]:
+    def values_for(
+        attribute: str, records: Iterable[DashboardRecord] = dataset.records
+    ) -> list[str]:
         # Agrupa variantes de escritura y muestra la más frecuente de cada grupo.
         variants: dict[str, Counter[str]] = {}
-        for record in dataset.records:
+        for record in records:
             value = getattr(record, attribute)
             if value is None:
                 continue
@@ -59,8 +61,9 @@ def filter_options(dataset: DashboardDataset) -> DashboardFilterOptionsResponse:
             for _, counter in sorted(variants.items())
         ]
 
+    years = sorted({record.year for record in dataset.records})
     return DashboardFilterOptionsResponse(
-        years=sorted({record.year for record in dataset.records}),
+        years=years,
         periods=sorted(
             {record.period for record in dataset.records if record.period}
         ),
@@ -72,6 +75,12 @@ def filter_options(dataset: DashboardDataset) -> DashboardFilterOptionsResponse:
             }
         ),
         simulations=values_for("simulation"),
+        simulations_by_year={
+            year: values_for(
+                "simulation", [r for r in dataset.records if r.year == year]
+            )
+            for year in years
+        },
         groups=values_for("group"),
         programs=[
             ProgramOptionResponse(program_id=program_id, name=name)

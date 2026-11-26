@@ -31,6 +31,23 @@ function mensajeDeRespuesta(array $respuesta, string $alternativo): string {
     return $alternativo;
 }
 
+/**
+ * Periodos en los que se puede subir un archivo: el actual y el anterior.
+ *
+ * Ejemplo: en noviembre de 2026 → 2026-2 y 2026-1; en enero de 2027 → 2027-1
+ * y 2026-2 (para subir tarde los resultados del semestre que acaba de cerrar).
+ * Así no se puede subir por error a un periodo viejo (2024, 2025) ni a uno
+ * que todavía no empieza.
+ */
+function periodosDeCarga(?DateTimeImmutable $hoy = null): array {
+    $hoy = $hoy ?? new DateTimeImmutable('now');
+    $anio = (int) $hoy->format('Y');
+    if ((int) $hoy->format('n') <= 6) {
+        return [$anio . '-1', ($anio - 1) . '-2'];
+    }
+    return [$anio . '-2', $anio . '-1'];
+}
+
 function redirigir(string $vista): void {
     header('Location: index.php?view=' . rawurlencode($vista));
     exit;
@@ -126,6 +143,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $periodo = $_POST['period'] ?? '';
         if (!in_array($fuente, ['ESE', 'CORHUILA'], true) || !is_string($periodo) || preg_match('/^\d{4}-[12]$/', $periodo) !== 1) {
             $_SESSION['flash'] = ['type' => 'error', 'message' => 'Elige la prueba (ESE o CORHUILA) y el periodo de la carga.'];
+        } elseif (!in_array($periodo, periodosDeCarga(), true)) {
+            $_SESSION['flash'] = ['type' => 'error', 'message' => 'Solo se pueden subir archivos del periodo actual o del anterior (' . implode(' o ', periodosDeCarga()) . ').'];
         } elseif (!is_array($uploadedFile) || ($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
             $_SESSION['flash'] = ['type' => 'error', 'message' => 'Selecciona un archivo Excel válido para continuar.'];
         } elseif (($uploadedFile['size'] ?? 0) > 30 * 1024 * 1024) {
@@ -185,10 +204,22 @@ $etiquetaRol = $etiquetasRol[$rol] ?? 'Cuenta';
 
 $vistas = [
     'dashboard' => [
-        'title' => 'Inicio',
+        'title' => 'Dashboard',
         'screen' => 'dashboard/screen.php',
-        'style' => 'dashboard/style.css',
+        'style' => ['shared/style.css', 'dashboard/style.css'],
         'script' => 'partials/dashboard/js/main.js',
+    ],
+    'ese' => [
+        'title' => 'ESE',
+        'screen' => 'ese/screen.php',
+        'style' => 'shared/style.css',
+        'script' => 'partials/ese/js/main.js',
+    ],
+    'corhuila' => [
+        'title' => 'CORHUILA',
+        'screen' => 'corhuila/screen.php',
+        'style' => ['shared/style.css', 'dashboard/style.css', 'corhuila/style.css'],
+        'script' => 'partials/corhuila/js/main.js',
     ],
     'users' => [
         'title' => 'Usuarios',
@@ -206,7 +237,7 @@ $vistas = [
         'style' => 'students/style.css',
     ],
     'report' => [
-        'title' => 'Leer reporte',
+        'title' => 'Importar Excel',
         'screen' => 'report/screen.php',
         'style' => 'report/style.css',
     ],
@@ -224,17 +255,21 @@ $vistas = [
 
 $menuPorRol = [
     'superadmin' => [
-        ['view' => 'dashboard', 'label' => 'Inicio', 'icon' => '⌂'],
-        ['view' => 'users', 'label' => 'Usuarios', 'icon' => '▤'],
-        ['view' => 'create_user', 'label' => 'Crear cuenta', 'icon' => '＋'],
-        ['view' => 'report', 'label' => 'Leer reporte', 'icon' => '▧'],
+        ['view' => 'dashboard', 'label' => 'Dashboard', 'icon' => '⌂'],
+        ['view' => 'ese', 'label' => 'ESE', 'icon' => '▥'],
+        ['view' => 'corhuila', 'label' => 'CORHUILA', 'icon' => '◧'],
+        ['view' => 'report', 'label' => 'Importar Excel', 'icon' => '↑'],
         ['view' => 'imports', 'label' => 'Importaciones', 'icon' => '▤'],
+        ['view' => 'users', 'label' => 'Usuarios', 'icon' => '♧'],
+        ['view' => 'create_user', 'label' => 'Crear cuenta', 'icon' => '＋'],
         ['view' => 'profile', 'label' => 'Mi perfil', 'icon' => '○'],
     ],
     'instructor' => [
-        ['view' => 'dashboard', 'label' => 'Inicio', 'icon' => '⌂'],
+        ['view' => 'dashboard', 'label' => 'Dashboard', 'icon' => '⌂'],
+        ['view' => 'ese', 'label' => 'ESE', 'icon' => '▥'],
+        ['view' => 'corhuila', 'label' => 'CORHUILA', 'icon' => '◧'],
+        ['view' => 'report', 'label' => 'Importar Excel', 'icon' => '↑'],
         ['view' => 'students', 'label' => 'Estudiantes', 'icon' => '♧'],
-        ['view' => 'report', 'label' => 'Leer reporte', 'icon' => '▧'],
         ['view' => 'profile', 'label' => 'Mi perfil', 'icon' => '○'],
     ],
     'estudiante' => [
@@ -305,7 +340,9 @@ if ($vistaSolicitada === 'imports' && $rol === 'superadmin') {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= h($vistaActual['title']) ?> | Diagnóstico académico</title>
     <link rel="stylesheet" href="dashboard.css">
-    <link rel="stylesheet" href="partials/<?= h($vistaActual['style']) ?>">
+    <?php foreach ((array) $vistaActual['style'] as $estilo): ?>
+        <link rel="stylesheet" href="partials/<?= h($estilo) ?>">
+    <?php endforeach; ?>
     <script src="dashboard.js" defer></script>
     <?php if (!empty($vistaActual['script'])): ?>
         <script type="module" src="<?= h($vistaActual['script']) ?>"></script>

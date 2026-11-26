@@ -1,10 +1,10 @@
 // Vista global: KPIs, tarjetas de programas paginadas y programa seleccionado.
 
-import { drawBars } from '../charts/bars.js';
-import { drawBubbles } from '../charts/bubbles.js';
-import { setText } from '../dom.js';
+import { drawBars } from '../../../shared/js/charts/bars.js';
+import { drawBubbles } from '../../../shared/js/charts/bubbles.js';
+import { setText } from '../../../shared/js/dom.js';
 import { configureFilters } from '../filters.js';
-import { formatNumber } from '../format.js';
+import { formatNumber } from '../../../shared/js/format.js';
 import { generalAverage, programCompetencyEntries, selectedMetric, selectedMetricLabel } from '../metrics.js';
 import { PROGRAMS_PER_PAGE, dashboardUrlForProgram, updateUrl } from '../state.js';
 

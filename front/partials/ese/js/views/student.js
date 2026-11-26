@@ -1,10 +1,10 @@
 // Vista de estudiante: último intento, evolución y puntajes por asignatura.
 
-import { drawBars } from '../charts/bars.js';
-import { drawStudentTrend } from '../charts/trend.js';
-import { setText } from '../dom.js';
+import { drawBars } from '../../../shared/js/charts/bars.js';
+import { drawStudentTrend } from '../../../shared/js/charts/trend.js';
+import { setText } from '../../../shared/js/dom.js';
 import { updateFilterContext } from '../filters.js';
-import { formatNumber, numberOrNull } from '../format.js';
+import { formatNumber, numberOrNull } from '../../../shared/js/format.js';
 import { generalAverage, selectedMetricLabel } from '../metrics.js';
 import { dashboardUrlForProgram } from '../state.js';
 

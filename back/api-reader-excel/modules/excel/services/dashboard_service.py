@@ -89,9 +89,13 @@ class DashboardService:
     # --- Dashboard principal y revisión de CORHUILA ----------------------------
 
     def compare(
-        self, db: Session, moment: int | None = None, program_id: str | None = None
+        self,
+        db: Session,
+        moment: int | None = None,
+        program_id: str | None = None,
+        period: str | None = None,
     ) -> DashboardCompareResponse:
-        return self.comparison.compare(db, moment, program_id)
+        return self.comparison.compare(db, moment, program_id, period)
 
     def program_catalog(self, db: Session) -> ProgramCatalogResponse:
         return ProgramCatalogResponse(

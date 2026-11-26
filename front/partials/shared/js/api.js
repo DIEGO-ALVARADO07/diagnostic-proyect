@@ -1,6 +1,6 @@
 // Peticiones al proxy PHP del dashboard y traducción de errores.
 
-const ENDPOINT = 'partials/dashboard/data.php';
+const ENDPOINT = 'partials/shared/data.php';
 
 export function makeError(message, status, data) {
     const error = new Error(message);
@@ -44,6 +44,26 @@ export function apiRequest(params, options) {
         }
     }, options || {});
 
+    return send(url, requestOptions);
+}
+
+/** POST JSON al proxy con el token CSRF de la página (cambios, no consultas). */
+export function apiPost(resource, body, csrfToken) {
+    const url = new URL(ENDPOINT, window.location.href);
+    url.searchParams.set('resource', resource);
+    return send(url, {
+        method: 'POST',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Dashboard-Request': '1',
+            'X-CSRF-Token': csrfToken
+        },
+        body: JSON.stringify(body || {})
+    });
+}
+
+function send(url, requestOptions) {
     return fetch(url.toString(), requestOptions).then((response) => response.json().catch(() => {
         throw makeError('La aplicación recibió una respuesta no válida.', response.status);
     }).then((data) => {

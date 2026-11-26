@@ -1,9 +1,9 @@
 // Vista de programa: KPIs, barras por asignatura y tabla de estudiantes.
 
-import { drawBars } from '../charts/bars.js';
-import { addCell, setText } from '../dom.js';
+import { drawBars } from '../../../shared/js/charts/bars.js';
+import { addCell, setText } from '../../../shared/js/dom.js';
 import { configureFilters } from '../filters.js';
-import { formatNumber } from '../format.js';
+import { formatNumber } from '../../../shared/js/format.js';
 import { generalAverage, programCompetencyEntries } from '../metrics.js';
 import { dashboardUrlForGlobal } from '../state.js';
 

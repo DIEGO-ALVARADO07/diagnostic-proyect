@@ -1,15 +1,19 @@
-"""Dashboard principal: ESE frente a CORHUILA en el **último periodo cargado**.
+"""Dashboard principal: ESE frente a CORHUILA en un periodo (por defecto, el último cargado).
 
-Reglas (decisión del 26/11/2026):
+Reglas (decisión del 26/11/2026; periodo elegible desde la fase 12b):
 
-- **Periodo actual:** el más reciente entre el periodo de la carga de ESE
+- **Periodo por defecto:** el más reciente entre el periodo de la carga de ESE
   activa (el que se eligió al subir) y los periodos de CORHUILA activos. Si en
   2026-2 solo se subió ESE, se muestra ESE de 2026-2 y CORHUILA queda "a la
   espera"; no se mezclan datos de 2026-1.
+- **Otro periodo:** ``period`` elige uno de ``filters.periods`` (los que tienen
+  filas de ESE o una carga de CORHUILA). Uno sin datos deja ambas pruebas
+  "a la espera".
 - **ESE** trae toda la historia: aquí solo entran sus filas de ese periodo. El
   histórico se consulta en el módulo ESE (``/excel/dashboard/{import_id}``).
-- **Filtros:** momento (solo ESE: CORHUILA tiene momento único) y programa
-  (ambas). No hay filtro de semestre ni de año.
+- **Filtros:** periodo (ambas), momento (solo ESE: CORHUILA tiene momento
+  único) y programa (ambas). Solo se ofrecen los momentos del periodo
+  elegido. No hay filtro de semestre.
 - **"Sin programa"** es un subprograma más: entra en los promedios y su lista
   de estudiantes está en ``/excel/dashboard/review/without-program``.
 - Se usan las 4 competencias comunes (sin Comunicación escrita).
@@ -73,6 +77,7 @@ class DashboardCompareService:
         db: Session,
         moment: int | None = None,
         program_id: str | None = None,
+        period: str | None = None,
     ) -> DashboardCompareResponse:
         ese_import = self._visible(
             self.persistence.get_active_import(db, Source.ESE.value)
@@ -88,14 +93,15 @@ class DashboardCompareService:
             self.loader.load(db, ese_import) if ese_import is not None else None
         )
         candidates = set(corhuila_imports)
+        ese_periods: set[str] = set()
         if ese_dataset is not None:
-            ese_period = ese_import.period or max(
-                (record.period for record in ese_dataset.records if record.period),
-                default=None,
-            )
+            ese_periods = {r.period for r in ese_dataset.records if r.period}
+            ese_period = ese_import.period or max(ese_periods, default=None)
             if ese_period is not None:
                 candidates.add(ese_period)
-        period = max(candidates, default=None)
+        available_periods = sorted(candidates | ese_periods, reverse=True)
+        if period is None:
+            period = max(candidates, default=None)
 
         sides: dict[Source, _Side] = {}
         if period is not None and ese_dataset is not None:
@@ -134,6 +140,8 @@ class DashboardCompareService:
         return DashboardCompareResponse(
             period=period,
             filters=CompareFiltersResponse(
+                periods=available_periods,
+                corhuila_periods=sorted(corhuila_imports, reverse=True),
                 moments=sorted(
                     {
                         r.moment_number
@@ -153,7 +161,7 @@ class DashboardCompareService:
                 ],
             ),
             selected_filters=CompareSelectedFiltersResponse(
-                moment=moment, program_id=program_id
+                period=period, moment=moment, program_id=program_id
             ),
             ese=side_responses.get(Source.ESE),
             corhuila=side_responses.get(Source.CORHUILA),

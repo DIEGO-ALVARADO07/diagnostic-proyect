@@ -209,17 +209,20 @@ async def lookup_student_program(
 )
 async def get_dashboard_compare(
     db: DbSession,
+    period: str | None = Query(default=None, pattern=PERIOD_PATTERN),
     moment: int | None = Query(default=None, ge=1, le=4),
     program_id: str | None = Query(default=None, max_length=40),
 ) -> DashboardCompareResponse:
-    """Dashboard principal: ESE frente a CORHUILA en el último periodo cargado.
+    """Dashboard principal: ESE frente a CORHUILA en un periodo.
 
-    ``moment`` filtra ESE (CORHUILA tiene momento único); ``program_id`` filtra
-    ambas (``sin-programa`` = estudiantes sin programa). El histórico de ESE
-    está en ``GET /excel/dashboard/{import_id}``.
+    ``period`` (``2026-1``) elige el periodo; sin él, el último cargado.
+    ``filters.periods`` trae los que tienen datos. ``moment`` filtra ESE
+    (CORHUILA tiene momento único); ``program_id`` filtra ambas
+    (``sin-programa`` = estudiantes sin programa). El histórico de ESE está en
+    ``GET /excel/dashboard/{import_id}``.
     """
     return await run_in_threadpool(
-        dashboard_service.compare, db, moment, program_id
+        dashboard_service.compare, db, moment, program_id, period
     )
 
 

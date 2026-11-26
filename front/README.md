@@ -15,16 +15,19 @@ La documentación técnica del backend, sus rutas, configuración, migraciones y
 | `dashboard.css` | Estilos comunes del marco, navegación, tablas, formularios, avisos y modales. |
 | `dashboard.js` | Búsqueda y filtros de tablas, confirmación de desactivación, menú móvil, modal de hojas y estado de carga de Excel. |
 | `partials/<modulo>/screen.php` | Plantilla PHP del módulo. |
-| `partials/<modulo>/style.css` | Estilos que solo se cargan para el módulo activo. |
-| `partials/dashboard/js/` | Script del dashboard en módulos ES nativos, sin build. `main.js` es el punto de entrada y se carga con `type="module"`; el mapa de módulos está al inicio de ese archivo. |
+| `partials/<modulo>/style.css` | Estilos que solo se cargan para el módulo activo. Una vista puede cargar varios (`'style' => [...]` en `index.php`). |
+| `partials/<modulo>/js/` | Script del módulo en módulos ES nativos, sin build. `main.js` es el punto de entrada y se carga con `type="module"`. |
+| `partials/shared/` | Lo que comparten Dashboard, ESE y CORHUILA: el proxy `data.php`, los estilos de tarjetas y gráficas (`style.css`), la plantilla de una mitad del comparativo (`compare-side.php`) y los módulos JS comunes (`api.js`, `format.js`, `dom.js`, `compare-side.js`, `charts/`). |
 
 Módulos actuales:
 
-- `partials/dashboard/`: saludo, resumen histórico, filtros, tarjetas de programas y vistas de programa y estudiante con gráficos.
+- `partials/dashboard/`: inicio. ESE y CORHUILA lado a lado en un periodo; filtros en cascada Año → Periodo → Momento (solo ESE) → Programa, que arrancan en el último periodo cargado; abajo, el programa y la competencia más bajos en común.
+- `partials/ese/`: histórico de ESE con filtros (el simulacro solo ofrece los del año elegido), tarjetas de programas y vistas de programa y estudiante.
+- `partials/corhuila/`: resultados de CORHUILA por periodo y lista "Sin programa" para asignar el programa a mano o recalcular el cruce.
 - `partials/users/`: listado de cuentas para superadmin.
 - `partials/create_user/`: creación de instructores y estudiantes.
 - `partials/students/`: listado y búsqueda de estudiantes para instructor.
-- `partials/report/`: carga de Excel, formulario de hoja, resultado y modal de error.
+- `partials/report/`: "Importar Excel". Prueba (ESE o CORHUILA) y periodo: solo el actual y el anterior (`periodosDeCarga()` en `index.php`), validado también al recibir el formulario. Acepta `?source=` y `?period=` para llegar con la prueba y el periodo elegidos.
 - `partials/profile/`: consulta y edición del perfil propio.
 
 ## Vistas y permisos
@@ -33,9 +36,9 @@ La vista se selecciona con el parámetro `view`; por ejemplo, `index.php?view=da
 
 | Rol | Vistas del menú |
 |---|---|
-| `superadmin` | Inicio, usuarios, crear cuenta, leer reporte y mi perfil |
-| `instructor` | Inicio, estudiantes, leer reporte y mi perfil |
-| `estudiante` | Inicio y mi perfil |
+| `superadmin` | Dashboard, ESE, CORHUILA, importar Excel, importaciones, usuarios, crear cuenta y mi perfil |
+| `instructor` | Dashboard, ESE, CORHUILA, importar Excel, estudiantes y mi perfil |
+| `estudiante` | Mi perfil |
 
 La vista no autorizada vuelve al inicio. Esta restricción es de navegación; el backend sigue siendo quien autoriza cada operación.
 
@@ -52,7 +55,9 @@ La vista no autorizada vuelve al inicio. Esta restricción es de navegación; el
 | Crear una cuenta (superadmin) | `POST /users` |
 | Desactivar una cuenta (superadmin) | `DELETE /users/{id}` |
 | Subir y leer una hoja de Excel | `POST /excel/read` |
-| Consultar el dashboard persistido | `GET /excel/dashboard/active`, `GET /excel/dashboard/{import_id}` y consultas de programa/estudiante |
+| Consultar el histórico de ESE | `GET /excel/dashboard/active`, `GET /excel/dashboard/{import_id}` y consultas de programa/estudiante |
+| Dashboard comparativo y módulo CORHUILA | `GET /excel/dashboard/compare?period=&moment=&program_id=` |
+| Estudiantes "Sin programa" y asignación manual | `GET /excel/dashboard/review/without-program`, `GET /excel/dashboard/catalog/programs`, `PUT /excel/dashboard/review/students/{id}/program` y `POST /excel/dashboard/corhuila/resolve` |
 
 El frontend solicita `GET /users` únicamente al abrir la vista de usuarios o estudiantes. La búsqueda por texto y el filtro por rol se aplican sobre esos resultados en el navegador.
 

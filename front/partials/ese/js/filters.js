@@ -1,22 +1,43 @@
 // Filtros de año, simulacro, asignatura y programa, y su resumen en texto.
 
-import { populateSelect } from './dom.js';
+import { populateSelect } from '../../shared/js/dom.js';
 import { competencyEntries } from './metrics.js';
+
+/**
+ * Simulacros que se pueden elegir: con un año elegido, solo los de ese año
+ * (así no se cruza, por ejemplo, 2026 con un simulacro de 2024).
+ */
+function simulationsFor(filters, year) {
+    if (!filters) {
+        return [];
+    }
+    const byYear = filters.simulations_by_year;
+    if (year && byYear && Array.isArray(byYear[year])) {
+        return byYear[year];
+    }
+    return filters.simulations || [];
+}
+
+/** Llena el select de simulacro según el año; si el elegido no aplica, vuelve a "Todos". */
+export function refreshSimulationOptions(ctx) {
+    const { state, elements } = ctx;
+    const simulations = simulationsFor(state.filters, state.year)
+        .map((simulation) => ({ value: simulation, label: simulation }));
+    if (!populateSelect(elements.simulationFilter, simulations, state.simulation, 'Todos')) {
+        state.simulation = '';
+    }
+}
 
 export function configureFilters(ctx, overview) {
     const { state, elements } = ctx;
     state.filters = overview.filters || state.filters;
     const years = (state.filters && state.filters.years ? state.filters.years : [])
         .map((year) => ({ value: year, label: String(year) }));
-    const simulations = (state.filters && state.filters.simulations ? state.filters.simulations : [])
-        .map((simulation) => ({ value: simulation, label: simulation }));
 
     if (!populateSelect(elements.yearFilter, years, state.year, 'Todos')) {
         state.year = '';
     }
-    if (!populateSelect(elements.simulationFilter, simulations, state.simulation, 'Todos')) {
-        state.simulation = '';
-    }
+    refreshSimulationOptions(ctx);
 
     const metrics = overview.kpis || overview.metrics;
     const competencies = competencyEntries(metrics);

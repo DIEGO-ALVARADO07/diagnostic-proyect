@@ -3,9 +3,9 @@
 // `requestNumber` descarta respuestas viejas: si el usuario cambia de vista o
 // de filtro antes de que llegue una respuesta, esa respuesta se ignora.
 
-import { apiRequest, errorMessage, makeError } from './api.js';
-import { setText, showState } from './dom.js';
-import { configureFilters, updateFilterContext } from './filters.js';
+import { apiRequest, errorMessage, makeError } from '../../shared/js/api.js';
+import { setText, showState } from '../../shared/js/dom.js';
+import { configureFilters, refreshSimulationOptions, updateFilterContext } from './filters.js';
 import { PROGRAMS_PER_PAGE, buildFilterParams, updateUrl } from './state.js';
 import { renderOverview, renderSelectedProgram } from './views/overview.js';
 import { renderProgram, renderProgramStudents } from './views/program.js';
@@ -242,6 +242,8 @@ export function createController(ctx) {
         state.year = elements.yearFilter.value;
         state.simulation = elements.simulationFilter.value;
         state.subject = elements.subjectFilter.value;
+        // Al cambiar el año, el simulacro solo puede ser uno de ese año.
+        refreshSimulationOptions(ctx);
         state.page = 1;
         updateFilterContext(ctx);
         updateUrl(state, true);
