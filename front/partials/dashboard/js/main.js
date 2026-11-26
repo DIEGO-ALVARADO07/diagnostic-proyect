@@ -7,7 +7,7 @@
 import { apiRequest, errorMessage } from '../../shared/js/api.js';
 import { populateSelect, setText, showState } from '../../shared/js/dom.js';
 import { renderHighlights } from './highlights.js';
-import { semestersOf, splitPeriod, yearsOf } from './periods.js';
+import { semestersOf, splitPeriod, yearsOf } from '../../shared/js/periods.js';
 import { renderSide } from '../../shared/js/compare-side.js';
 
 const root = document.querySelector('[data-compare]');
@@ -83,8 +83,38 @@ if (root) {
         ].join(' · '));
     };
 
+    /** "Ver módulo" lleva los filtros elegidos: el módulo abre en el mismo periodo. */
+    const updateModuleLinks = (response) => {
+        const parts = splitPeriod(response.period);
+        const ese = new URL('index.php', window.location.href);
+        ese.searchParams.set('view', 'ese');
+        if (parts) {
+            ese.searchParams.set('year', parts.year);
+            ese.searchParams.set('period', response.period);
+        }
+        if (state.moment) {
+            ese.searchParams.set('moment', state.moment);
+        }
+        if (/^[1-9][0-9]*$/.test(state.programId)) {
+            // "Sin programa" no existe en ESE: ahí solo se pasa el periodo.
+            ese.searchParams.set('program_filter', state.programId);
+        }
+        const corhuila = new URL('index.php', window.location.href);
+        corhuila.searchParams.set('view', 'corhuila');
+        corhuila.searchParams.set('period', response.period);
+
+        const links = { ese: ese, corhuila: corhuila };
+        Object.keys(links).forEach((key) => {
+            const link = root.querySelector('[data-side="' + key + '"] [data-side-module]');
+            if (link) {
+                link.href = links[key].toString();
+            }
+        });
+    };
+
     const render = (response) => {
         fillFilters(response);
+        updateModuleLinks(response);
         renderSide(root.querySelector('[data-side="ese"]'), response.ese, {
             label: 'ESE', source: 'ESE', period: response.period, uploadPeriods: state.uploadPeriods
         });

@@ -32,6 +32,21 @@ function dashboardFilters(array $input): array {
             $filters[$key] = $input[$key];
         }
     }
+    // Periodo (AAAA-1 / AAAA-2) y momento de ESE, como en el dashboard.
+    $period = $input['period'] ?? '';
+    if ($period !== '') {
+        if (!is_string($period) || !preg_match(DASHBOARD_PERIOD_PATTERN, $period)) {
+            dashboardJson(422, ['detail' => 'El periodo seleccionado no es válido.']);
+        }
+        $filters['period'] = $period;
+    }
+    $moment = $input['moment'] ?? '';
+    if ($moment !== '') {
+        if (!is_string($moment) || !preg_match('/^[1-4]$/', $moment)) {
+            dashboardJson(422, ['detail' => 'El momento seleccionado no es válido.']);
+        }
+        $filters['moment'] = (int) $moment;
+    }
 
     return $filters;
 }
@@ -166,6 +181,45 @@ if ($resource === 'active') {
         $params['program_id'] = $programId;
     }
     $endpoint = 'excel/dashboard/compare';
+} elseif ($resource === 'students') {
+    // Módulo Estudiantes: estudiantes de los Excel por nivel, en un periodo
+    // (por defecto el último) o en todo el histórico (period=all).
+    $params = [];
+    $period = $_GET['period'] ?? '';
+    if ($period !== '') {
+        if ($period !== 'all' && !dashboardIdentifier($period, DASHBOARD_PERIOD_PATTERN)) {
+            dashboardJson(422, ['detail' => 'El periodo seleccionado no es válido.']);
+        }
+        $params['period'] = $period;
+    }
+    $level = $_GET['level'] ?? '';
+    if ($level !== '') {
+        if (!dashboardIdentifier($level, '/^([1-4]|sin-resultado)$/')) {
+            dashboardJson(422, ['detail' => 'El nivel seleccionado no es válido.']);
+        }
+        $params['level'] = $level;
+    }
+    $programId = $_GET['program_id'] ?? '';
+    if ($programId !== '') {
+        if (!dashboardIdentifier($programId, DASHBOARD_COMPARE_PROGRAM_PATTERN)) {
+            dashboardJson(422, ['detail' => 'El programa seleccionado no es válido.']);
+        }
+        $params['program_id'] = $programId;
+    }
+    $search = $_GET['search'] ?? '';
+    if (!is_string($search) || mb_strlen($search) > 120) {
+        dashboardJson(422, ['detail' => 'El texto de búsqueda es demasiado largo.']);
+    }
+    if (trim($search) !== '') {
+        $params['search'] = trim($search);
+    }
+    $page = filter_var($_GET['page'] ?? 1, FILTER_VALIDATE_INT);
+    if ($page === false || $page < 1) {
+        dashboardJson(422, ['detail' => 'El número de página no es válido.']);
+    }
+    $params['page'] = $page;
+    $params['page_size'] = 50;
+    $endpoint = 'excel/dashboard/students';
 } elseif ($resource === 'catalog') {
     $endpoint = 'excel/dashboard/catalog/programs';
     $params = [];

@@ -1,6 +1,60 @@
+/* Módulo Estudiantes (fase 13a). Usa shared/style.css. */
+
+.students-app { margin: 0 auto; max-width: 1180px; }
 .module-heading { margin-top: 5px; }
 .module-heading > .count-pill { margin-bottom: 4px; }
 
+/* Los 5 grupos: Nivel 1–4 y Sin resultado. */
+.level-groups { display: grid; gap: 12px; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 18px; }
+.level-group { --accent: #c36c49; --soft: #fff3ee; background: #fff; border: 1px solid var(--line); border-radius: 11px; border-top: 4px solid var(--accent); box-shadow: var(--shadow); color: var(--ink); cursor: pointer; display: flex; flex-direction: column; font: inherit; gap: 2px; padding: 13px 14px 12px; text-align: left; transition: border-color .15s, box-shadow .15s, transform .15s; }
+.level-group:hover { box-shadow: 0 12px 28px rgba(16, 43, 69, .09); transform: translateY(-1px); }
+.level-group:focus-visible { outline: 3px solid rgba(12,155,107,.25); outline-offset: 2px; }
+.level-group-title { color: #526779; font-size: 10px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+.level-group strong { color: #1d3b4e; font: 700 24px 'Manrope', sans-serif; line-height: 1.2; }
+.level-group small { color: #81909b; font-size: 10px; }
+.level-group-hint { color: #98a5af; font-size: 9px; margin-top: 4px; }
+.level-group.is-active { background: var(--soft); border-color: var(--accent); }
+.students-app.has-level .level-group:not(.is-active) { opacity: .62; }
+.level-group-1 { --accent: #d0704d; --soft: #fff4ef; }
+.level-group-2 { --accent: #d9a23a; --soft: #fff9ec; }
+.level-group-3 { --accent: #3f9b8a; --soft: #edf8f5; }
+.level-group-4 { --accent: #0c9b6b; --soft: #e8f5ef; }
+.level-group-sin-resultado { --accent: #9aa7b2; --soft: #f3f6f8; }
+
+.students-filters { margin-bottom: 16px; }
+.students-filter-controls { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.students-panel { padding: 18px; }
+.students-toolbar { align-items: center; }
+.students-context { align-items: center; color: #738c7c; display: flex; font-size: 10px; justify-content: space-between; margin: -4px 0 10px; min-height: 26px; }
+.students-status { align-items: center; display: flex; flex-direction: column; gap: 8px; justify-content: center; min-height: 220px; text-align: center; }
+.students-status strong { color: #354e5f; font: 700 13px 'Manrope', sans-serif; }
+.students-status p { color: #81909b; font-size: 11px; margin: 0; }
+
+.students-table { min-width: 980px; }
+.students-table th { font-size: 8px; padding: 10px 9px; }
+.students-table td { font-size: 10px; padding: 9px; vertical-align: middle; }
+.students-person strong { color: #31495b; display: block; font-weight: 600; }
+.students-person small { color: #8a98a3; display: block; font-size: 9px; margin-top: 2px; }
+.students-table .students-competency { color: #445a6b; font-weight: 600; text-align: center; }
+.students-table .students-source { color: #81909b; white-space: nowrap; }
+.students-table .is-sin-programa { color: #b4572f; font-style: italic; }
+
+.level-badge { border-radius: 20px; display: inline-block; font-size: 9px; font-weight: 700; padding: 4px 9px; white-space: nowrap; }
+.level-badge-1 { background: #fff1ea; color: #b4572f; }
+.level-badge-2 { background: #fff6e2; color: #9a6b12; }
+.level-badge-3 { background: #e9f6f2; color: #2f7d6e; }
+.level-badge-4 { background: #e3f4ec; color: #087852; }
+.level-badge-sin-resultado { background: #eef2f5; color: #6d7d89; }
+
+@media (max-width: 1050px) {
+    .level-groups { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
 @media (max-width: 760px) {
     .module-heading > .count-pill { align-self: flex-start; }
+    .level-groups { gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .level-group-sin-resultado { grid-column: 1 / -1; }
+    .students-filter-controls { grid-template-columns: 1fr; }
+    .students-panel { padding: 14px; }
+    .students-context { align-items: flex-start; flex-direction: column; gap: 4px; }
 }

@@ -12,11 +12,12 @@ function isGeneralSubject(state) {
     return state.subject === 'global' || state.subject === 'all';
 }
 
-/** Intentos del estudiante en el programa abierto, con los filtros de año y simulacro. */
+/** Intentos del estudiante en el programa abierto, con los filtros de año, periodo y momento. */
 function filteredHistory(state, student) {
     return (student.history || []).filter((attempt) => attempt.program_id === state.programId &&
         (!state.year || String(attempt.year) === state.year) &&
-        (!state.simulation || attempt.simulation === state.simulation));
+        (!state.period || attempt.period === state.period) &&
+        (!state.moment || String(attempt.moment) === state.moment));
 }
 
 function renderScore(ctx, latest) {

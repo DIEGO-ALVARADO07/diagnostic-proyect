@@ -26,6 +26,7 @@ from modules.excel.dtos.responses.dashboard import (
     ProgramLookupResponse,
     ReviewStudentResponse,
     ReviewStudentsResponse,
+    StudentLevelsResponse,
 )
 from modules.excel.dtos.responses.read_workbook import ReadWorkbookResponse
 from modules.excel.services.excel_service import ExcelService, MAX_UPLOAD_BYTES
@@ -223,6 +224,39 @@ async def get_dashboard_compare(
     """
     return await run_in_threadpool(
         dashboard_service.compare, db, moment, program_id, period
+    )
+
+
+@router.get(
+    "/dashboard/students",
+    response_model=StudentLevelsResponse,
+    dependencies=[Depends(require_roles(Role.INSTRUCTOR, Role.SUPERADMIN))],
+)
+async def list_students_by_level(
+    db: DbSession,
+    period: str | None = Query(default=None, pattern=r"^(\d{4}-[12]|all)$"),
+    level: str | None = Query(default=None, pattern=r"^([1-4]|sin-resultado)$"),
+    program_id: str | None = Query(default=None, max_length=40),
+    search: str | None = Query(default=None, max_length=120),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=MAX_PAGE_SIZE),
+) -> StudentLevelsResponse:
+    """Estudiantes de los Excel (ESE y CORHUILA juntos) por nivel.
+
+    ``period`` (``2026-2``) deja los de ese periodo, con el nivel de ese
+    periodo; sin él, el último con datos; ``all`` es el histórico (cada uno con
+    su periodo más reciente con puntajes). ``groups`` cuenta cuántos hay en Nivel 1–4 y "Sin resultado" (con la
+    búsqueda y el programa aplicados); ``level`` deja la lista en un grupo.
+    """
+    return await run_in_threadpool(
+        dashboard_service.list_students,
+        db,
+        level,
+        program_id,
+        search.strip() if search else None,
+        page,
+        page_size,
+        period,
     )
 
 

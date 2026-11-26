@@ -81,6 +81,16 @@ def filter_options(dataset: DashboardDataset) -> DashboardFilterOptionsResponse:
             )
             for year in years
         },
+        moments_by_period={
+            period: sorted(
+                {
+                    r.moment_number
+                    for r in dataset.records
+                    if r.period == period and r.moment_number is not None
+                }
+            )
+            for period in {r.period for r in dataset.records if r.period}
+        },
         groups=values_for("group"),
         programs=[
             ProgramOptionResponse(program_id=program_id, name=name)

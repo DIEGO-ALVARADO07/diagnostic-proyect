@@ -234,7 +234,8 @@ $vistas = [
     'students' => [
         'title' => 'Estudiantes',
         'screen' => 'students/screen.php',
-        'style' => 'students/style.css',
+        'style' => ['shared/style.css', 'students/style.css'],
+        'script' => 'partials/students/js/main.js',
     ],
     'report' => [
         'title' => 'Importar Excel',
@@ -299,7 +300,7 @@ unset($_SESSION['flash']);
 
 $usuarios = [];
 $errorUsuarios = null;
-if (in_array($vistaSolicitada, ['users', 'students'], true)) {
+if ($vistaSolicitada === 'users') {
     $respuestaUsuarios = llamarBackend('GET', 'users', ['limit' => 100]);
     if ($respuestaUsuarios['status'] === 200 && is_array($respuestaUsuarios['data'])) {
         $usuarios = $respuestaUsuarios['data'];

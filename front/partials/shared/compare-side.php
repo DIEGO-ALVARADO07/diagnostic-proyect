@@ -11,7 +11,7 @@ if (!function_exists('renderCompareSide')) {
                 <p class="compare-side-file" data-side-file></p>
             </div>
             <?php if ($module !== ''): ?>
-                <a class="button button-secondary compare-side-link" href="index.php?view=<?= h($module) ?>">Ver módulo <span>→</span></a>
+                <a class="button button-secondary compare-side-link" data-side-module href="index.php?view=<?= h($module) ?>">Ver módulo <span>→</span></a>
             <?php endif; ?>
         </header>
 

@@ -5,6 +5,8 @@ delega cada caso de uso:
 
 - ``DashboardImportService``: importar, listar y desactivar importaciones.
 - ``DashboardQueryService``: overview, programa, estudiante e importación activa.
+- ``DashboardCompareService``: ESE frente a CORHUILA en un periodo.
+- ``StudentLevelsService``: todos los estudiantes de los Excel por nivel.
 
 Ambos comparten el mismo ``DashboardDatasetLoader`` (y su caché), de modo que una
 importación recién cargada queda disponible para las consultas y una
@@ -19,6 +21,7 @@ from sqlalchemy.orm import Session
 from core.exceptions import ApplicationError
 from modules.excel.entities.academic import AcademicProgram
 from modules.excel.services.dashboard_compare_service import DashboardCompareService
+from modules.excel.services.student_levels_service import StudentLevelsService
 from modules.excel.services.program_resolution import (
     ProgramAssignmentError,
     assign_student_program,
@@ -38,6 +41,7 @@ from modules.excel.dtos.responses.dashboard import (
     DashboardOverviewResponse,
     DashboardProgramResponse,
     DashboardStudentResponse,
+    StudentLevelsResponse,
 )
 from modules.excel.entities.assessment import Source
 from modules.excel.repositories.dashboard_persistence_repository import (
@@ -81,6 +85,7 @@ class DashboardService:
             queries=self.queries,
         )
         self.comparison = DashboardCompareService(persistence, self.loader)
+        self.student_levels = StudentLevelsService(persistence, self.loader)
 
     @property
     def dataset_cache(self) -> DashboardDatasetCache:
@@ -96,6 +101,20 @@ class DashboardService:
         period: str | None = None,
     ) -> DashboardCompareResponse:
         return self.comparison.compare(db, moment, program_id, period)
+
+    def list_students(
+        self,
+        db: Session,
+        level: str | None = None,
+        program_id: str | None = None,
+        search: str | None = None,
+        page: int = 1,
+        page_size: int = 50,
+        period: str | None = None,
+    ) -> StudentLevelsResponse:
+        return self.student_levels.list(
+            db, level, program_id, search, page, page_size, period
+        )
 
     def program_catalog(self, db: Session) -> ProgramCatalogResponse:
         return ProgramCatalogResponse(

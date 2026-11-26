@@ -1,30 +1,52 @@
-// Filtros de año, simulacro, asignatura y programa, y su resumen en texto.
+// Filtros de año, periodo, momento, asignatura y programa, y su resumen en texto.
+//
+// Como en el dashboard: Año → Periodo del año → Momento, en cascada. No hay
+// "Todos los años"; al entrar se ve el periodo más reciente y, para el
+// histórico, se elige otro año o "Todo el año".
 
 import { populateSelect } from '../../shared/js/dom.js';
 import { competencyEntries } from './metrics.js';
 
-/**
- * Simulacros que se pueden elegir: con un año elegido, solo los de ese año
- * (así no se cruza, por ejemplo, 2026 con un simulacro de 2024).
- */
-function simulationsFor(filters, year) {
-    if (!filters) {
-        return [];
-    }
-    const byYear = filters.simulations_by_year;
-    if (year && byYear && Array.isArray(byYear[year])) {
-        return byYear[year];
-    }
-    return filters.simulations || [];
+/** Año más reciente de la carga de ESE, como texto ('' si no hay años). */
+export function latestYear(filters) {
+    const years = filters && Array.isArray(filters.years) ? filters.years : [];
+    return years.length ? String(Math.max.apply(null, years)) : '';
 }
 
-/** Llena el select de simulacro según el año; si el elegido no aplica, vuelve a "Todos". */
-export function refreshSimulationOptions(ctx) {
+/** Periodos (AAAA-S) del año con datos, el más reciente primero. */
+function periodsOfYear(filters, year) {
+    const periods = filters && Array.isArray(filters.periods) ? filters.periods : [];
+    return periods.filter((period) => period.startsWith(year + '-')).sort().reverse();
+}
+
+/** Periodo más reciente del año ('' si el año no tiene periodos). */
+export function latestPeriodOf(filters, year) {
+    return periodsOfYear(filters, year)[0] || '';
+}
+
+/** Momentos del periodo; con "Todo el año", los de todos sus periodos. */
+function momentsFor(filters, year, period) {
+    const byPeriod = (filters && filters.moments_by_period) || {};
+    const periods = period ? [period] : periodsOfYear(filters, year);
+    const moments = new Set();
+    periods.forEach((item) => (byPeriod[item] || []).forEach((moment) => moments.add(moment)));
+    return Array.from(moments).sort((a, b) => a - b);
+}
+
+/** Llena Periodo y Momento según el año; lo que no aplica vuelve a "Todo el año" / "Todos". */
+export function refreshPeriodOptions(ctx) {
     const { state, elements } = ctx;
-    const simulations = simulationsFor(state.filters, state.year)
-        .map((simulation) => ({ value: simulation, label: simulation }));
-    if (!populateSelect(elements.simulationFilter, simulations, state.simulation, 'Todos')) {
-        state.simulation = '';
+    const periods = periodsOfYear(state.filters, state.year).map((period) => ({
+        value: period,
+        label: 'Periodo ' + period.slice(-1) + ' (' + period + ')'
+    }));
+    if (!populateSelect(elements.periodFilter, periods, state.period, 'Todo el año')) {
+        state.period = '';
+    }
+    const moments = momentsFor(state.filters, state.year, state.period)
+        .map((moment) => ({ value: moment, label: 'Momento ' + moment }));
+    if (!populateSelect(elements.momentFilter, moments, state.moment, 'Todos')) {
+        state.moment = '';
     }
 }
 
@@ -32,12 +54,15 @@ export function configureFilters(ctx, overview) {
     const { state, elements } = ctx;
     state.filters = overview.filters || state.filters;
     const years = (state.filters && state.filters.years ? state.filters.years : [])
+        .slice()
+        .sort((a, b) => b - a)
         .map((year) => ({ value: year, label: String(year) }));
 
-    if (!populateSelect(elements.yearFilter, years, state.year, 'Todos')) {
-        state.year = '';
+    // Sin opción "Todos": si el año no aplica, queda el más reciente.
+    if (!populateSelect(elements.yearFilter, years, state.year, null)) {
+        state.year = elements.yearFilter.value;
     }
-    refreshSimulationOptions(ctx);
+    refreshPeriodOptions(ctx);
 
     const metrics = overview.kpis || overview.metrics;
     const competencies = competencyEntries(metrics);
@@ -76,8 +101,9 @@ export function updateFilterContext(ctx) {
     if (state.year) {
         values.push('Año: ' + state.year);
     }
-    if (state.simulation) {
-        values.push('Simulacro: ' + state.simulation);
+    values.push(state.period ? 'Periodo: ' + state.period : 'Periodo: todo el año');
+    if (state.moment) {
+        values.push('Momento ' + state.moment);
     }
     if (state.subject === 'all') {
         values.push('Asignatura: Todas');

@@ -183,6 +183,17 @@ class CompareDashboardTests(unittest.TestCase):
             sorted(s for group in filters.simulations_by_year.values() for s in group),
         )
 
+    def test_ese_moments_grouped_by_period(self) -> None:
+        """El módulo ESE filtra Año → Periodo → Momento, como el dashboard."""
+        self._import_ese("2026-1")
+
+        filters = self.service.get_active_import(self.db).filters
+
+        self.assertEqual(
+            filters.moments_by_period,
+            {"2024-1": [4], "2025-1": [1], "2025-2": [2], "2026-1": [2]},
+        )
+
     def test_filters_by_moment_and_program(self) -> None:
         self._import_ese("2026-1")
         self._import_corhuila("2026-1")

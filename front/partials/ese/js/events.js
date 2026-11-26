@@ -6,8 +6,9 @@ export function bindEvents(ctx, controller) {
     const { root, state, elements } = ctx;
     const on = (selector, handler) => root.querySelector(selector).addEventListener('click', handler);
 
-    elements.yearFilter.addEventListener('change', controller.changeFilters);
-    elements.simulationFilter.addEventListener('change', controller.changeFilters);
+    elements.yearFilter.addEventListener('change', controller.changeYear);
+    elements.periodFilter.addEventListener('change', controller.changePeriod);
+    elements.momentFilter.addEventListener('change', controller.changeMoment);
     elements.subjectFilter.addEventListener('change', controller.changeSubject);
     elements.programFilter.addEventListener('change', controller.changeSelectedProgram);
 

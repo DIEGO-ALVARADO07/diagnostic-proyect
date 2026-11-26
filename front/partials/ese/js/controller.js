@@ -5,7 +5,7 @@
 
 import { apiRequest, errorMessage, makeError } from '../../shared/js/api.js';
 import { setText, showState } from '../../shared/js/dom.js';
-import { configureFilters, refreshSimulationOptions, updateFilterContext } from './filters.js';
+import { configureFilters, latestPeriodOf, latestYear, refreshPeriodOptions, updateFilterContext } from './filters.js';
 import { PROGRAMS_PER_PAGE, buildFilterParams, updateUrl } from './state.js';
 import { renderOverview, renderSelectedProgram } from './views/overview.js';
 import { renderProgram, renderProgramStudents } from './views/program.js';
@@ -96,6 +96,11 @@ export function createController(ctx) {
             state.importId = result.import_id;
             state.filters = result.filters;
             state.overview = result.overview;
+            if (!state.year) {
+                // Al entrar sin filtros: el periodo más reciente (como el dashboard).
+                state.year = latestYear(state.filters);
+                state.period = latestPeriodOf(state.filters, state.year);
+            }
             if (state.level === 'program') {
                 return fetchProgram(requestNumber);
             }
@@ -108,7 +113,7 @@ export function createController(ctx) {
                 }
                 return fetchStudent();
             }
-            if (state.page > 1 || state.year || state.simulation) {
+            if (state.page > 1 || state.year || state.period || state.moment) {
                 return fetchOverview(requestNumber);
             }
             return result.overview;
@@ -126,6 +131,13 @@ export function createController(ctx) {
 
         request.then(() => {
             if (requestNumber !== state.requestNumber) {
+                return;
+            }
+            if (!state.year && latestYear(state.filters)) {
+                // Llegó sin año (por ejemplo, un enlace viejo): se pide el periodo más reciente.
+                state.year = latestYear(state.filters);
+                state.period = latestPeriodOf(state.filters, state.year);
+                loadCurrentView();
                 return;
             }
             showState(elements, 'content');
@@ -238,12 +250,28 @@ export function createController(ctx) {
 
     // --- Filtros y paginación ---------------------------------------------
 
-    function changeFilters() {
+    // Cascada como en el dashboard: cambiar de año elige su periodo más
+    // reciente; cambiar de año o de periodo quita el momento.
+    function changeYear() {
         state.year = elements.yearFilter.value;
-        state.simulation = elements.simulationFilter.value;
-        state.subject = elements.subjectFilter.value;
-        // Al cambiar el año, el simulacro solo puede ser uno de ese año.
-        refreshSimulationOptions(ctx);
+        state.period = latestPeriodOf(state.filters, state.year);
+        state.moment = '';
+        applyFilters();
+    }
+
+    function changePeriod() {
+        state.period = elements.periodFilter.value;
+        state.moment = '';
+        applyFilters();
+    }
+
+    function changeMoment() {
+        state.moment = elements.momentFilter.value;
+        applyFilters();
+    }
+
+    function applyFilters() {
+        refreshPeriodOptions(ctx);
         state.page = 1;
         updateFilterContext(ctx);
         updateUrl(state, true);
@@ -275,14 +303,15 @@ export function createController(ctx) {
     }
 
     function resetFilters() {
-        state.year = '';
-        state.simulation = '';
+        state.year = latestYear(state.filters);
+        state.period = latestPeriodOf(state.filters, state.year);
+        state.moment = '';
         state.subject = 'global';
         state.page = 1;
         state.studentSearch = '';
         state.selectedProgramId = '';
-        elements.yearFilter.value = '';
-        elements.simulationFilter.value = '';
+        elements.yearFilter.value = state.year;
+        refreshPeriodOptions(ctx);
         elements.subjectFilter.value = 'global';
         elements.programFilter.value = '';
         elements.studentSearch.value = '';
@@ -328,7 +357,9 @@ export function createController(ctx) {
 
     return {
         loadCurrentView,
-        changeFilters,
+        changeYear,
+        changePeriod,
+        changeMoment,
         changeSubject,
         changeSelectedProgram,
         resetFilters,

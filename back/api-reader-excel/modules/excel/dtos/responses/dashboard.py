@@ -43,6 +43,8 @@ class DashboardFilterOptionsResponse(BaseModel):
     """Momentos de ESE presentes (1, 2, 3)."""
     simulations: list[str]
     simulations_by_year: dict[int, list[str]] = {}
+    moments_by_period: dict[str, list[int]] = {}
+    """Momentos de ESE de cada periodo, para filtrar en cascada."""
     """Simulacros de cada año: el filtro solo ofrece los del año elegido."""
     groups: list[str]
     programs: list[ProgramOptionResponse]
@@ -405,3 +407,51 @@ class AssignProgramRequest(BaseModel):
 class CorhuilaResolveResponse(BaseModel):
     changed_rows: int
     without_program: int
+
+
+class StudentLevelItemResponse(BaseModel):
+    """Un estudiante de los Excel (ESE y CORHUILA juntos) con su nivel actual."""
+
+    student_key: str
+    name: str
+    document: str | None
+    email: str | None
+    program_id: str
+    program: str
+    level: int | None
+    """Nivel 1–4; ``None`` = "Sin resultado"."""
+    level_period: str | None
+    """Periodo del que sale el nivel (el más reciente con puntajes)."""
+    level_sources: list[str]
+    """Pruebas de ese periodo (``ESE``, ``CORHUILA``)."""
+    competency_levels: dict[str, str | None]
+    """Nivel por competencia común en ``level_period`` (``"3"``, ``"B1"``…)."""
+    average: float | None
+    """Promedio de las 4 competencias comunes en ``level_period``."""
+    last_period: str | None
+    """Último periodo en que aparece, haya presentado o no."""
+
+
+class StudentLevelGroupResponse(BaseModel):
+    key: str
+    """``"1"``…``"4"`` o ``"sin-resultado"``."""
+    label: str
+    count: int
+
+
+class StudentLevelsResponse(BaseModel):
+    total: int
+    """Estudiantes que cumplen búsqueda y programa (antes del filtro de nivel)."""
+    groups: list[StudentLevelGroupResponse]
+    programs: list[ProgramOptionResponse]
+    level: str | None
+    period: str
+    """Periodo consultado (``2026-2``) o ``"all"`` (histórico)."""
+    periods: list[str]
+    """Periodos con datos, del más reciente al más antiguo."""
+    page: int
+    page_size: int
+    filtered_total: int
+    """Estudiantes del nivel elegido (o ``total`` si no hay nivel)."""
+    students: list[StudentLevelItemResponse]
+    rule: str

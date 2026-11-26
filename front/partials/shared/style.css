@@ -25,6 +25,7 @@
 .filter-reset { background: transparent; border: 0; color: var(--green-dark); cursor: pointer; font-size: 10px; font-weight: 700; padding: 6px; }
 .filter-reset:hover { text-decoration: underline; }
 .filter-controls { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.filter-controls-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .filter-field { display: flex; flex-direction: column; gap: 5px; }
 .filter-field > span, .program-filter > span { color: #526779; font-size: 10px; font-weight: 700; }
 .filter-field select, .program-filter select { background: white; border: 1px solid #dfe7ea; border-radius: 6px; color: #445a6b; font-size: 11px; min-height: 37px; outline: none; padding: 0 10px; width: 100%; }
@@ -112,6 +113,7 @@
 .empty-detail-message { color: #7d8b94; font-size: 10px; grid-column: 1 / -1; margin: 2px; }
 
 @media (max-width: 1050px) {
+    .filter-controls-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .program-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

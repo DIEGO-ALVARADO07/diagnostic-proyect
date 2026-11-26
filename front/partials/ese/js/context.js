@@ -17,7 +17,8 @@ export function createContext(root) {
             noImport: root.querySelector('[data-dashboard-no-import]'),
             yearFilter: root.querySelector('[data-filter-year]'),
             subjectFilter: root.querySelector('[data-filter-subject]'),
-            simulationFilter: root.querySelector('[data-filter-simulation]'),
+            periodFilter: root.querySelector('[data-filter-period]'),
+            momentFilter: root.querySelector('[data-filter-moment]'),
             programFilter: root.querySelector('[data-program-filter]'),
             studentSearch: root.querySelector('[data-student-search]')
         },

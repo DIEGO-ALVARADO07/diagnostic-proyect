@@ -7,7 +7,8 @@ $dashboardImportId = $_GET['import_id'] ?? '';
 $dashboardProgramId = $_GET['program_id'] ?? '';
 $dashboardStudentRef = $_GET['student_ref'] ?? '';
 $dashboardYear = $_GET['year'] ?? '';
-$dashboardSimulation = $_GET['simulation'] ?? '';
+$dashboardPeriod = $_GET['period'] ?? '';
+$dashboardMoment = $_GET['moment'] ?? '';
 $dashboardSubject = $_GET['subject'] ?? 'global';
 $dashboardPage = $_GET['page'] ?? '1';
 ?>
@@ -18,7 +19,8 @@ $dashboardPage = $_GET['page'] ?? '1';
      data-program-id="<?= h($dashboardProgramId) ?>"
      data-student-ref="<?= h($dashboardStudentRef) ?>"
      data-year="<?= h($dashboardYear) ?>"
-     data-simulation="<?= h($dashboardSimulation) ?>"
+     data-period="<?= h($dashboardPeriod) ?>"
+     data-moment="<?= h($dashboardMoment) ?>"
      data-subject="<?= h($dashboardSubject) ?>"
      data-page="<?= h($dashboardPage) ?>"
      data-csrf-token="<?= h($csrfToken) ?>">
@@ -57,10 +59,11 @@ $dashboardPage = $_GET['page'] ?? '1';
                 <div><p class="eyebrow">CONSULTA HISTÓRICA</p><h2>Filtros</h2></div>
                 <button type="button" class="filter-reset" data-reset-filters>Restablecer</button>
             </div>
-            <div class="filter-controls">
-                <label class="filter-field"><span>Año</span><select data-filter-year aria-label="Filtrar por año"><option value="">Todos</option></select></label>
+            <div class="filter-controls filter-controls-4">
+                <label class="filter-field"><span>Año</span><select data-filter-year aria-label="Filtrar por año"></select></label>
+                <label class="filter-field"><span>Periodo</span><select data-filter-period aria-label="Filtrar por periodo del año"><option value="">Todo el año</option></select></label>
+                <label class="filter-field"><span>Momento</span><select data-filter-moment aria-label="Filtrar por momento"><option value="">Todos</option></select></label>
                 <label class="filter-field"><span>Asignatura</span><select data-filter-subject aria-label="Filtrar por asignatura"><option value="global">Global</option></select></label>
-                <label class="filter-field"><span>Simulacro</span><select data-filter-simulation aria-label="Filtrar por simulacro"><option value="">Todos</option></select></label>
             </div>
             <div class="applied-context" data-filter-context></div>
         </section>

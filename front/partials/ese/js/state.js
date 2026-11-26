@@ -14,7 +14,8 @@ export function createState(root) {
         programId: root.dataset.programId || '',
         studentRef: root.dataset.studentRef || '',
         year: root.dataset.year || '',
-        simulation: root.dataset.simulation || '',
+        period: root.dataset.period || '',
+        moment: root.dataset.moment || '',
         subject: root.dataset.subject || 'global',
         page: parsePositiveInteger(root.dataset.page, 1),
         studentSearch: '',
@@ -38,7 +39,8 @@ export function readUrlState(state) {
     state.programId = params.get('program_id') || '';
     state.studentRef = params.get('student_ref') || '';
     state.year = params.get('year') || '';
-    state.simulation = params.get('simulation') || '';
+    state.period = params.get('period') || '';
+    state.moment = params.get('moment') || '';
     state.subject = params.get('subject') || 'global';
     state.page = parsePositiveInteger(params.get('page'), 1);
     state.studentSearch = params.get('search') || '';
@@ -51,7 +53,8 @@ export function readUrlState(state) {
 export function buildFilterParams(state) {
     return {
         year: state.year,
-        simulation: state.simulation
+        period: state.period,
+        moment: state.moment
     };
 }
 
@@ -65,8 +68,11 @@ export function dashboardUrl(state) {
     if (state.year) {
         url.searchParams.set('year', state.year);
     }
-    if (state.simulation) {
-        url.searchParams.set('simulation', state.simulation);
+    if (state.period) {
+        url.searchParams.set('period', state.period);
+    }
+    if (state.moment) {
+        url.searchParams.set('moment', state.moment);
     }
     if (state.subject && state.subject !== 'global') {
         url.searchParams.set('subject', state.subject);

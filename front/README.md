@@ -17,16 +17,16 @@ La documentación técnica del backend, sus rutas, configuración, migraciones y
 | `partials/<modulo>/screen.php` | Plantilla PHP del módulo. |
 | `partials/<modulo>/style.css` | Estilos que solo se cargan para el módulo activo. Una vista puede cargar varios (`'style' => [...]` en `index.php`). |
 | `partials/<modulo>/js/` | Script del módulo en módulos ES nativos, sin build. `main.js` es el punto de entrada y se carga con `type="module"`. |
-| `partials/shared/` | Lo que comparten Dashboard, ESE y CORHUILA: el proxy `data.php`, los estilos de tarjetas y gráficas (`style.css`), la plantilla de una mitad del comparativo (`compare-side.php`) y los módulos JS comunes (`api.js`, `format.js`, `dom.js`, `compare-side.js`, `charts/`). |
+| `partials/shared/` | Lo que comparten Dashboard, ESE y CORHUILA: el proxy `data.php`, los estilos de tarjetas y gráficas (`style.css`), la plantilla de una mitad del comparativo (`compare-side.php`) y los módulos JS comunes (`api.js`, `format.js`, `dom.js`, `periods.js`, `compare-side.js`, `charts/`). |
 
 Módulos actuales:
 
-- `partials/dashboard/`: inicio. ESE y CORHUILA lado a lado en un periodo; filtros en cascada Año → Periodo → Momento (solo ESE) → Programa, que arrancan en el último periodo cargado; abajo, el programa y la competencia más bajos en común.
-- `partials/ese/`: histórico de ESE con filtros (el simulacro solo ofrece los del año elegido), tarjetas de programas y vistas de programa y estudiante.
+- `partials/dashboard/`: inicio. ESE y CORHUILA lado a lado en un periodo; filtros en cascada Año → Periodo → Momento (solo ESE) → Programa, que arrancan en el último periodo cargado; abajo, el programa y la competencia más bajos en común. "Ver módulo" abre ESE (año, periodo, momento y programa) o CORHUILA (periodo) con los mismos filtros.
+- `partials/ese/`: histórico de ESE con filtros Año → Periodo (o "Todo el año") → Momento, como el dashboard; arranca en el periodo más reciente y no tiene "Todos los años". Tarjetas de programas y vistas de programa y estudiante.
 - `partials/corhuila/`: resultados de CORHUILA por periodo y lista "Sin programa" para asignar el programa a mano o recalcular el cruce.
 - `partials/users/`: listado de cuentas para superadmin.
 - `partials/create_user/`: creación de instructores y estudiantes.
-- `partials/students/`: listado y búsqueda de estudiantes para instructor.
+- `partials/students/`: todos los estudiantes de los Excel (ESE y CORHUILA juntos, sin crearlos a mano) en 5 grupos: Nivel 1–4 y Sin resultado. Filtro Año → Periodo como el dashboard (arranca en el último periodo; "Todo el histórico" al final de los años); elegir un nivel no cambia el periodo. Nivel de cada estudiante: promedio de los niveles de las 4 competencias comunes en ese periodo, redondeado hacia abajo (en el histórico, su periodo más reciente con puntajes). Búsqueda y programa como filtros extra. Las cuentas de usuario siguen en `users/`.
 - `partials/report/`: "Importar Excel". Prueba (ESE o CORHUILA) y periodo: solo el actual y el anterior (`periodosDeCarga()` en `index.php`), validado también al recibir el formulario. Acepta `?source=` y `?period=` para llegar con la prueba y el periodo elegidos.
 - `partials/profile/`: consulta y edición del perfil propio.
 
@@ -57,6 +57,7 @@ La vista no autorizada vuelve al inicio. Esta restricción es de navegación; el
 | Subir y leer una hoja de Excel | `POST /excel/read` |
 | Consultar el histórico de ESE | `GET /excel/dashboard/active`, `GET /excel/dashboard/{import_id}` y consultas de programa/estudiante |
 | Dashboard comparativo y módulo CORHUILA | `GET /excel/dashboard/compare?period=&moment=&program_id=` |
+| Estudiantes por nivel | `GET /excel/dashboard/students` (`period` o `all`, `level`, `program_id`, `search`, `page`) |
 | Estudiantes "Sin programa" y asignación manual | `GET /excel/dashboard/review/without-program`, `GET /excel/dashboard/catalog/programs`, `PUT /excel/dashboard/review/students/{id}/program` y `POST /excel/dashboard/corhuila/resolve` |
 
 El frontend solicita `GET /users` únicamente al abrir la vista de usuarios o estudiantes. La búsqueda por texto y el filtro por rol se aplican sobre esos resultados en el navegador.
