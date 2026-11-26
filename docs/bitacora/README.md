@@ -56,3 +56,5 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 027 | 9.1 | [Identidad por documento con correos como alias, búsqueda del programa y Momento 4](027-identidad-por-documento-y-momento-4.md) |
 | 028 | 10 | [Importación del Excel de CORHUILA y copia de seguridad con un comando](028-importacion-corhuila.md) |
 | 029 | 11 | [Dashboard comparativo, cruce por nombre completo y programa manual](029-dashboard-comparativo-y-programa-manual.md) |
+| 030 | 12 | [Frontend en módulos, dashboard lado a lado y módulos ESE y CORHUILA](030-frontend-modular-y-dashboard-lado-a-lado.md) |
+| 031 | 13a | [Estudiantes por nivel, filtros por periodo y "Ver módulo" con filtros](031-estudiantes-por-nivel-y-filtros-por-periodo.md) |

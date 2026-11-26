@@ -1,12 +1,12 @@
 # Estado de entrega y continuidad entre sesiones
 
-> Actualizado el 23 de noviembre de 2026. Permite retomar el desarrollo en otra sesión o equipo sin depender del historial de chat. No contiene credenciales ni valores de `.env`.
+> Actualizado el 26 de noviembre de 2026. Permite retomar el desarrollo en otra sesión o equipo sin depender del historial de chat. No contiene credenciales ni valores de `.env`.
 
 ## Ramas del repositorio
 
 | Rama | Contenido |
 |---|---|
-| `dev` | Código: backend en `back/api-reader-excel/` y frontend en `front/`. HEAD: `2e0d3b2`; los cambios de promedios descritos abajo siguen sin commit. |
+| `dev` | Código: backend en `back/api-reader-excel/` y frontend en `front/`. HEAD: `b3acc77` (fase 13a). |
 | `docs` | Esta documentación (`docs/`) y la [bitácora de cambios](bitacora/README.md). |
 | `main` | Rama principal; aún no recibe los cambios de las fases 1–5. |
 
@@ -24,13 +24,17 @@ Cada cambio está explicado en orden (qué, dónde y por qué) en la [bitácora]
 | 4 | `DashboardService` dividido, competencias por clave, `Base` y migraciones en `core`, `TD PROGRAMAS` sin encabezado | Completada | `b834696` |
 | 5 | Programas unificados (migración `0004`), semestres normalizados, reporte de calidad de datos | Completada | `2ae0476` |
 | 6 | Seguridad (limpieza de tokens vencidos, cerrar sesiones al cambiar contraseña, límite de intentos de login), `requirements-dev.txt` con ruff/pytest, CI en GitHub Actions, frontend (URL de API configurable, CSRF en login) | **Pendiente** | — |
-| 7 | Escala común de niveles, 4 competencias comparables, nivel calculado | Completada | _(hash)_ |
-| 8 | Fuente, periodo y momento; un activo por espacio (migración `0005`) | Completada | _(hash)_ |
+| 7 | Escala común de niveles, 4 competencias comparables, nivel calculado | Completada | `d6c5649` |
+| 8 | Fuente, periodo y momento; un activo por espacio (migración `0005`) | Completada | `4aa40e7` |
 | 9 | Identidad por correo; programa de CORHUILA guardado desde ESE M2 (migración `0006`) | Completada | _(hash)_ |
-| 9.1 | Identidad por documento con alias de correo, búsqueda del programa de CORHUILA, Momento 4 (migración `0007`) | Completada | _(hash)_ |
-| 10 | Importación de CORHUILA (estudiante y programa guardados), lista por revisar, periodo obligatorio, `tasks.ps1 backup` | Completada | _(hash)_ |
-| 11 | Dashboard comparativo del último periodo, cruce por nombre con histórico de ESE, programa manual (migración `0008`) | Completada | _(hash)_ |
-| 12–13 | Comparación ESE + CORHUILA: escala común, fuente/periodo, identidad por correo, importación CORHUILA, API comparativa, frontend dividido, cursos genéricos | **Pendiente** — ver [plan](11-plan-de-refactorizacion.md) | — |
+| 9.1 | Identidad por documento con alias de correo, búsqueda del programa de CORHUILA, Momento 4 (migración `0007`) | Completada | `d20ecc5` |
+| 10 | Importación de CORHUILA (estudiante y programa guardados), lista por revisar, periodo obligatorio, `tasks.ps1 backup` | Completada | `58ecc73` |
+| 11 | Dashboard comparativo del último periodo, cruce por nombre con histórico de ESE, programa manual (migración `0008`) | Completada | `55c48af` |
+| 12a | `dashboard.js` dividido en módulos ES, sin cambio visible | Completada | `b52c39d` |
+| 12b | Dashboard con ESE y CORHUILA lado a lado, filtros en cascada desde el último periodo, módulos ESE y CORHUILA ("Sin programa" con asignación manual), carga solo del periodo actual y el anterior | Completada | `f098f42` |
+| 13a | Estudiantes de los Excel por nivel (N1–N4 y Sin resultado) con filtro de periodo, ESE con Año → Periodo → Momento, "Ver módulo" con los filtros del dashboard | Completada | `b3acc77` |
+| 12c | Crecimiento por programa (M1 → M2 → CORHUILA → M3); necesita un endpoint nuevo | **Pendiente** | — |
+| 13b | Módulo de cursos: vincular un curso a un nivel e inscribir a todos los estudiantes de ese nivel | **Pendiente** | — |
 
 Decisiones de negocio tomadas en la fase 5 (22/11/2026):
 
@@ -116,4 +120,4 @@ La bitácora técnica está en [mejora de interacción del dashboard](bitacora/0
 1. `git fetch` y revisa `git status` en `dev` y en el worktree de `docs`.
 2. Lee la [bitácora](bitacora/README.md) para entender los cambios recientes.
 3. Sigue [Instalación y uso](03-instalacion-y-operacion.md) y aplica las migraciones pendientes.
-4. Continúa con la fase 6 o con los objetivos del proyecto (clasificación pedagógica y recomendación de cursos, aún no implementados).
+4. Continúa con la fase 13b (cursos por nivel), la 12c (crecimiento por programa) o la fase 6 (seguridad y CI). El inicio de sesión de estudiantes queda pendiente y se revisará aparte.
