@@ -6,7 +6,7 @@
 
 | Rama | Contenido |
 |---|---|
-| `dev` | Código: backend en `back/api-reader-excel/` y frontend en `front/`. HEAD: `b3acc77` (fase 13a). |
+| `dev` | Código: backend en `back/api-reader-excel/` y frontend en `front/`. HEAD: `e813cb9` (fase 13b). |
 | `docs` | Esta documentación (`docs/`) y la [bitácora de cambios](bitacora/README.md). |
 | `main` | Rama principal; aún no recibe los cambios de las fases 1–5. |
 
@@ -34,8 +34,8 @@ Cada cambio está explicado en orden (qué, dónde y por qué) en la [bitácora]
 | 12b | Dashboard con ESE y CORHUILA lado a lado, filtros en cascada desde el último periodo, módulos ESE y CORHUILA ("Sin programa" con asignación manual), carga solo del periodo actual y el anterior | Completada | `f098f42` |
 | 13a | Estudiantes de los Excel por nivel (N1–N4 y Sin resultado) con filtro de periodo, ESE con Año → Periodo → Momento, "Ver módulo" con los filtros del dashboard | Completada | `b3acc77` |
 | 12c | Crecimiento por programa (M1 → M2 → CORHUILA → M3); necesita un endpoint nuevo | **Pendiente** | — |
-| 13b | Módulo de cursos: vincular un curso a un nivel e inscribir a todos los estudiantes de ese nivel | **Pendiente** | — |
-
+| 13b | Cursos por nivel y materia (nombre, descripción, metodología), inscripción en bloque por el nivel en la materia, eliminación lógica con auditoría y restauración solo del superadmin (cursos e importaciones); migraciones `0009`–`0011` | Completada | `e813cb9` |
+| 13c | Exportar los estudiantes (por curso o por nivel) a Excel, o una carga masiva, para crearlos en la plataforma oficial de CORHUILA | **Pendiente** — por definir con el usuario | — |
 Decisiones de negocio tomadas en la fase 5 (22/11/2026):
 
 - Unificar programas que solo difieren en tildes, mayúsculas o espacios.
@@ -120,4 +120,4 @@ La bitácora técnica está en [mejora de interacción del dashboard](bitacora/0
 1. `git fetch` y revisa `git status` en `dev` y en el worktree de `docs`.
 2. Lee la [bitácora](bitacora/README.md) para entender los cambios recientes.
 3. Sigue [Instalación y uso](03-instalacion-y-operacion.md) y aplica las migraciones pendientes.
-4. Continúa con la fase 13b (cursos por nivel), la 12c (crecimiento por programa) o la fase 6 (seguridad y CI). El inicio de sesión de estudiantes queda pendiente y se revisará aparte.
+4. Aplica las migraciones pendientes (`0009`–`0011` si vienes de la fase 13a). Continúa con la 13c (exportar o cargar estudiantes para la plataforma oficial), la 12c (crecimiento por programa) o la fase 6 (seguridad y CI). El inicio de sesión de estudiantes queda pendiente y se revisará aparte.
