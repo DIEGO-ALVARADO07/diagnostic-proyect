@@ -29,7 +29,8 @@ Cada cambio está explicado en orden (qué, dónde y por qué) en la [bitácora]
 | 9 | Identidad por correo; programa de CORHUILA guardado desde ESE M2 (migración `0006`) | Completada | _(hash)_ |
 | 9.1 | Identidad por documento con alias de correo, búsqueda del programa de CORHUILA, Momento 4 (migración `0007`) | Completada | _(hash)_ |
 | 10 | Importación de CORHUILA (estudiante y programa guardados), lista por revisar, periodo obligatorio, `tasks.ps1 backup` | Completada | _(hash)_ |
-| 11–13 | Comparación ESE + CORHUILA: escala común, fuente/periodo, identidad por correo, importación CORHUILA, API comparativa, frontend dividido, cursos genéricos | **Pendiente** — ver [plan](11-plan-de-refactorizacion.md) | — |
+| 11 | Dashboard comparativo del último periodo, cruce por nombre con histórico de ESE, programa manual (migración `0008`) | Completada | _(hash)_ |
+| 12–13 | Comparación ESE + CORHUILA: escala común, fuente/periodo, identidad por correo, importación CORHUILA, API comparativa, frontend dividido, cursos genéricos | **Pendiente** — ver [plan](11-plan-de-refactorizacion.md) | — |
 
 Decisiones de negocio tomadas en la fase 5 (22/11/2026):
 
