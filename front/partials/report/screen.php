@@ -10,12 +10,34 @@
 <section class="panel module-panel report-panel">
     <div class="report-guidance">
         <span class="guidance-mark">i</span>
-        <p><strong>Revisa el libro antes de subirlo:</strong> debe contener las hojas <strong>BD GEN</strong> y <strong>TD PROGRAMAS</strong>, con sus encabezados y estructura originales. La API valida el formato y conserva una versión histórica de cada importación.</p>
+        <p><strong>Revisa el libro antes de subirlo:</strong> el de <strong>ESE</strong> debe contener las hojas <strong>BD GEN</strong> y <strong>TD PROGRAMAS</strong>; el de <strong>CORHUILA</strong>, la hoja <strong>Calificaciones</strong> exportada de Moodle. Cada periodo se carga con sus dos archivos. La API valida el formato y conserva una versión histórica de cada importación.</p>
     </div>
     <form method="post" enctype="multipart/form-data" class="upload-form">
         <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
         <input type="hidden" name="action" value="upload_excel">
-        <label class="field"><span>Archivo de Excel</span>
+        <?php
+        $anioActual = (int) date('Y');
+        $periodoActual = $anioActual . '-' . ((int) date('n') <= 6 ? '1' : '2');
+        $periodos = [];
+        for ($anio = $anioActual + 1; $anio >= $anioActual - 3; $anio--) {
+            $periodos[] = $anio . '-2';
+            $periodos[] = $anio . '-1';
+        }
+        ?>
+        <label class="field"><span>Prueba</span>
+            <select name="source" required>
+                <option value="ESE">ESE</option>
+                <option value="CORHUILA">CORHUILA</option>
+            </select>
+        </label>
+        <label class="field"><span>Periodo de la carga</span>
+            <select name="period" required>
+                <?php foreach ($periodos as $periodo): ?>
+                    <option value="<?= h($periodo) ?>"<?= $periodo === $periodoActual ? ' selected' : '' ?>><?= h($periodo) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <label class="field upload-file"><span>Archivo de Excel</span>
             <span class="file-input-wrap"><input type="file" name="file" accept=".xlsx,.xlsm,.xls,.ods" required><small>Formatos permitidos: .xlsx, .xlsm, .xls y .ods</small></span>
         </label>
         <div class="upload-actions"><button class="button button-primary" type="submit"><span>↑</span> Importar resultados</button></div>

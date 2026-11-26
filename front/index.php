@@ -122,14 +122,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($accion === 'upload_excel' && in_array($rolSesion, ['instructor', 'superadmin'], true)) {
         $uploadedFile = $_FILES['file'] ?? null;
-        if (!is_array($uploadedFile) || ($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        $fuente = $_POST['source'] ?? '';
+        $periodo = $_POST['period'] ?? '';
+        if (!in_array($fuente, ['ESE', 'CORHUILA'], true) || !is_string($periodo) || preg_match('/^\d{4}-[12]$/', $periodo) !== 1) {
+            $_SESSION['flash'] = ['type' => 'error', 'message' => 'Elige la prueba (ESE o CORHUILA) y el periodo de la carga.'];
+        } elseif (!is_array($uploadedFile) || ($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
             $_SESSION['flash'] = ['type' => 'error', 'message' => 'Selecciona un archivo Excel válido para continuar.'];
         } elseif (($uploadedFile['size'] ?? 0) > 30 * 1024 * 1024) {
             $_SESSION['flash'] = ['type' => 'error', 'message' => 'El archivo supera el límite permitido de 30 MB.'];
         } else {
             $respuesta = llamarBackendMultipart(
                 'excel/dashboard/import',
-                [],
+                ['source' => $fuente, 'period' => $periodo],
                 [
                     'field' => 'file',
                     'tmp_name' => $uploadedFile['tmp_name'],
@@ -142,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (($importacion['status'] ?? '') === 'ACTIVE') {
                     $_SESSION['flash'] = [
                         'type' => 'success',
-                        'message' => 'El archivo se importó y sus resultados ya están disponibles en el dashboard.',
+                        'message' => 'El archivo de ' . $fuente . ' (' . $periodo . ') se importó y sus resultados ya están disponibles en el dashboard.',
                     ];
                 } else {
                     $_SESSION['flash'] = [

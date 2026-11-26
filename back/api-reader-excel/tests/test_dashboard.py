@@ -209,6 +209,11 @@ def make_dashboard_workbook(
         ("TD PROGRAMAS", td_rows),
         ("IGNORAR", [["Auxiliar"], ["no debe procesarse"]]),
     ]
+    return make_workbook(sheets)
+
+
+def make_workbook(sheets: list[tuple[str, list[list[object]]]]) -> bytes:
+    """Libro .xlsx mínimo con las hojas y filas dadas."""
     contents = [
         '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
         '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
@@ -600,7 +605,7 @@ class DashboardTests(unittest.TestCase):
             for operation in methods.values()
         ]
 
-        self.assertEqual(len(dashboard_operations), 9)
+        self.assertEqual(len(dashboard_operations), 10)
         for operation in dashboard_operations:
             with self.subTest(operation=operation["operationId"]):
                 self.assertIn({"HTTPBearer": []}, operation["security"])

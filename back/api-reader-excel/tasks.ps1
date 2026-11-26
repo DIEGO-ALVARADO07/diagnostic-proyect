@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-    Tareas comunes del backend: instalar, migrar, crear el superadmin, probar y arrancar la API.
+    Tareas comunes del backend: instalar, respaldar, migrar, crear el superadmin, probar y arrancar la API.
 
 .DESCRIPTION
     Ejecuta siempre desde la carpeta del backend y con el Python del venv,
@@ -8,6 +8,8 @@
 
 .EXAMPLE
     .\tasks.ps1 install
+    .\tasks.ps1 backup
+    .\tasks.ps1 backup -Label antes-0008
     .\tasks.ps1 migrate
     .\tasks.ps1 bootstrap
     .\tasks.ps1 test
@@ -16,11 +18,17 @@
 #>
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("help", "install", "run", "test", "migrate", "bootstrap")]
+    [ValidateSet("help", "install", "run", "test", "migrate", "bootstrap", "backup")]
     [string]$Task = "help",
 
     [string]$BindHost = "127.0.0.1",
-    [int]$Port = 8000
+    [int]$Port = 8000,
+
+    # backup: carpeta de destino (por defecto %USERPROFILE%\respaldos\<base>),
+    # etiqueta para el nombre del archivo y ruta de mysqldump si no está en el PATH.
+    [string]$BackupDir = "",
+    [string]$Label = "",
+    [string]$MysqlDump = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -103,9 +111,20 @@ switch ($Task) {
         Invoke-Python -m unittest discover -s tests
     }
 
+    "backup" {
+        Assert-Venv
+        Assert-EnvFile
+        $backupArgs = @()
+        if ($BackupDir) { $backupArgs += @("--output-dir", $BackupDir) }
+        if ($Label) { $backupArgs += @("--label", $Label) }
+        if ($MysqlDump) { $backupArgs += @("--mysqldump", $MysqlDump) }
+        Invoke-Python -m scripts.backup_db @backupArgs
+    }
+
     "migrate" {
         Assert-Venv
         Assert-EnvFile
+        Write-Host "Recuerda: haz antes una copia con .\tasks.ps1 backup" -ForegroundColor Yellow
         Invoke-Python -m migrations
         Write-Host "Migraciones aplicadas." -ForegroundColor Green
     }

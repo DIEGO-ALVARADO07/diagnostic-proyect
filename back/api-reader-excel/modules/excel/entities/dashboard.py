@@ -22,7 +22,8 @@ class DashboardImportRecord:
     """Puntaje por ``Competency.key``."""
     global_raw: str | None
     global_score: Decimal | None
-    global_calculated_score: Decimal
+    global_calculated_score: Decimal | None
+    """Regla del Excel de ESE (E:I / 5). ``None`` en CORHUILA."""
     moment: str | None
     """Texto original de la columna ``Momento``."""
     period: str | None

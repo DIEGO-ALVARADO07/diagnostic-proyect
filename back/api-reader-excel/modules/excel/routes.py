@@ -20,11 +20,16 @@ from modules.excel.dtos.responses.dashboard import (
     DashboardProgramResponse,
     DashboardStudentResponse,
     ProgramLookupResponse,
+    ReviewStudentResponse,
+    ReviewStudentsResponse,
 )
 from modules.excel.dtos.responses.read_workbook import ReadWorkbookResponse
 from modules.excel.services.excel_service import ExcelService, MAX_UPLOAD_BYTES
 from modules.excel.services.dashboard_service import DashboardService, MAX_PAGE_SIZE
-from modules.excel.services.program_resolution import lookup_program
+from modules.excel.services.program_resolution import (
+    lookup_program,
+    students_without_program,
+)
 from core.db_session import DbSession
 from core.exceptions import ApplicationError
 from modules.security.dependencies import CurrentAccount, require_roles
@@ -51,6 +56,10 @@ class TimedExcelRoute(APIRoute):
             return response
 
         return timed_handler
+
+
+# Periodo del año: AAAA-1 (antes de junio) o AAAA-2 (después de junio).
+PERIOD_PATTERN = r"^\d{4}-[12]$"
 
 
 router = APIRouter(
@@ -100,7 +109,14 @@ async def upload_dashboard_workbook(
     account: CurrentAccount,
     db: DbSession,
     file: UploadFile = File(...),
+    source: Source = Form(...),
+    period: str = Form(..., pattern=PERIOD_PATTERN),
 ) -> DashboardImportResponse:
+    """Importa el Excel de ESE o de CORHUILA.
+
+    ``source`` y ``period`` son obligatorios: cada periodo (``AAAA-1``,
+    ``AAAA-2``) se carga con su archivo de ESE y su archivo de CORHUILA.
+    """
     filename = file.filename or ""
     dashboard_service.validate_upload(filename, account)
     content = await file.read(MAX_UPLOAD_BYTES + 1)
@@ -110,11 +126,9 @@ async def upload_dashboard_workbook(
         request,
         account,
         db,
+        source,
+        period,
     )
-
-
-# Periodo del año: AAAA-1 (antes de junio) o AAAA-2 (después de junio).
-PERIOD_PATTERN = r"^\d{4}-[12]$"
 
 
 def _dashboard_filters(
@@ -185,6 +199,39 @@ async def lookup_student_program(
         lookup_program, db, document, email, full_name, period
     )
     return ProgramLookupResponse(**{**asdict(result), "match": result.match.value})
+
+
+@router.get(
+    "/dashboard/review/without-program",
+    response_model=ReviewStudentsResponse,
+    dependencies=[Depends(require_roles(Role.INSTRUCTOR, Role.SUPERADMIN))],
+)
+async def list_students_without_program(
+    db: DbSession,
+    period: str | None = Query(default=None, pattern=PERIOD_PATTERN),
+) -> ReviewStudentsResponse:
+    """Estudiantes de CORHUILA sin programa ("por revisar")."""
+    rows = await run_in_threadpool(students_without_program, db, period)
+    return ReviewStudentsResponse(
+        total=len(rows),
+        students=[
+            ReviewStudentResponse(
+                import_id=row.import_id,
+                period=row.period,
+                source_row_number=row.source_row_number,
+                student_id=row.student_id,
+                name=" ".join(
+                    part
+                    for part in (row.first_name_source, row.last_name_source)
+                    if part
+                ),
+                email=row.email_source,
+                document=row.document_number_source,
+                match=row.student_match,
+            )
+            for row in rows
+        ],
+    )
 
 
 @router.get(

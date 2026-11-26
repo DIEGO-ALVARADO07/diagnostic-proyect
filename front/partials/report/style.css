@@ -9,6 +9,7 @@
 .file-input-wrap input { border: 0; min-height: 26px; padding: 0; }
 .file-input-wrap input:focus { box-shadow: none; }
 .file-input-wrap small { padding-bottom: 2px; }
+.upload-file { grid-column: 1 / -1; }
 .upload-actions { grid-column: 1 / -1; }
 .upload-actions .button { min-width: 165px; }
 .import-notes { align-items: flex-start; background: #f7faf8; border: 1px solid #e8efeb; border-radius: 7px; color: #647a6d; display: flex; gap: 9px; margin-top: 20px; padding: 11px 12px; }
@@ -29,7 +30,7 @@
 @media (max-width: 760px) {
     .module-heading > .file-limit { align-self: flex-start; }
     .upload-form { grid-template-columns: 1fr; }
-    .upload-actions { grid-column: auto; }
+    .upload-file, .upload-actions { grid-column: auto; }
     .upload-actions .button { width: 100%; }
 }
 

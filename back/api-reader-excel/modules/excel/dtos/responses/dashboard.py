@@ -96,6 +96,8 @@ class DashboardPeriodMomentQualityResponse(BaseModel):
     """El momento de ``SIM`` no coincide con el de ``GRUPO`` (se usa el de ``SIM``)."""
     period_year_mismatches: int = 0
     """El año del periodo de ``SIM`` no coincide con ``AÑO``."""
+    upload_period_rows: int | None = None
+    """Filas del periodo elegido al subir. ``0`` = quizá se eligió mal el periodo."""
 
 
 class DashboardIdentityQualityResponse(BaseModel):
@@ -113,6 +115,26 @@ class DashboardIdentityQualityResponse(BaseModel):
     para identificarlos (``AMBIGUO``)."""
 
 
+class DashboardCorhuilaQualityResponse(BaseModel):
+    """Archivo de CORHUILA y su cruce con ESE al importarlo."""
+
+    sheet: str
+    rows: int
+    presented: int
+    not_presented: int
+    """Sin ningún puntaje (todas las competencias con ``-``)."""
+    partially_presented: int
+    """Con alguna competencia sin puntaje."""
+    rows_without_email: int
+    rows_with_document: int
+    duplicated_emails: int
+    matches: dict[str, int]
+    """Cómo se encontró a cada estudiante en ESE (``StudentMatch``)."""
+    without_program: int
+    """Filas sin programa: ver ``GET /excel/dashboard/review/without-program``."""
+    ese_import_id: str | None
+
+
 class DashboardDataQualityResponse(BaseModel):
     """Hallazgos de BD GEN que no impiden importar, por clave de competencia."""
 
@@ -128,6 +150,8 @@ class DashboardDataQualityResponse(BaseModel):
     """Ausente en importaciones anteriores a la fase 8."""
     identity: DashboardIdentityQualityResponse | None = None
     """Ausente en importaciones anteriores a la fase 9."""
+    corhuila: DashboardCorhuilaQualityResponse | None = None
+    """Solo en importaciones de CORHUILA."""
 
 
 class DashboardSourceAuditResponse(BaseModel):
@@ -220,6 +244,26 @@ class ProgramLookupResponse(BaseModel):
     """Programa de ESE Momento 2; ``None`` = sin programa."""
     moment_two_period: str | None
     ese_import_id: str | None
+
+
+class ReviewStudentResponse(BaseModel):
+    """Estudiante de CORHUILA sin programa: hay que revisarlo."""
+
+    import_id: str
+    period: str | None
+    source_row_number: int
+    student_id: int | None
+    name: str
+    email: str | None
+    document: str | None
+    match: str | None
+    """Cómo se buscó en ESE: ``AMBIGUO``, ``SIN_COINCIDENCIA``… o, si se
+    encontró, ``DOCUMENTO``/``CORREO``/``NOMBRE`` (pero sin Momento 2)."""
+
+
+class ReviewStudentsResponse(BaseModel):
+    total: int
+    students: list[ReviewStudentResponse]
 
 
 class DashboardStudentResponse(BaseModel):

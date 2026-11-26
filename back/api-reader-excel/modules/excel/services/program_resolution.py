@@ -320,3 +320,34 @@ def lookup_program(
         moment_two_period=row.period if row is not None else None,
         ese_import_id=index.import_id,
     )
+
+
+def students_without_program(
+    db: Session, period: str | None = None
+) -> list[AcademicResult]:
+    """Filas de CORHUILA activas que quedaron sin programa: lista "por revisar".
+
+    Son estudiantes que no se encontraron en ESE, cuyo nombre es ambiguo, o que
+    se encontraron pero no tienen un Momento 2 válido. Se resuelven solas al
+    importar un ESE que los traiga; si no, hay que revisarlos en la base
+    institucional.
+    """
+    query = (
+        select(AcademicResult)
+        .join(ExcelImport, ExcelImport.id == AcademicResult.import_id)
+        .where(
+            ExcelImport.source == Source.CORHUILA.value,
+            ExcelImport.deleted_at.is_(None),
+            ExcelImport.status == ImportStatus.ACTIVE.value,
+            AcademicResult.program_resolution
+            == ProgramResolution.SIN_PROGRAMA.value,
+        )
+        .order_by(
+            AcademicResult.period,
+            AcademicResult.last_name_source,
+            AcademicResult.first_name_source,
+        )
+    )
+    if period is not None:
+        query = query.where(AcademicResult.period == period)
+    return list(db.scalars(query))

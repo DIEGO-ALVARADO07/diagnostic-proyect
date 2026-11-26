@@ -14,6 +14,7 @@ from modules.excel.entities.academic import (
     ExcelImport,
     TdProgramasReference,
 )
+from modules.excel.entities.assessment import SIN_PROGRAMA_LABEL
 from modules.excel.entities.competency import COMPETENCIES
 from modules.excel.entities.dashboard import DashboardDataset, DashboardRecord
 from modules.excel.entities.import_status import SNAPSHOT_STATUSES
@@ -96,7 +97,11 @@ class DashboardDatasetLoader:
         student_of_key: dict[str, object] = {}
         for result in results:
             program_id = str(result.program_id) if result.program_id else ""
-            program_name = programs.get(program_id, result.program_name_raw)
+            # CORHUILA no trae programa: las filas sin programa de ESE se
+            # agrupan como "Sin programa".
+            program_name = programs.get(program_id) or (
+                result.program_name_raw or SIN_PROGRAMA_LABEL
+            )
             name = " ".join(
                 value
                 for value in (result.first_name_source, result.last_name_source)

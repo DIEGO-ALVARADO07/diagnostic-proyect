@@ -1,5 +1,6 @@
 """Casos de uso de escritura del dashboard: importar, listar y desactivar."""
 
+from collections import Counter
 from hashlib import sha256
 from http import HTTPStatus
 from uuid import uuid4
@@ -17,7 +18,12 @@ from modules.excel.dtos.responses.dashboard import (
     DashboardImportResponse,
 )
 from modules.excel.entities.academic import ExcelImport
-from modules.excel.entities.assessment import Source, active_slot
+from modules.excel.entities.assessment import (
+    ProgramResolution,
+    Source,
+    StudentMatch,
+    active_slot,
+)
 from modules.excel.entities.import_status import (
     DEACTIVATABLE_STATUSES,
     SNAPSHOT_DATASET_MODE,
@@ -26,6 +32,9 @@ from modules.excel.entities.import_status import (
 )
 from modules.excel.repositories.dashboard_persistence_repository import (
     DashboardPersistenceRepository,
+)
+from modules.excel.repositories.corhuila_workbook_repository import (
+    CorhuilaWorkbookRepository,
 )
 from modules.excel.repositories.dashboard_repository import (
     DashboardWorkbookError,
@@ -36,7 +45,12 @@ from modules.excel.services.dashboard_dataset_loader import DashboardDatasetLoad
 from modules.excel.services.dashboard_processor import DashboardProcessor
 from modules.excel.services.dashboard_query_service import DashboardQueryService
 from modules.excel.services.excel_service import MAX_UPLOAD_BYTES, ExcelService
-from modules.excel.services.program_resolution import refresh_corhuila_programs
+from modules.excel.services.corhuila_processor import CorhuilaProcessor
+from modules.excel.services.program_resolution import (
+    active_ese_import_id,
+    build_ese_index,
+    refresh_corhuila_programs,
+)
 from modules.security.entities import Account
 
 
@@ -56,6 +70,8 @@ class DashboardImportService:
         self.excel_service = excel_service
         self.loader = loader
         self.queries = queries
+        self.corhuila_repository = CorhuilaWorkbookRepository()
+        self.corhuila_processor = CorhuilaProcessor()
 
     def validate_upload(self, filename: str, account: Account) -> str:
         return self.excel_service.validate_upload(filename, account)
@@ -65,13 +81,24 @@ class DashboardImportService:
         request: ReadWorkbookRequest,
         account: Account,
         db: Session,
+        source: Source = Source.ESE,
+        period: str | None = None,
     ) -> DashboardImportResponse:
-        """Importa el libro como nueva instantánea activa.
+        """Importa el libro como nueva instantánea activa de su espacio.
+
+        ``source`` elige el lector: ESE (``BD GEN`` + ``TD PROGRAMAS``) o
+        CORHUILA (``Calificaciones``). ``period`` es el periodo de la carga
+        (``2026-2``); la API lo exige siempre y CORHUILA no funciona sin él.
 
         Un mismo archivo (mismo SHA-256) no se procesa dos veces: si ya está
         activo o histórico se devuelve su resumen; si falló o fue desactivado
         se rechaza.
         """
+        if source is Source.CORHUILA and period is None:
+            raise ApplicationError(
+                HTTPStatus.UNPROCESSABLE_ENTITY,
+                "Una importación de CORHUILA requiere el periodo (AAAA-1 o AAAA-2).",
+            )
         safe_filename = self.validate_upload(request.filename, account)
         if len(request.content) > MAX_UPLOAD_BYTES:
             raise ApplicationError(
@@ -98,8 +125,8 @@ class DashboardImportService:
         import_row = ExcelImport(
             id=str(uuid4()),
             filename=safe_filename,
-            source=Source.ESE.value,
-            period=None,
+            source=source.value,
+            period=period,
             file_sha256=file_hash,
             imported_by_user_id=account.id,
             status=ImportStatus.PROCESSING,
@@ -127,16 +154,10 @@ class DashboardImportService:
             ) from None
 
         try:
-            sheets = self.repository.read_sheets(request.content)
-            data = self.processor.process(safe_filename, sheets)
-            self.persistence.persist_snapshot(db, import_row, data)
-            import_row.status = ImportStatus.VALIDATED
-            db.flush()
-            self._activate(db, import_row)
-            db.flush()
-            # Un ESE nuevo puede traer correos que CORHUILA no encontraba: se
-            # recalcula y se guarda el programa de CORHUILA en la misma transacción.
-            refresh_corhuila_programs(db)
+            if source is Source.CORHUILA:
+                self._import_corhuila(db, import_row, request.content, period)
+            else:
+                self._import_ese(db, import_row, request.content, period)
             db.commit()
             # La importación puede renombrar programas compartidos con otras
             # importaciones (nombre visible), así que se descartan los datasets
@@ -158,6 +179,76 @@ class DashboardImportService:
             raise
 
         return self.queries.import_response(db, import_row)
+
+    def _import_ese(
+        self,
+        db: Session,
+        import_row: ExcelImport,
+        content: bytes,
+        period: str | None,
+    ) -> None:
+        sheets = self.repository.read_sheets(content)
+        data = self.processor.process(import_row.filename, sheets)
+        self.persistence.persist_snapshot(db, import_row, data)
+        if period is not None:
+            # El archivo de ESE trae toda la historia; se informa cuántas filas
+            # son del periodo de la carga (0 = quizá se eligió mal el periodo).
+            summary = dict(import_row.validation_summary or {})
+            quality = dict(summary.get("data_quality") or {})
+            period_moment = dict(quality.get("period_moment") or {})
+            period_moment["upload_period_rows"] = sum(
+                record.period == period for record in data.records
+            )
+            quality["period_moment"] = period_moment
+            summary["data_quality"] = quality
+            import_row.validation_summary = summary
+        import_row.status = ImportStatus.VALIDATED
+        db.flush()
+        self._activate(db, import_row)
+        db.flush()
+        # Un ESE nuevo puede traer estudiantes que CORHUILA no encontraba: se
+        # recalcula y se guarda su estudiante y programa en la misma transacción.
+        refresh_corhuila_programs(db)
+
+    def _import_corhuila(
+        self,
+        db: Session,
+        import_row: ExcelImport,
+        content: bytes,
+        period: str,
+    ) -> None:
+        workbook = self.corhuila_repository.read_rows(content)
+        data = self.corhuila_processor.process(import_row.filename, period, workbook)
+        index = build_ese_index(db, active_ese_import_id(db))
+        results = self.persistence.persist_corhuila_snapshot(
+            db, import_row, data, index
+        )
+        matches = Counter(result.student_match for result in results)
+        import_row.validation_summary = {
+            "status": "validated",
+            "rows_without_document": sum(
+                record.document is None for record in data.records
+            ),
+            "data_quality": {
+                "corhuila": {
+                    **data.file_quality,
+                    "sheet": data.sheet_name,
+                    "matches": {
+                        match.value: matches.get(match.value, 0)
+                        for match in StudentMatch
+                    },
+                    "without_program": sum(
+                        result.program_resolution
+                        == ProgramResolution.SIN_PROGRAMA.value
+                        for result in results
+                    ),
+                    "ese_import_id": index.import_id,
+                }
+            },
+        }
+        import_row.status = ImportStatus.VALIDATED
+        db.flush()
+        self._activate(db, import_row)
 
     def list_imports(self, db: Session, limit: int) -> DashboardImportListResponse:
         """Importaciones no desactivadas (activa, históricas y fallidas)."""

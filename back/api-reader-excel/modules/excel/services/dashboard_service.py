@@ -22,6 +22,7 @@ from modules.excel.dtos.responses.dashboard import (
     DashboardProgramResponse,
     DashboardStudentResponse,
 )
+from modules.excel.entities.assessment import Source
 from modules.excel.repositories.dashboard_persistence_repository import (
     DashboardPersistenceRepository,
 )
@@ -73,9 +74,14 @@ class DashboardService:
         return self.imports.validate_upload(filename, account)
 
     def import_workbook(
-        self, request: ReadWorkbookRequest, account: Account, db: Session
+        self,
+        request: ReadWorkbookRequest,
+        account: Account,
+        db: Session,
+        source: Source = Source.ESE,
+        period: str | None = None,
     ) -> DashboardImportResponse:
-        return self.imports.import_workbook(request, account, db)
+        return self.imports.import_workbook(request, account, db, source, period)
 
     def list_imports(self, db: Session, limit: int) -> DashboardImportListResponse:
         return self.imports.list_imports(db, limit)

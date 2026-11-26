@@ -2,7 +2,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from hashlib import sha256
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from modules.excel.entities.academic import (
@@ -21,6 +21,12 @@ from modules.excel.entities.dashboard import (
     DashboardImportData,
     DashboardImportRecord,
 )
+from modules.excel.services.corhuila_processor import CorhuilaImportData
+from modules.excel.services.program_resolution import (
+    EseIndex,
+    match_student,
+    resolve_results,
+)
 from modules.excel.entities.import_status import (
     DASHBOARD_STATE_ID,
     DEACTIVATABLE_STATUSES,
@@ -33,6 +39,77 @@ INSTITUTIONAL_EMAIL_DOMAIN = "@corhuila.edu.co"
 
 def _document_key(document: str) -> str:
     return sha256(document.encode("utf-8")).hexdigest()
+
+
+def _result_row(
+    import_id: str,
+    record: DashboardImportRecord,
+    student_id: int | None,
+    program_id: int | None,
+) -> AcademicResult:
+    return AcademicResult(
+        import_id=import_id,
+        source_row_number=record.source_row_number,
+        student_id=student_id,
+        document_number_source=record.document,
+        first_name_source=record.first_name,
+        last_name_source=record.last_name,
+        email_source=record.email,
+        email_key=record.email_key,
+        student_search_name=record.student_search_name,
+        program_id=program_id,
+        program_name_raw=record.program_name,
+        **{
+            competency.score_column: record.scores[competency.key]
+            for competency in COMPETENCIES
+        },
+        global_raw=record.global_raw,
+        global_score=record.global_score,
+        global_calculated_score=record.global_calculated_score,
+        moment_raw=record.moment,
+        period=record.period,
+        moment=record.moment_number,
+        assessment_type=record.test_type,
+        assessment_type_key=record.test_type_key,
+        semester_raw=record.semester,
+        semester_key=record.semester_key,
+        year=record.year,
+        simulation_name=record.simulation,
+        simulation_key=record.simulation_key,
+        **{
+            competency.level_column: record.levels[competency.key]
+            for competency in COMPETENCIES
+        },
+        campus_raw=record.campus,
+        group_name=record.group,
+        group_key=record.group_key,
+        applies_simulacro=record.presented,
+        applies_simulacro_raw=record.presented_raw,
+        training_applied_raw=record.training_applied,
+        ent_raw=record.ent,
+        source_payload=record.source_payload,
+    )
+
+
+def _merge_student(
+    db: Session, source: AcademicStudent, target: AcademicStudent
+) -> None:
+    """Une ``source`` (sin documento) en ``target``: resultados y correos pasan
+    a ``target`` y ``source`` se borra."""
+    db.flush()
+    db.execute(
+        update(AcademicResult)
+        .where(AcademicResult.student_id == source.id)
+        .values(student_id=target.id)
+    )
+    db.execute(
+        update(AcademicStudentEmail)
+        .where(AcademicStudentEmail.student_id == source.id)
+        .values(student_id=target.id)
+    )
+    if target.email_key is None:
+        target.email_key = source.email_key
+    db.delete(source)
 
 
 class DashboardPersistenceRepository:
@@ -126,48 +203,7 @@ class DashboardPersistenceRepository:
             student_id = student.id if student is not None else None
             program = programs[record.program_normalized_key]
             results.append(
-                AcademicResult(
-                    import_id=import_row.id,
-                    source_row_number=record.source_row_number,
-                    student_id=student_id,
-                    document_number_source=record.document,
-                    first_name_source=record.first_name,
-                    last_name_source=record.last_name,
-                    email_source=record.email,
-                    email_key=record.email_key,
-                    student_search_name=record.student_search_name,
-                    program_id=program.id,
-                    program_name_raw=record.program_name,
-                    **{
-                        competency.score_column: record.scores[competency.key]
-                        for competency in COMPETENCIES
-                    },
-                    global_raw=record.global_raw,
-                    global_score=record.global_score,
-                    global_calculated_score=record.global_calculated_score,
-                    moment_raw=record.moment,
-                    period=record.period,
-                    moment=record.moment_number,
-                    assessment_type=record.test_type,
-                    assessment_type_key=record.test_type_key,
-                    semester_raw=record.semester,
-                    semester_key=record.semester_key,
-                    year=record.year,
-                    simulation_name=record.simulation,
-                    simulation_key=record.simulation_key,
-                    **{
-                        competency.level_column: record.levels[competency.key]
-                        for competency in COMPETENCIES
-                    },
-                    campus_raw=record.campus,
-                    group_name=record.group,
-                    group_key=record.group_key,
-                    applies_simulacro=record.presented,
-                    applies_simulacro_raw=record.presented_raw,
-                    training_applied_raw=record.training_applied,
-                    ent_raw=record.ent,
-                    source_payload=record.source_payload,
-                )
+                _result_row(import_row.id, record, student_id, program.id)
             )
             if len(results) >= _INSERT_BATCH_SIZE:
                 db.add_all(results)
@@ -213,6 +249,68 @@ class DashboardPersistenceRepository:
             ),
             "data_quality": dict(data.data_quality),
         }
+
+    def persist_corhuila_snapshot(
+        self,
+        db: Session,
+        import_row: ExcelImport,
+        data: CorhuilaImportData,
+        index: EseIndex,
+    ) -> list[AcademicResult]:
+        """Guarda las filas de CORHUILA con su estudiante y su programa.
+
+        1. Se busca a cada estudiante en el ESE activo (documento → correo →
+           nombre completo). Si aparece, se usa ese estudiante y su correo de
+           CORHUILA queda como alias.
+        2. Si no aparece, se busca o se crea por documento o correo: queda
+           "por revisar" hasta que un ESE lo traiga.
+        3. ``resolve_results`` guarda cómo se encontró y el programa de ESE M2.
+        """
+        records = data.records
+        matches = [
+            match_student(
+                index, record.document, record.email_key, record.student_search_name
+            )[0]
+            for record in records
+        ]
+        unmatched = [
+            record for record, student_id in zip(records, matches) if student_id is None
+        ]
+        created = iter(self._sync_students(db, unmatched))
+        db.flush()
+
+        aliases = set(
+            db.scalars(
+                select(AcademicStudentEmail.email_key).where(
+                    AcademicStudentEmail.email_key.in_(
+                        {record.email_key for record in records if record.email_key}
+                    )
+                )
+            )
+        )
+        results: list[AcademicResult] = []
+        for record, student_id in zip(records, matches):
+            if student_id is None:
+                student = next(created)
+                student_id = student.id if student is not None else None
+            elif record.email_key is not None and record.email_key not in aliases:
+                db.add(
+                    AcademicStudentEmail(
+                        email_key=record.email_key, student_id=student_id
+                    )
+                )
+                aliases.add(record.email_key)
+            results.append(_result_row(import_row.id, record, student_id, None))
+        for offset in range(0, len(results), _INSERT_BATCH_SIZE):
+            db.add_all(results[offset : offset + _INSERT_BATCH_SIZE])
+            db.flush()
+        resolve_results(db, results, data.period, index)
+
+        import_row.bd_gen_row_count = len(records)
+        import_row.td_programas_row_count = 0
+        import_row.inserted_count = len(records)
+        import_row.rejected_count = 0
+        return results
 
     @staticmethod
     def _sync_students(
@@ -268,10 +366,21 @@ class DashboardPersistenceRepository:
             student: AcademicStudent | None = None
             if document_key is not None:
                 student = by_document.get(document_key)
-                if student is None and record.email_key is not None:
-                    candidate = by_email.get(record.email_key)
-                    if candidate is not None and candidate.document_key is None:
+                candidate = (
+                    by_email.get(record.email_key)
+                    if record.email_key is not None
+                    else None
+                )
+                if candidate is not None and candidate.document_key is None:
+                    if student is None:
                         student = candidate
+                    elif candidate is not student:
+                        # Estudiante pendiente (p. ej. creado desde CORHUILA sin
+                        # documento) que resulta ser este: se une a él.
+                        _merge_student(db, candidate, student)
+                        for email, owner in list(by_email.items()):
+                            if owner is candidate:
+                                by_email[email] = student
             elif record.email_key is not None:
                 student = by_email.get(record.email_key)
             else:
