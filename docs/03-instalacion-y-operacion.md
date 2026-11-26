@@ -93,6 +93,8 @@ Variables de la **terminal** (no van en el archivo):
 | `APP_MASTER_KEY` | Si `DB_USER`/`DB_PASSWORD` están cifrados. Defínela en cada terminal nueva: `$env:APP_MASTER_KEY = "<clave>"`. |
 | `LOG_LEVEL` | Opcional; si se define en la terminal tiene prioridad sobre `core/.env`. |
 
+**Antes de cada migración**, haz una copia de seguridad: `.\tasks.ps1 backup -Label antes-<migración>`. Se guarda en `%USERPROFILE%\respaldos\<base>` (fuera del repositorio) y se restaura en HeidiSQL con *Archivo → Ejecutar archivo SQL*.
+
 ## Paso 4. Primera vez: crear tablas y superadmin
 
 Con la base vacía (ya creada en MySQL) y `APP_MASTER_KEY` definida si aplica:

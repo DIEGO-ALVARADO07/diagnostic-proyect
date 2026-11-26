@@ -54,3 +54,4 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 025 | 8 | [Fuente, periodo y momento; un activo por espacio](025-fuente-periodo-y-momento.md) |
 | 026 | 9 | [Identidad por correo y programa de CORHUILA desde ESE](026-identidad-por-correo.md) |
 | 027 | 9.1 | [Identidad por documento con correos como alias, búsqueda del programa y Momento 4](027-identidad-por-documento-y-momento-4.md) |
+| 028 | 10 | [Importación del Excel de CORHUILA y copia de seguridad con un comando](028-importacion-corhuila.md) |
