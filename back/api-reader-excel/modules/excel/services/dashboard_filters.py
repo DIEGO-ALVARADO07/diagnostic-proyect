@@ -29,10 +29,6 @@ def matches(record: DashboardRecord, filters: DashboardFilterQuery) -> bool:
         record.group
     ) != normalized_key(filters.group):
         return False
-    if filters.semester is not None and normalized_key(
-        record.semester
-    ) != normalized_key(filters.semester):
-        return False
     if filters.test_type is not None and normalized_key(
         record.test_type
     ) != normalized_key(filters.test_type):
@@ -84,7 +80,6 @@ def filter_options(dataset: DashboardDataset) -> DashboardFilterOptionsResponse:
                 key=lambda item: normalized_key(item[1]),
             )
         ],
-        semesters=values_for("semester"),
         test_types=values_for("test_type"),
         presented=[
             value

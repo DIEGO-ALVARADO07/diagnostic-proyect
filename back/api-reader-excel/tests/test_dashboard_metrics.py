@@ -167,6 +167,30 @@ class DashboardMetricsTests(unittest.TestCase):
             "program-general",
         )
 
+    def test_unique_students_without_document(self) -> None:
+        """CORHUILA casi nunca trae documento: cuenta por estudiante o correo."""
+        from dataclasses import replace
+
+        base = make_record()
+        records = [
+            # Misma persona resuelta en dos filas: cuenta una vez.
+            replace(base, source_row_number=2, document=None, student_id=7),
+            replace(base, source_row_number=3, document=None, student_id=7),
+            # Sin estudiante resuelto: el correo la identifica.
+            replace(
+                base, source_row_number=4, document=None, email_key="a@corhuila.edu.co"
+            ),
+            # Sin documento, estudiante ni correo: no se puede contar.
+            replace(base, source_row_number=5, document=None),
+            # No presentó: no entra.
+            replace(base, source_row_number=6, document="99", presented=False),
+        ]
+
+        metrics = calculate_metrics(records)
+
+        self.assertEqual(metrics["presentations"], 4)
+        self.assertEqual(metrics["unique_students"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

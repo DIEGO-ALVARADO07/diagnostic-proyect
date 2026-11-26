@@ -52,6 +52,7 @@ def assess_data_quality(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     documents_by_email: dict[str, set[str]] = defaultdict(set)
     emails_by_document: dict[str, set[str]] = defaultdict(set)
     documents_by_name: dict[str, set[str]] = defaultdict(set)
+    programs_by_document: dict[str, set[str]] = defaultdict(set)
 
     for row in rows:
         _count_period_and_moment(row, period_moment)
@@ -69,6 +70,9 @@ def assess_data_quality(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
         )
         if name and document is not None:
             documents_by_name[name].add(document)
+        program = normalized_key(clean_text(row.get("programa")))
+        if program and document is not None:
+            programs_by_document[document].add(program)
         if email is None:
             rows_without_email += 1
         elif document is not None:
@@ -129,6 +133,9 @@ def assess_data_quality(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
             ),
             "names_with_multiple_documents": sum(
                 len(documents) > 1 for documents in documents_by_name.values()
+            ),
+            "documents_with_multiple_programs": sum(
+                len(programs) > 1 for programs in programs_by_document.values()
             ),
         },
     }

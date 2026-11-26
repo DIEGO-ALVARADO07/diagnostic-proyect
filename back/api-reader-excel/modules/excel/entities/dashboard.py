@@ -109,11 +109,24 @@ class DashboardRecord:
     """Correo normalizado: identidad del estudiante."""
     program_resolution: str | None = None
     """Solo CORHUILA: ``ProgramResolution``."""
+    student_id: int | None = None
+    """Estudiante resuelto (``academic_students.id``)."""
 
     @property
     def student_key(self) -> str | None:
         """Clave del estudiante: el correo; si no hay, el documento."""
         return self.email_key or self.document
+
+    @property
+    def identity(self) -> object | None:
+        """Persona de la fila, para contar estudiantes únicos.
+
+        El estudiante resuelto; si no hay, el documento; si tampoco, el correo.
+        CORHUILA casi nunca trae documento, así que no basta con él.
+        """
+        if self.student_id is not None:
+            return ("student", self.student_id)
+        return self.document or self.email_key
 
 
 @dataclass(frozen=True)

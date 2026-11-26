@@ -16,7 +16,7 @@ function dashboardIdentifier($value, string $pattern): bool {
 
 function dashboardFilters(array $input): array {
     $filters = [];
-    foreach (['year', 'simulation', 'group', 'semester', 'test_type'] as $key) {
+    foreach (['year', 'simulation', 'group', 'test_type'] as $key) {
         if (!isset($input[$key]) || $input[$key] === '') {
             continue;
         }

@@ -605,7 +605,7 @@ class DashboardTests(unittest.TestCase):
             for operation in methods.values()
         ]
 
-        self.assertEqual(len(dashboard_operations), 10)
+        self.assertEqual(len(dashboard_operations), 14)
         for operation in dashboard_operations:
             with self.subTest(operation=operation["operationId"]):
                 self.assertIn({"HTTPBearer": []}, operation["security"])

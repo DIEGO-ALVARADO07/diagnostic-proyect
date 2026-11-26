@@ -11,11 +11,28 @@ importación recién cargada queda disponible para las consultas y una
 desactivación libera su entrada.
 """
 
+from http import HTTPStatus
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+from core.exceptions import ApplicationError
+from modules.excel.entities.academic import AcademicProgram
+from modules.excel.services.dashboard_compare_service import DashboardCompareService
+from modules.excel.services.program_resolution import (
+    ProgramAssignmentError,
+    assign_student_program,
+    refresh_corhuila_programs,
+    students_without_program,
+)
 
 from modules.excel.dtos.requests.dashboard import DashboardFilterQuery
 from modules.excel.dtos.requests.read_workbook import ReadWorkbookRequest
 from modules.excel.dtos.responses.dashboard import (
+    CorhuilaResolveResponse,
+    DashboardCompareResponse,
+    ProgramCatalogResponse,
+    ProgramOptionResponse,
     DashboardImportListResponse,
     DashboardImportResponse,
     DashboardOverviewResponse,
@@ -63,10 +80,61 @@ class DashboardService:
             loader=self.loader,
             queries=self.queries,
         )
+        self.comparison = DashboardCompareService(persistence, self.loader)
 
     @property
     def dataset_cache(self) -> DashboardDatasetCache:
         return self.loader.cache
+
+    # --- Dashboard principal y revisión de CORHUILA ----------------------------
+
+    def compare(
+        self, db: Session, moment: int | None = None, program_id: str | None = None
+    ) -> DashboardCompareResponse:
+        return self.comparison.compare(db, moment, program_id)
+
+    def program_catalog(self, db: Session) -> ProgramCatalogResponse:
+        return ProgramCatalogResponse(
+            programs=[
+                ProgramOptionResponse(program_id=str(program.id), name=program.canonical_name)
+                for program in db.scalars(
+                    select(AcademicProgram)
+                    .where(AcademicProgram.is_active.is_(True))
+                    .order_by(AcademicProgram.canonical_name)
+                )
+            ]
+        )
+
+    def assign_student_program(
+        self,
+        db: Session,
+        student_id: int,
+        program_id: int | None,
+        account: Account,
+    ) -> CorhuilaResolveResponse:
+        """Programa manual de un estudiante "por revisar"; se guarda y se aplica."""
+        try:
+            changed = assign_student_program(db, student_id, program_id, account.id)
+        except ProgramAssignmentError as error:
+            db.rollback()
+            raise ApplicationError(HTTPStatus.NOT_FOUND, str(error)) from None
+        db.commit()
+        # Las filas de CORHUILA cambiaron de programa: los datasets en caché no.
+        self.loader.cache.clear()
+        return CorhuilaResolveResponse(
+            changed_rows=changed,
+            without_program=len(students_without_program(db)),
+        )
+
+    def resolve_corhuila(self, db: Session) -> CorhuilaResolveResponse:
+        """Vuelve a cruzar todas las filas de CORHUILA con el histórico de ESE."""
+        changed = refresh_corhuila_programs(db)
+        db.commit()
+        self.loader.cache.clear()
+        return CorhuilaResolveResponse(
+            changed_rows=changed,
+            without_program=len(students_without_program(db)),
+        )
 
     # --- Escritura ------------------------------------------------------------
 

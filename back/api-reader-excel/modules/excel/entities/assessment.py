@@ -25,14 +25,17 @@ class Source(StrEnum):
 class ProgramResolution(StrEnum):
     """De dónde salió el programa de una fila de CORHUILA (que no lo trae)."""
 
-    ESE_M2 = "ESE_M2"
-    """Programa de la fila de ESE Momento 2 más reciente con el mismo correo,
-    de un periodo igual o anterior al de CORHUILA."""
+    ESE = "ESE"
+    """Programa del registro de ESE más reciente del estudiante (cualquier momento)."""
+    MANUAL = "MANUAL"
+    """Asignado a mano (revisado contra la base institucional). Siempre manda."""
     SIN_PROGRAMA = "SIN_PROGRAMA"
-    """El correo no tiene un Momento 2 válido en el ESE activo."""
+    """El estudiante no está en el histórico de ESE ni tiene programa manual."""
 
 
 SIN_PROGRAMA_LABEL = "Sin programa"
+SIN_PROGRAMA_ID = "sin-programa"
+"""``program_id`` del subprograma que agrupa las filas sin programa."""
 
 
 class StudentMatch(StrEnum):

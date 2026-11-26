@@ -9,6 +9,5 @@ class DashboardFilterQuery(BaseModel):
     """Momento de ESE (1, 2, 3; 4 solo en el histórico de 2024)."""
     simulation: str | None = None
     group: str | None = None
-    semester: str | None = None
     test_type: str | None = None
     presented: bool | None = None

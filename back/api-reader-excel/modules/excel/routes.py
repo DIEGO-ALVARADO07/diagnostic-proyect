@@ -18,7 +18,11 @@ from modules.excel.dtos.responses.dashboard import (
     DashboardImportResponse,
     DashboardOverviewResponse,
     DashboardProgramResponse,
+    AssignProgramRequest,
+    CorhuilaResolveResponse,
+    DashboardCompareResponse,
     DashboardStudentResponse,
+    ProgramCatalogResponse,
     ProgramLookupResponse,
     ReviewStudentResponse,
     ReviewStudentsResponse,
@@ -135,7 +139,6 @@ def _dashboard_filters(
     year: int | None,
     simulation: str | None,
     group: str | None,
-    semester: str | None,
     test_type: str | None,
     presented: bool | None,
     period: str | None = None,
@@ -147,7 +150,6 @@ def _dashboard_filters(
         moment=moment,
         simulation=simulation,
         group=group,
-        semester=semester,
         test_type=test_type,
         presented=presented,
     )
@@ -183,12 +185,11 @@ async def lookup_student_program(
     document: str | None = Query(default=None, max_length=80),
     email: str | None = Query(default=None, max_length=320),
     full_name: str | None = Query(default=None, max_length=500),
-    period: str | None = Query(default=None, pattern=PERIOD_PATTERN),
 ) -> ProgramLookupResponse:
-    """Busca en el ESE activo al estudiante y su programa (Momento 2).
+    """Busca en el histórico de ESE al estudiante y su programa actual.
 
-    Orden: documento, correo y nombre completo único. ``period`` es el de
-    CORHUILA: solo vale un Momento 2 de ese periodo o anterior.
+    Orden: documento, nombre completo único (el correo desempata) y correo.
+    El programa es el manual o el del registro de ESE más reciente.
     """
     if not any((document, email, full_name)):
         raise ApplicationError(
@@ -196,9 +197,75 @@ async def lookup_student_program(
             "Indica el documento, el correo o el nombre completo.",
         )
     result = await run_in_threadpool(
-        lookup_program, db, document, email, full_name, period
+        lookup_program, db, document, email, full_name
     )
     return ProgramLookupResponse(**{**asdict(result), "match": result.match.value})
+
+
+@router.get(
+    "/dashboard/compare",
+    response_model=DashboardCompareResponse,
+    dependencies=[Depends(require_roles(Role.INSTRUCTOR, Role.SUPERADMIN))],
+)
+async def get_dashboard_compare(
+    db: DbSession,
+    moment: int | None = Query(default=None, ge=1, le=4),
+    program_id: str | None = Query(default=None, max_length=40),
+) -> DashboardCompareResponse:
+    """Dashboard principal: ESE frente a CORHUILA en el último periodo cargado.
+
+    ``moment`` filtra ESE (CORHUILA tiene momento único); ``program_id`` filtra
+    ambas (``sin-programa`` = estudiantes sin programa). El histórico de ESE
+    está en ``GET /excel/dashboard/{import_id}``.
+    """
+    return await run_in_threadpool(
+        dashboard_service.compare, db, moment, program_id
+    )
+
+
+@router.get(
+    "/dashboard/catalog/programs",
+    response_model=ProgramCatalogResponse,
+    dependencies=[Depends(require_roles(Role.INSTRUCTOR, Role.SUPERADMIN))],
+)
+async def get_program_catalog(db: DbSession) -> ProgramCatalogResponse:
+    """Programas para asignar a mano a un estudiante "por revisar"."""
+    return await run_in_threadpool(dashboard_service.program_catalog, db)
+
+
+@router.put(
+    "/dashboard/review/students/{student_id}/program",
+    response_model=CorhuilaResolveResponse,
+    dependencies=[Depends(require_roles(Role.INSTRUCTOR, Role.SUPERADMIN))],
+)
+async def assign_student_program(
+    db: DbSession,
+    account: CurrentAccount,
+    student_id: int,
+    body: AssignProgramRequest,
+) -> CorhuilaResolveResponse:
+    """Asigna (o quita con ``null``) el programa manual del estudiante.
+
+    Se guarda en el estudiante, manda sobre ESE y se aplica a sus filas de
+    CORHUILA, que pasan a promediar en ese programa.
+    """
+    return await run_in_threadpool(
+        dashboard_service.assign_student_program,
+        db,
+        student_id,
+        body.program_id,
+        account,
+    )
+
+
+@router.post(
+    "/dashboard/corhuila/resolve",
+    response_model=CorhuilaResolveResponse,
+    dependencies=[Depends(require_roles(Role.INSTRUCTOR, Role.SUPERADMIN))],
+)
+async def resolve_corhuila(db: DbSession) -> CorhuilaResolveResponse:
+    """Vuelve a cruzar las filas de CORHUILA con el histórico de ESE."""
+    return await run_in_threadpool(dashboard_service.resolve_corhuila, db)
 
 
 @router.get(
@@ -285,7 +352,6 @@ async def get_dashboard_overview(
     moment: int | None = Query(default=None, ge=1, le=4),
     simulation: str | None = None,
     group: str | None = None,
-    semester: str | None = None,
     test_type: str | None = None,
     presented: bool | None = None,
     page: int = Query(default=1, ge=1),
@@ -296,7 +362,7 @@ async def get_dashboard_overview(
         db,
         import_id,
         _dashboard_filters(
-            year, simulation, group, semester, test_type, presented,
+            year, simulation, group, test_type, presented,
             period, moment,
         ),
         page,
@@ -320,7 +386,6 @@ async def get_dashboard_program(
     moment: int | None = Query(default=None, ge=1, le=4),
     simulation: str | None = None,
     group: str | None = None,
-    semester: str | None = None,
     test_type: str | None = None,
     presented: bool | None = None,
     search: str | None = Query(default=None, max_length=200),
@@ -333,7 +398,7 @@ async def get_dashboard_program(
         import_id,
         program_id,
         _dashboard_filters(
-            year, simulation, group, semester, test_type, presented,
+            year, simulation, group, test_type, presented,
             period, moment,
         ),
         search,

@@ -6,11 +6,11 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from core.orm import Base
-from modules.excel.dtos.requests.dashboard import DashboardFilterQuery
 from modules.excel.dtos.requests.read_workbook import ReadWorkbookRequest
 from modules.excel.entities.academic import (
     AcademicProgram,
     AcademicProgramAlias,
+    AcademicResult,
     DashboardState,
 )
 from modules.excel.services.dashboard_data_quality import assess_data_quality
@@ -118,6 +118,7 @@ class DataQualityTests(unittest.TestCase):
                     "emails_with_multiple_documents": 0,
                     "documents_with_multiple_emails": 0,
                     "names_with_multiple_documents": 0,
+                    "documents_with_multiple_programs": 0,
                 },
             },
         )
@@ -221,22 +222,19 @@ class DashboardRulesIntegrationTests(unittest.TestCase):
         )
 
     def test_numeric_semester_is_merged_with_its_label(self) -> None:
+        # El semestre ya no es un filtro: solo se muestra en el historial.
         response = self._import(first_semester=7)
 
+        self.assertNotIn("semesters", response.filters.model_dump())
         self.assertEqual(
-            response.filters.semesters, ["SEMESTRE 7", "SEMESTRE 8"]
+            self.db.scalar(
+                select(AcademicResult.semester_key).where(
+                    AcademicResult.import_id == response.import_id,
+                    AcademicResult.source_row_number == 2,
+                )
+            ),
+            "semestre 7",
         )
-        overview = self.service.get_overview(
-            self.db,
-            response.import_id,
-            DashboardFilterQuery(semester="semestre 7"),
-            page=1,
-            page_size=50,
-            account=self.admin,
-        )
-        # Ana (semestre escrito como 7) y Luis ("SEMESTRE 7"), ambos en 2025.
-        self.assertEqual(overview.kpis.presentations, 1)
-        self.assertEqual(overview.kpis.not_presented_records, 1)
 
     def test_import_response_includes_data_quality(self) -> None:
         response = self._import()

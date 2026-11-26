@@ -53,7 +53,7 @@ def corhuila_row(
 CORHUILA_ROWS = [
     # Documento de Carlos (ESE M2 2026-1, Programa B).
     corhuila_row("CARLOS", "RUIZ", "otro@corhuila.edu.co", (200, 120, 0, 300), "201"),
-    # Correo de Carlos → mismo estudiante (fila repetida a propósito).
+    # Nombre de Carlos (con otro correo) → mismo estudiante.
     corhuila_row("Carlos", "Ruiz", "CRUIZ-2024a@corhuila.edu.co", (180, "-", 150, 160)),
     # Nombre completo único de Sara (ESE M2 2025-2).
     corhuila_row("SARA", "DIAZ", "sdiaz-2024b@corhuila.edu.co", (130, 140, 150, 160)),
@@ -138,9 +138,10 @@ class CorhuilaImportTests(unittest.TestCase):
         self.assertEqual(
             self._rows(response.import_id),
             [
-                (2, "DOCUMENTO", "ESE_M2", "2026-1", True),
-                (3, "CORREO", "ESE_M2", "2026-1", True),
-                (4, "NOMBRE", "ESE_M2", "2025-2", True),
+                (2, "DOCUMENTO", "ESE", "2026-1", True),
+                # El nombre completo es la regla principal (el correo puede variar).
+                (3, "NOMBRE", "ESE", "2026-1", True),
+                (4, "NOMBRE", "ESE", "2025-2", True),
                 (5, "AMBIGUO", "SIN_PROGRAMA", None, False),
                 (6, "SIN_COINCIDENCIA", "SIN_PROGRAMA", None, True),
             ],
@@ -161,8 +162,8 @@ class CorhuilaImportTests(unittest.TestCase):
             quality.matches,
             {
                 "DOCUMENTO": 1,
-                "CORREO": 1,
-                "NOMBRE": 1,
+                "CORREO": 0,
+                "NOMBRE": 2,
                 "AMBIGUO": 1,
                 "SIN_COINCIDENCIA": 1,
             },
@@ -236,7 +237,7 @@ class CorhuilaImportTests(unittest.TestCase):
 
         self.assertEqual(
             [row[1] for row in self._rows(corhuila.import_id)],
-            ["DOCUMENTO", "CORREO", "NOMBRE", "AMBIGUO", "SIN_COINCIDENCIA"],
+            ["DOCUMENTO", "NOMBRE", "NOMBRE", "AMBIGUO", "SIN_COINCIDENCIA"],
         )
         self.assertEqual(len(students_without_program(self.db)), 2)
 

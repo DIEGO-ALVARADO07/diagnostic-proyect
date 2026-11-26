@@ -5,6 +5,7 @@ from modules.excel.entities.competency import (
     COMPARABLE_COMPETENCIES,
     Competency,
     classify_level,
+    classify_level_number,
 )
 from modules.excel.entities.dashboard import DashboardRecord
 
@@ -25,6 +26,7 @@ def calculate_metrics(
     competency_results: dict[str, dict[str, object]] = {}
     competency_averages: list[float] = []
     general_values: list[float] = []
+    level_values: list[int] = []
 
     for competency in competencies:
         values = [
@@ -33,6 +35,7 @@ def calculate_metrics(
             if (score := record.scores[competency.key]) is not None
         ]
         general_values.extend(values)
+        level_values.extend(classify_level_number(score) for score in values)
         levels = [classify_level(competency, score) for score in values]
         distribution_counts = {
             level: levels.count(level)
@@ -63,7 +66,7 @@ def calculate_metrics(
     return {
         "presentations": len(presented),
         "unique_students": len(
-            {record.document for record in presented if record.document}
+            {record.identity for record in presented} - {None}
         ),
         "not_presented_records": len(records) - len(presented),
         "average_global": fmean(global_values) if global_values else None,
@@ -74,6 +77,7 @@ def calculate_metrics(
         "general_standard_deviation": (
             stdev(general_values) if len(general_values) >= 2 else None
         ),
+        "average_level": fmean(level_values) if level_values else None,
         "simple_competence_average": (
             fmean(competency_averages) if competency_averages else None
         ),

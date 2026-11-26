@@ -212,15 +212,22 @@ class DocumentIdentityTests(unittest.TestCase):
             (elena.history[0].moment, elena.history[0].semester_range), (4, "8–10")
         )
 
-    def test_corhuila_rows_match_by_document_then_email_then_name(self) -> None:
+    def test_corhuila_rows_match_by_document_then_name_then_email(self) -> None:
         corhuila = self._seed_corhuila(
             "2026-2",
             [
                 {"document": "201", "email": "otro@corhuila.edu.co", "name": "X"},
+                # Nombre que no está en ESE: se usa el correo.
                 {"email": "CRUIZ-2024a@corhuila.edu.co", "name": "Otro Nombre"},
                 {"email": "sdiaz@corhuila.edu.co", "name": "SARA DIAZ"},
                 {"email": "mlopez@corhuila.edu.co", "name": "Mario López"},
                 {"email": "nadie@corhuila.edu.co", "name": "Nadie Nunca"},
+                # Nombre repetido en ESE: el correo desempata (es de 302).
+                {"email": "m2@x.co", "name": "Mario Lopez"},
+                # El nombre manda sobre el correo (que es de Sara).
+                {"email": "sara@x.co", "name": "Carlos Ruiz"},
+                # Solo tiene un Momento 4 de 2024: vale cualquier momento.
+                {"email": "emora@corhuila.edu.co", "name": "ELENA MORA"},
             ],
         )
 
@@ -243,11 +250,14 @@ class DocumentIdentityTests(unittest.TestCase):
                 for number, match, program, resolution, period in rows
             ],
             [
-                (2, "DOCUMENTO", "PROGRAMA B", "ESE_M2", "2026-1"),
-                (3, "CORREO", "PROGRAMA B", "ESE_M2", "2026-1"),
-                (4, "NOMBRE", "PROGRAMA B", "ESE_M2", "2025-2"),
+                (2, "DOCUMENTO", "PROGRAMA B", "ESE", "2026-1"),
+                (3, "CORREO", "PROGRAMA B", "ESE", "2026-1"),
+                (4, "NOMBRE", "PROGRAMA B", "ESE", "2025-2"),
                 (5, "AMBIGUO", None, "SIN_PROGRAMA", None),
                 (6, "SIN_COINCIDENCIA", None, "SIN_PROGRAMA", None),
+                (7, "CORREO", "PROGRAMA B", "ESE", "2026-1"),
+                (8, "NOMBRE", "PROGRAMA B", "ESE", "2026-1"),
+                (9, "NOMBRE", "PROGRAMA A", "ESE", "2024-1"),
             ],
         )
         carlos_id = self.db.scalar(
@@ -266,17 +276,19 @@ class DocumentIdentityTests(unittest.TestCase):
     def test_program_lookup(self) -> None:
         self._import()
 
-        by_document = lookup_program(self.db, document="201", corhuila_period="2026-2")
+        by_document = lookup_program(self.db, document="201")
         self.assertEqual(by_document.match, "DOCUMENTO")
         self.assertEqual(by_document.program.upper(), "PROGRAMA B")
-        self.assertEqual(by_document.moment_two_period, "2026-1")
+        self.assertEqual(
+            (by_document.program_source, by_document.program_period, by_document.program_moment),
+            ("ESE", "2026-1", 2),
+        )
         self.assertEqual(
             by_document.emails,
             ["carlos.ruiz@gmail.com", "cruiz-2024a@corhuila.edu.co"],
         )
-        # Antes de 2026-1 aún no tenía Momento 2.
-        earlier = lookup_program(self.db, document="201", corhuila_period="2025-2")
-        self.assertEqual((earlier.match, earlier.program), ("DOCUMENTO", None))
+        elena = lookup_program(self.db, full_name="Elena Mora")
+        self.assertEqual((elena.program_period, elena.program_moment), ("2024-1", 4))
         by_name = lookup_program(self.db, full_name="sara  DÍAZ")
         self.assertEqual((by_name.match, by_name.document), ("NOMBRE", "401"))
         self.assertEqual(lookup_program(self.db, full_name="Mario Lopez").match, "AMBIGUO")

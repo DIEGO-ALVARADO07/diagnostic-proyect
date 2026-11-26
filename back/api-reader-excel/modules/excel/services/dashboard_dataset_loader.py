@@ -14,7 +14,7 @@ from modules.excel.entities.academic import (
     ExcelImport,
     TdProgramasReference,
 )
-from modules.excel.entities.assessment import SIN_PROGRAMA_LABEL
+from modules.excel.entities.assessment import SIN_PROGRAMA_ID, SIN_PROGRAMA_LABEL
 from modules.excel.entities.competency import COMPETENCIES
 from modules.excel.entities.dashboard import DashboardDataset, DashboardRecord
 from modules.excel.entities.import_status import SNAPSHOT_STATUSES
@@ -96,7 +96,9 @@ class DashboardDatasetLoader:
         student_rows: dict[object, list[DashboardRecord]] = {}
         student_of_key: dict[str, object] = {}
         for result in results:
-            program_id = str(result.program_id) if result.program_id else ""
+            program_id = (
+                str(result.program_id) if result.program_id else SIN_PROGRAMA_ID
+            )
             # CORHUILA no trae programa: las filas sin programa de ESE se
             # agrupan como "Sin programa".
             program_name = programs.get(program_id) or (
@@ -142,6 +144,7 @@ class DashboardDatasetLoader:
                 source=import_row.source,
                 email_key=result.email_key,
                 program_resolution=result.program_resolution,
+                student_id=result.student_id,
             )
             records.append(record)
             records_by_program.setdefault(program_id, []).append(record)

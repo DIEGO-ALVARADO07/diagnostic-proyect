@@ -110,6 +110,7 @@ class SecurityMigrationTests(unittest.TestCase):
         aliases_migration = load_migration(
             "0007_document_identity_email_aliases.py"
         )
+        manual_migration = load_migration("0008_manual_program_assignment.py")
 
         engine = create_engine("sqlite://")
         try:
@@ -123,6 +124,7 @@ class SecurityMigrationTests(unittest.TestCase):
                     sources_migration.upgrade()
                     identity_migration.upgrade()
                     aliases_migration.upgrade()
+                    manual_migration.upgrade()
 
                 self.assertEqual(
                     set(inspect(connection).get_table_names()),
@@ -133,6 +135,7 @@ class SecurityMigrationTests(unittest.TestCase):
                 )
 
                 with Operations.context(context):
+                    manual_migration.downgrade()
                     aliases_migration.downgrade()
                     identity_migration.downgrade()
                     sources_migration.downgrade()
@@ -401,6 +404,38 @@ class SecurityMigrationTests(unittest.TestCase):
                     ).all(),
                     [(1, 1, 1), (2, 1, 2), (3, 1, 4)],
                 )
+        finally:
+            engine.dispose()
+
+    def test_manual_program_migration_renames_ese_m2(self) -> None:
+        engine = create_engine("sqlite://")
+        try:
+            with engine.begin() as connection:
+                context = MigrationContext.configure(connection)
+                with Operations.context(context):
+                    for path in sorted(_VERSIONS_DIR.glob("000[1-7]_*.py")):
+                        load_migration(path.name).upgrade()
+                connection.exec_driver_sql(
+                    "INSERT INTO academic_results (import_id, source_row_number, "
+                    "program_name_raw, year, simulation_name, simulation_key, "
+                    "program_resolution, created_at) VALUES "
+                    "('imp', 1, '', 2026, 'S', 's', 'ESE_M2', '2026-01-01'), "
+                    "('imp', 2, '', 2026, 'S', 's', 'SIN_PROGRAMA', '2026-01-01')"
+                )
+                with Operations.context(context):
+                    load_migration("0008_manual_program_assignment.py").upgrade()
+                self.assertEqual(
+                    connection.exec_driver_sql(
+                        "SELECT program_resolution FROM academic_results "
+                        "ORDER BY source_row_number"
+                    ).all(),
+                    [("ESE",), ("SIN_PROGRAMA",)],
+                )
+                columns = {
+                    column["name"]
+                    for column in inspect(connection).get_columns("academic_students")
+                }
+                self.assertIn("assigned_program_id", columns)
         finally:
             engine.dispose()
 

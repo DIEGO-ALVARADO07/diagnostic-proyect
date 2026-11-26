@@ -140,6 +140,16 @@ class AcademicStudent(Base):
     first_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    assigned_program_id: Mapped[int | None] = mapped_column(
+        ForeignKey("academic_programs.id", ondelete="SET NULL"), nullable=True
+    )
+    """Programa asignado a mano (lista "por revisar" de CORHUILA). Manda sobre ESE."""
+    assigned_program_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("api_users.id", ondelete="SET NULL"), nullable=True
+    )
+    assigned_program_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=utcnow
     )
@@ -300,7 +310,7 @@ class AcademicResult(Base):
     program_resolution: Mapped[str | None] = mapped_column(
         String(20), nullable=True
     )
-    """Solo CORHUILA: ``ESE_M2`` (programa tomado de ESE Momento 2) o
+    """Solo CORHUILA: ``ESE`` (registro de ESE más reciente), ``MANUAL`` o
     ``SIN_PROGRAMA``. ``None`` en ESE, cuyo programa viene en el archivo."""
     program_resolved_import_id: Mapped[str | None] = mapped_column(
         ForeignKey("excel_imports.id", ondelete="SET NULL"), nullable=True

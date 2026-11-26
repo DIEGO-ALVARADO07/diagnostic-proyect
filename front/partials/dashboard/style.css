@@ -36,6 +36,8 @@
 .dashboard-title-row > div > p:not(.eyebrow) { color: var(--muted); font-size: 11px; margin: 0; }
 .program-filter { display: flex; flex-direction: column; gap: 5px; min-width: 220px; }
 .dashboard-kpis { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 15px; }
+.dashboard-note { background: #f7faf8; border: 1px solid #e8efeb; border-radius: 7px; color: #647a6d; font-size: 10px; line-height: 1.6; margin: 10px 0 0; padding: 9px 12px; }
+.dashboard-note strong { color: #3d5d4d; }
 .kpi-card { align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--shadow); display: flex; gap: 11px; min-height: 89px; padding: 13px; }
 .kpi-icon { align-items: center; background: #eaf5ef; border-radius: 8px; color: var(--green-dark); display: inline-flex; flex: 0 0 auto; font-size: 17px; height: 36px; justify-content: center; width: 36px; }
 .kpi-card:nth-child(2) .kpi-icon { background: #eef3f6; color: #516e7e; }

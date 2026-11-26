@@ -20,8 +20,8 @@ from modules.excel.services.dashboard_data_quality import assess_data_quality
 from modules.excel.services.dashboard_normalizer import email_key
 from modules.excel.services.dashboard_service import DashboardService
 from modules.excel.services.program_resolution import (
-    MomentTwoRow,
-    choose_moment_two,
+    EseProgramRow,
+    choose_current_program,
 )
 from modules.security.entities import Account
 from modules.security.entities.role import Role
@@ -53,31 +53,29 @@ class EmailRuleTests(unittest.TestCase):
                 "emails_with_multiple_documents": 1,
                 "documents_with_multiple_emails": 1,
                 "names_with_multiple_documents": 0,
+                "documents_with_multiple_programs": 0,
             },
         )
 
 
-class MomentTwoChoiceTests(unittest.TestCase):
-    def test_latest_moment_two_not_after_corhuila(self) -> None:
+class CurrentProgramChoiceTests(unittest.TestCase):
+    def test_latest_row_of_any_moment_wins(self) -> None:
+        # 2024 Veterinaria (M1), 2026 Ingeniería (M3): queda Ingeniería.
         rows = [
-            MomentTwoRow("2025-1", 10, 1),
-            MomentTwoRow("2026-1", 20, 2),
-            MomentTwoRow("2026-2", 30, 3),
+            EseProgramRow(2024, "2024-1", 1, 10, 1),
+            EseProgramRow(2026, "2026-1", 3, 5, 2),
+            EseProgramRow(2025, "2025-2", 2, 30, 3),
         ]
-        self.assertEqual(choose_moment_two(rows, "2026-1").program_id, 2)
-        self.assertEqual(choose_moment_two(rows, "2026-2").program_id, 3)
-        self.assertIsNone(choose_moment_two(rows, "2024-2"))
+        self.assertEqual(choose_current_program(rows).program_id, 2)
 
-    def test_undated_moment_two_only_when_nothing_else(self) -> None:
-        self.assertEqual(
-            choose_moment_two([MomentTwoRow(None, 5, 7)], "2026-2").program_id, 7
-        )
-        self.assertEqual(
-            choose_moment_two(
-                [MomentTwoRow(None, 5, 7), MomentTwoRow("2026-1", 3, 8)], "2026-2"
-            ).program_id,
-            8,
-        )
+    def test_same_period_uses_last_row_and_skips_rows_without_program(self) -> None:
+        rows = [
+            EseProgramRow(2026, "2026-1", 1, 5, 7),
+            EseProgramRow(2026, "2026-1", 2, 9, 8),
+            EseProgramRow(2026, "2026-2", 3, 1, None),
+        ]
+        self.assertEqual(choose_current_program(rows).program_id, 8)
+        self.assertIsNone(choose_current_program([]))
 
 
 class StudentIdentityTests(unittest.TestCase):
@@ -208,7 +206,7 @@ class StudentIdentityTests(unittest.TestCase):
         )
 
     def test_new_ese_import_resolves_and_stores_corhuila_programs(self) -> None:
-        # Ana: M1 en 2025-1 y M2 en 2026-1 (Programa A). Luis: solo M1.
+        # Ana: M1 en 2025-1 y M2 en 2026-1. Luis: solo un M1 (no presentado).
         current = self._seed_corhuila(
             "2026-2", ["Ana@Example.com", "luis@example.com", "otra@example.com"]
         )
@@ -219,15 +217,16 @@ class StudentIdentityTests(unittest.TestCase):
         self.assertEqual(
             self._corhuila_programs(current),
             {
-                "ana@example.com": ("ESE_M2", "2026-1", True),
-                "luis@example.com": ("SIN_PROGRAMA", None, False),
+                "ana@example.com": ("ESE", "2026-1", True),
+                # El programa vale aunque el intento no se haya presentado.
+                "luis@example.com": ("ESE", "2025-1", True),
                 "otra@example.com": ("SIN_PROGRAMA", None, False),
             },
         )
-        # En 2025-2 Ana aún no tenía Momento 2.
+        # El programa es el actual, sin importar el periodo de CORHUILA.
         self.assertEqual(
             self._corhuila_programs(earlier),
-            {"ana@example.com": ("SIN_PROGRAMA", None, False)},
+            {"ana@example.com": ("ESE", "2026-1", True)},
         )
         self.assertEqual(
             self.db.scalar(
@@ -241,7 +240,7 @@ class StudentIdentityTests(unittest.TestCase):
         ese_program = self.db.scalar(
             select(AcademicResult.program_id).where(
                 AcademicResult.import_id == ese.import_id,
-                AcademicResult.moment == 2,
+                AcademicResult.period == "2026-1",
             )
         )
         self.assertEqual(

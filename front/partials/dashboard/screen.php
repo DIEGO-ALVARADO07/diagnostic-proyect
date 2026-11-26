@@ -77,6 +77,7 @@ $dashboardPage = $_GET['page'] ?? '1';
                 <article class="kpi-card"><span class="kpi-icon">♧</span><div><span>Estudiantes evaluados</span><strong data-kpi-students>—</strong><small>Identificados en los datos</small></div></article>
                 <article class="kpi-card"><span class="kpi-icon">✓</span><div><span>Presentaciones</span><strong data-kpi-presentations>—</strong><small>Intentos presentados</small></div></article>
             </div>
+            <p class="dashboard-note"><strong>Nota:</strong> los promedios usan solo las 4 competencias comunes a ESE y CORHUILA (sin Comunicación escrita). Por eso el promedio de ESE puede diferir del que aparece en su Excel.</p>
 
             <section class="panel selected-program-panel" data-selected-program-panel hidden>
                 <div class="chart-card-heading">

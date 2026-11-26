@@ -21,6 +21,8 @@ class DashboardMetricsResponse(BaseModel):
     average_general: float | None
     general_standard_deviation: float | None
     simple_competence_average: float | None
+    average_level: float | None = None
+    """Promedio de los niveles (1–4) de las 4 competencias comunes."""
     competencies: dict[str, CompetencyMetricsResponse]
 
 
@@ -42,7 +44,6 @@ class DashboardFilterOptionsResponse(BaseModel):
     simulations: list[str]
     groups: list[str]
     programs: list[ProgramOptionResponse]
-    semesters: list[str]
     test_types: list[str]
     presented: list[bool | None]
 
@@ -53,7 +54,6 @@ class DashboardSelectedFiltersResponse(BaseModel):
     moment: int | None = None
     simulation: str | None
     group: str | None
-    semester: str | None
     test_type: str | None
     presented: bool | None
 
@@ -110,6 +110,9 @@ class DashboardIdentityQualityResponse(BaseModel):
     documents_with_multiple_emails: int = 0
     """Documentos con varios correos (institucional y personal): un estudiante,
     todos sus correos como alias."""
+    documents_with_multiple_programs: int = 0
+    """Estudiantes con más de un programa en ESE (cambio u homologación): en
+    CORHUILA se usa el del registro más reciente."""
     names_with_multiple_documents: int = 0
     """Nombres completos con documentos distintos: en CORHUILA el nombre no sirve
     para identificarlos (``AMBIGUO``)."""
@@ -241,8 +244,13 @@ class ProgramLookupResponse(BaseModel):
     emails: list[str]
     program_id: int | None
     program: str | None
-    """Programa de ESE Momento 2; ``None`` = sin programa."""
-    moment_two_period: str | None
+    """Programa actual: el manual o el del registro de ESE más reciente."""
+    program_source: str | None
+    """``ESE``, ``MANUAL`` o ``None`` (sin programa)."""
+    program_period: str | None
+    """Periodo de la fila de ESE usada."""
+    program_moment: int | None
+    """Momento de la fila de ESE usada."""
     ese_import_id: str | None
 
 
@@ -308,3 +316,85 @@ class DashboardProgramResponse(BaseModel):
     page_size: int
     total_records: int
     total_pages: int
+
+
+# --- Dashboard comparativo (ESE frente a CORHUILA) ---------------------------
+
+
+class CompetencyHighlightResponse(BaseModel):
+    key: str
+    label: str
+    average: float
+
+
+class CompareSideResponse(BaseModel):
+    """Una prueba en el periodo actual."""
+
+    source: str
+    import_id: str
+    filename: str
+    period: str | None
+    kpis: DashboardMetricsResponse
+    programs: list[ProgramSummaryResponse]
+    """Incluye el subprograma "Sin programa" (``program_id = "sin-programa"``)."""
+    weakest_competency: CompetencyHighlightResponse | None
+
+
+class WorstProgramResponse(BaseModel):
+    program_id: str
+    name: str
+    average_level: float
+    """Nivel promedio (1–4) uniendo ESE y CORHUILA."""
+    ese_average_level: float | None
+    corhuila_average_level: float | None
+
+
+class CommonCompetencyResponse(BaseModel):
+    key: str
+    label: str
+    average: float
+    """Promedio de los promedios de cada prueba cargada."""
+    ese_average: float | None
+    corhuila_average: float | None
+
+
+class CompareFiltersResponse(BaseModel):
+    moments: list[int]
+    """Momentos de ESE en el periodo actual (CORHUILA tiene momento único)."""
+    programs: list[ProgramOptionResponse]
+
+
+class CompareSelectedFiltersResponse(BaseModel):
+    moment: int | None
+    program_id: str | None
+
+
+class DashboardCompareResponse(BaseModel):
+    period: str | None
+    """Último periodo cargado. ``None`` si no hay importaciones."""
+    filters: CompareFiltersResponse
+    selected_filters: CompareSelectedFiltersResponse
+    ese: CompareSideResponse | None
+    """``None`` = a la espera del archivo de ESE de este periodo."""
+    corhuila: CompareSideResponse | None
+    """``None`` = a la espera del archivo de CORHUILA de este periodo."""
+    worst_program: WorstProgramResponse | None
+    lowest_common_competency: CommonCompetencyResponse | None
+    note: str
+
+
+# --- Revisión de CORHUILA -----------------------------------------------------
+
+
+class ProgramCatalogResponse(BaseModel):
+    programs: list[ProgramOptionResponse]
+
+
+class AssignProgramRequest(BaseModel):
+    program_id: int | None
+    """``None`` quita la asignación manual."""
+
+
+class CorhuilaResolveResponse(BaseModel):
+    changed_rows: int
+    without_program: int
