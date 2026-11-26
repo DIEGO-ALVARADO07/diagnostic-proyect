@@ -16,6 +16,7 @@ La documentación técnica del backend, sus rutas, configuración, migraciones y
 | `dashboard.js` | Búsqueda y filtros de tablas, confirmación de desactivación, menú móvil, modal de hojas y estado de carga de Excel. |
 | `partials/<modulo>/screen.php` | Plantilla PHP del módulo. |
 | `partials/<modulo>/style.css` | Estilos que solo se cargan para el módulo activo. |
+| `partials/dashboard/js/` | Script del dashboard en módulos ES nativos, sin build. `main.js` es el punto de entrada y se carga con `type="module"`; el mapa de módulos está al inicio de ese archivo. |
 
 Módulos actuales:
 

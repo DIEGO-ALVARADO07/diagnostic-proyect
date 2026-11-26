@@ -188,7 +188,7 @@ $vistas = [
         'title' => 'Inicio',
         'screen' => 'dashboard/screen.php',
         'style' => 'dashboard/style.css',
-        'script' => 'partials/dashboard/dashboard.js',
+        'script' => 'partials/dashboard/js/main.js',
     ],
     'users' => [
         'title' => 'Usuarios',
@@ -308,7 +308,7 @@ if ($vistaSolicitada === 'imports' && $rol === 'superadmin') {
     <link rel="stylesheet" href="partials/<?= h($vistaActual['style']) ?>">
     <script src="dashboard.js" defer></script>
     <?php if (!empty($vistaActual['script'])): ?>
-        <script src="<?= h($vistaActual['script']) ?>" defer></script>
+        <script type="module" src="<?= h($vistaActual['script']) ?>"></script>
     <?php endif; ?>
 </head>
 <body>
