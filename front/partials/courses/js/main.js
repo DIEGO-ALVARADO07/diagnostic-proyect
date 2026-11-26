@@ -7,6 +7,7 @@
 // nuevo, desde "Cursos eliminados").
 
 import { apiPost, apiRequest, errorMessage } from '../../shared/js/api.js';
+import { confirmAction } from '../../shared/js/confirm.js';
 import { addCell, populateSelect, setText } from '../../shared/js/dom.js';
 import { formatNumber } from '../../shared/js/format.js';
 
@@ -290,11 +291,21 @@ if (root) {
         });
     }
 
-    function deleteCourse(course) {
-        const message = '¿Eliminar el curso "' + course.name + '" (' + course.competency_label + ', Nivel ' +
-            course.level + ')?\n\nSe conserva con sus ' + plural(course.students, 'estudiante', 'estudiantes') +
-            ' y queda registrado quién lo eliminó. Solo el administrador puede habilitarlo de nuevo.';
-        if (!window.confirm(message)) {
+    async function deleteCourse(course) {
+        const ok = await confirmAction({
+            title: '¿Eliminar este curso?',
+            message: 'Se conserva con sus estudiantes y queda registrado quién lo eliminó. ' +
+                'Solo el administrador puede habilitarlo de nuevo.',
+            details: [
+                ['Curso', course.name],
+                ['Materia', course.competency_label],
+                ['Nivel', 'Nivel ' + course.level],
+                ['Estudiantes', formatNumber(course.students)]
+            ],
+            confirmLabel: 'Eliminar curso',
+            tone: 'danger'
+        });
+        if (!ok) {
             return;
         }
         apiPost('course_delete', { course_id: course.id }, state.csrfToken).then(() => {
@@ -305,8 +316,15 @@ if (root) {
         }).catch((error) => setStatus(errorMessage(error), true));
     }
 
-    function removeStudent(course, student) {
-        if (!window.confirm('¿Quitar a ' + student.name + ' del curso "' + course.name + '"?')) {
+    async function removeStudent(course, student) {
+        const ok = await confirmAction({
+            title: '¿Quitar al estudiante del curso?',
+            message: 'Deja de estar inscrito en este curso. Puedes volver a agregarlo con "Agregar estudiantes" si sigue teniendo el nivel.',
+            details: [['Estudiante', student.name], ['Curso', course.name]],
+            confirmLabel: 'Quitar del curso',
+            tone: 'danger'
+        });
+        if (!ok) {
             return;
         }
         apiPost('course_remove_student', { course_id: course.id, student_id: student.student_id }, state.csrfToken).then(() => {

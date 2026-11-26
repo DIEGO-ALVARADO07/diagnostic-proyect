@@ -63,14 +63,14 @@
                             <td><?= h(number_format((int) ($importacion['td_programas_row_count'] ?? 0), 0, ',', '.')) ?></td>
                             <td class="imports-actions">
                                 <?php if ($puedeDesactivar): ?>
-                                    <form method="post" data-confirm="¿Desactivar esta importación? Sus datos dejarán de aparecer en las consultas de los usuarios, pero el registro permanecerá en este historial.">
+                                    <form method="post" data-confirm-title="¿Desactivar esta importación?" data-confirm-label="Desactivar" data-confirm="<?= h(($importacion['filename'] ?? 'Archivo') . "\n\n") ?>Sus datos dejarán de aparecer en las consultas de los usuarios. El registro permanece en este historial y puedes restaurarla después.">
                                         <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
                                         <input type="hidden" name="action" value="delete_excel_import">
                                         <input type="hidden" name="import_id" value="<?= h($importId) ?>">
                                         <button class="text-button deactivate-import-button" type="submit">Desactivar</button>
                                     </form>
                                 <?php elseif ($estadoImportacion === 'DELETED' && is_string($importId) && $importId !== ''): ?>
-                                    <form method="post" data-confirm="¿Restaurar esta importación? Si su prueba y periodo no tienen otra activa, volverá a ser la activa; si después se subió otra, quedará como histórica.">
+                                    <form method="post" data-confirm-title="¿Restaurar esta importación?" data-confirm-label="Restaurar" data-confirm-tone="primary" data-confirm="<?= h(($importacion['filename'] ?? 'Archivo') . "\n\n") ?>Si su prueba y periodo no tienen otra activa, volverá a ser la activa; si después se subió otra, quedará como histórica.">
                                         <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
                                         <input type="hidden" name="action" value="restore_excel_import">
                                         <input type="hidden" name="import_id" value="<?= h($importId) ?>">

@@ -1,6 +1,7 @@
 // Panel del administrador: cursos eliminados con toda su información y "Habilitar".
 
 import { apiPost, apiRequest, errorMessage } from '../../shared/js/api.js';
+import { confirmAction } from '../../shared/js/confirm.js';
 import { setText } from '../../shared/js/dom.js';
 import { formatNumber } from '../../shared/js/format.js';
 
@@ -100,10 +101,21 @@ if (root) {
         });
     };
 
-    function restore(course, control) {
-        const message = '¿Habilitar el curso "' + course.name + '" (' + course.competency_label + ', Nivel ' +
-            course.level + ')?\n\nVuelve a Cursos con sus ' + plural(course.students, 'estudiante', 'estudiantes') + '.';
-        if (!window.confirm(message)) {
+    async function restore(course, control) {
+        const ok = await confirmAction({
+            title: '¿Habilitar este curso?',
+            message: 'Vuelve a Cursos, en su nivel, con los mismos estudiantes. Queda registrado que tú lo habilitaste.',
+            details: [
+                ['Curso', course.name],
+                ['Materia', course.competency_label],
+                ['Nivel', 'Nivel ' + course.level],
+                ['Estudiantes', formatNumber(course.students)],
+                ['Eliminado por', (course.deleted_by || 'Usuario no disponible') + ' · ' + formatDate(course.deleted_at)]
+            ],
+            confirmLabel: 'Habilitar curso',
+            tone: 'primary'
+        });
+        if (!ok) {
             return;
         }
         control.disabled = true;

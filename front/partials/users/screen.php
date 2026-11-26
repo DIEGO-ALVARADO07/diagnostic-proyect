@@ -43,7 +43,7 @@
                         <td><span class="active-state"><i></i>Activo</span></td>
                         <td>
                             <?php if (($item['id'] ?? null) !== ($usuario['id'] ?? null)): ?>
-                                <form method="post" class="inline-form" data-confirm="¿Desactivar esta cuenta? La persona perderá el acceso a la plataforma.">
+                                <form method="post" class="inline-form" data-confirm-title="¿Desactivar esta cuenta?" data-confirm-label="Desactivar cuenta" data-confirm="La persona perderá el acceso a la plataforma.">
                                     <input type="hidden" name="csrf_token" value="<?= h($csrfToken) ?>">
                                     <input type="hidden" name="action" value="deactivate_user">
                                     <input type="hidden" name="user_id" value="<?= h($item['id'] ?? '') ?>">
