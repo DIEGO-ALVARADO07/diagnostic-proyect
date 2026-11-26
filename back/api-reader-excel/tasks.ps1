@@ -10,6 +10,11 @@
     .\tasks.ps1 install
     .\tasks.ps1 backup
     .\tasks.ps1 backup -Label antes-0008
+    .\tasks.ps1 backup-daily
+    .\tasks.ps1 schedule-backup -At 22:00
+    .\tasks.ps1 unschedule-backup
+    .\tasks.ps1 reset
+    .\tasks.ps1 reset -IncludeUsers
     .\tasks.ps1 migrate
     .\tasks.ps1 bootstrap
     .\tasks.ps1 test
@@ -18,7 +23,10 @@
 #>
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("help", "install", "run", "test", "migrate", "bootstrap", "backup")]
+    [ValidateSet(
+        "help", "install", "run", "test", "migrate", "bootstrap", "backup",
+        "backup-daily", "schedule-backup", "unschedule-backup", "reset"
+    )]
     [string]$Task = "help",
 
     [string]$BindHost = "127.0.0.1",
@@ -28,8 +36,17 @@ param(
     # etiqueta para el nombre del archivo y ruta de mysqldump si no está en el PATH.
     [string]$BackupDir = "",
     [string]$Label = "",
-    [string]$MysqlDump = ""
+    [string]$MysqlDump = "",
+
+    # backup-daily: conserva solo los N respaldos diarios más recientes (0 = todos).
+    [int]$Keep = 0,
+    # schedule-backup: hora diaria del respaldo (HH:mm).
+    [string]$At = "22:00",
+    # reset: borra también cuentas de usuario y sesiones.
+    [switch]$IncludeUsers
 )
+
+$DailyTaskName = "Diagnostico academico - respaldo diario"
 
 $ErrorActionPreference = "Stop"
 $BackendRoot = $PSScriptRoot
@@ -119,6 +136,80 @@ switch ($Task) {
         if ($Label) { $backupArgs += @("--label", $Label) }
         if ($MysqlDump) { $backupArgs += @("--mysqldump", $MysqlDump) }
         Invoke-Python -m scripts.backup_db @backupArgs
+    }
+
+    "backup-daily" {
+        # Respaldo con etiqueta "diario" solo si los datos cambiaron desde la
+        # última copia; si no, no crea otro archivo. Lo usa la tarea programada.
+        Assert-Venv
+        Assert-EnvFile
+        $backupArgs = @("--if-changed", "--label", "diario")
+        if ($Keep -gt 0) { $backupArgs += @("--keep", "$Keep") }
+        if ($BackupDir) { $backupArgs += @("--output-dir", $BackupDir) }
+        if ($MysqlDump) { $backupArgs += @("--mysqldump", $MysqlDump) }
+        Write-Host ("[{0:yyyy-MM-dd HH:mm}] Respaldo diario" -f (Get-Date))
+        Invoke-Python -m scripts.backup_db @backupArgs
+    }
+
+    "schedule-backup" {
+        # Tarea de Windows que ejecuta "backup-daily" todos los días a la hora -At,
+        # con tu usuario (así tiene APP_MASTER_KEY). Si el equipo estaba apagado
+        # a esa hora, se ejecuta al encenderlo; si falla (por ejemplo, MySQL
+        # apagado), reintenta cada hora hasta 6 veces. La salida queda en un log.
+        Assert-Venv
+        Assert-EnvFile
+        $time = [datetime]::ParseExact($At, "HH:mm", $null)
+        $logDir = Join-Path $env:USERPROFILE "respaldos"
+        New-Item -ItemType Directory -Force $logDir | Out-Null
+        $log = Join-Path $logDir "respaldo-diario.log"
+        $script = Join-Path $BackendRoot "tasks.ps1"
+        $extra = ""
+        if ($Keep -gt 0) { $extra += " -Keep $Keep" }
+        if ($BackupDir) { $extra += " -BackupDir '$BackupDir'" }
+        if ($MysqlDump) { $extra += " -MysqlDump '$MysqlDump'" }
+        # UTF-8 para que las tildes de los mensajes de Python queden bien en el log.
+        $command = "[Console]::OutputEncoding = [Text.Encoding]::UTF8; & '$script' backup-daily$extra *>> '$log'"
+        $action = New-ScheduledTaskAction -Execute "powershell.exe" `
+            -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command `"$command`"" `
+            -WorkingDirectory $BackendRoot
+        $trigger = New-ScheduledTaskTrigger -Daily -At $time
+        $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries `
+            -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 30) `
+            -RestartCount 6 -RestartInterval (New-TimeSpan -Hours 1)
+        Register-ScheduledTask -TaskName $DailyTaskName -Action $action -Trigger $trigger `
+            -Settings $settings -Force `
+            -Description "Respaldo diario de la base del diagnóstico académico; solo guarda copia si hubo cambios." | Out-Null
+        Write-Host "Tarea programada: '$DailyTaskName' todos los días a las $At." -ForegroundColor Green
+        Write-Host "Respaldos en %USERPROFILE%\respaldos\<base>; registro en $log"
+        Write-Host "Si MySQL (Laragon) está apagado, la tarea reintenta cada hora (hasta 6 veces)."
+    }
+
+    "unschedule-backup" {
+        if (Get-ScheduledTask -TaskName $DailyTaskName -ErrorAction SilentlyContinue) {
+            Unregister-ScheduledTask -TaskName $DailyTaskName -Confirm:$false
+            Write-Host "Se quitó la tarea '$DailyTaskName'. Los respaldos ya creados se conservan."
+        } else {
+            Write-Host "No hay una tarea '$DailyTaskName' registrada."
+        }
+    }
+
+    "reset" {
+        # Vacía la base para empezar el recorrido desde cero. Antes hace una
+        # copia "antes-vaciar"; si falla, no borra nada.
+        Assert-Venv
+        Assert-EnvFile
+        Write-Host "Se borrarán TODOS los datos académicos: importaciones de Excel, resultados," -ForegroundColor Yellow
+        Write-Host "estudiantes, programas, cursos e inscripciones." -ForegroundColor Yellow
+        if ($IncludeUsers) {
+            Write-Host "También se borrarán las cuentas de usuario (luego: .\tasks.ps1 bootstrap)." -ForegroundColor Yellow
+        } else {
+            Write-Host "Las cuentas de usuario se conservan." -ForegroundColor Yellow
+        }
+        Write-Host "Antes se guarda una copia de seguridad con la etiqueta 'antes-vaciar'."
+        $confirm = Read-Host "Escribe el nombre de la base de datos para confirmar"
+        $resetArgs = @("--confirm", $confirm)
+        if ($IncludeUsers) { $resetArgs += "--include-users" }
+        Invoke-Python -m scripts.reset_db @resetArgs
     }
 
     "migrate" {
