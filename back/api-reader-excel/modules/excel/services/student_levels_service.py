@@ -17,6 +17,9 @@ Reglas (decisión del 26/11/2026):
   Ejemplo: 2, 3, 2 y 3 → 2,5 → Nivel 2.
 - **Sin resultado:** nunca presentó o nunca tuvo puntajes.
 - Se usan las 4 competencias comunes (sin Comunicación escrita).
+- **Doble programa** (fase 14b): si en su periodo más reciente el estudiante
+  está en dos programas (matriculados), aparece **una vez por programa**, con
+  los mismos datos y el mismo nivel; solo cambia el programa.
 """
 
 from collections.abc import Iterable
@@ -213,8 +216,15 @@ class StudentLevelsService:
                 if period == ALL_PERIODS
                 else [e for e in entries if e.record.period == period]
             )
-            if selected:
+            if not selected:
+                continue
+            programs = _current_programs(selected)
+            if len(programs) <= 1:
                 students.append(self._item(selected, entries))
+            else:
+                students.extend(
+                    self._item(selected, entries, program_id) for program_id in programs
+                )
         return period, periods, students
 
     # --- Carga -----------------------------------------------------------------
@@ -250,14 +260,32 @@ class StudentLevelsService:
 
     @staticmethod
     def _item(
-        entries: list[_Entry], all_entries: list[_Entry]
+        entries: list[_Entry],
+        all_entries: list[_Entry],
+        program_id: str | None = None,
     ) -> StudentLevelItemResponse:
-        """``entries``: filas del periodo elegido; ``all_entries``: todas."""
-        records = [entry.record for entry in entries]
+        """``entries``: filas del periodo elegido; ``all_entries``: todas.
+
+        Con ``program_id`` (doble programa) el registro es el de ese programa;
+        el nivel es el mismo para todos sus programas.
+        """
+        # Las copias por programa son el mismo resultado: cuentan una vez.
+        records = list(
+            {
+                (entry.record.source, entry.record.source_row_number, entry.record.period):
+                entry.record
+                for entry in entries
+            }.values()
+        )
         level, level_period, level_rows = student_level(records)
         # Datos de la fila más reciente; ESE primero porque trae documento.
+        candidates = (
+            [entry for entry in entries if entry.record.program_id == program_id]
+            if program_id is not None
+            else entries
+        )
         latest = max(
-            entries,
+            candidates,
             key=lambda entry: (
                 _period_key(entry.record),
                 entry.record.source == Source.ESE.value,
@@ -267,14 +295,17 @@ class StudentLevelsService:
         averages = _competency_averages(level_rows)
         values = [value for value in averages.values() if value is not None]
         identity = latest.record.identity
+        key = f"s{identity[1]}" if isinstance(identity, tuple) else str(identity)
         return StudentLevelItemResponse(
-            student_key=(
-                f"s{identity[1]}" if isinstance(identity, tuple) else str(identity)
-            ),
+            student_key=key if program_id is None else f"{key}-p{program_id}",
             student_id=identity[1] if isinstance(identity, tuple) else None,
             name=latest.record.name,
             document=next(
                 (e.record.document for e in all_entries if e.record.document),
+                None,
+            ),
+            document_type=next(
+                (e.record.document_type for e in all_entries if e.record.document_type),
                 None,
             ),
             email=latest.record.email,
@@ -290,6 +321,21 @@ class StudentLevelsService:
             average=fmean(values) if values else None,
             last_period=max(_period_key(e.record) for e in all_entries),
         )
+
+
+def _current_programs(entries: list[_Entry]) -> list[str]:
+    """Programas del periodo más reciente de estas filas (sin "Sin programa"
+    si hay alguno real). Más de uno = doble programa."""
+    latest = max(_period_key(entry.record) for entry in entries)
+    programs = sorted(
+        {
+            entry.record.program_id
+            for entry in entries
+            if _period_key(entry.record) == latest
+        }
+    )
+    real = [program for program in programs if program != SIN_PROGRAMA_ID]
+    return real or programs
 
 
 def _key_of(item: StudentLevelItemResponse) -> str:

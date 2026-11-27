@@ -1,6 +1,7 @@
 """Construye el ``DashboardDataset`` de una importación (desde caché o desde la base)."""
 
 import logging
+from dataclasses import replace
 from time import perf_counter
 from types import MappingProxyType
 from typing import Any
@@ -11,6 +12,8 @@ from sqlalchemy.orm import Session
 from modules.excel.entities.academic import (
     AcademicProgram,
     AcademicResult,
+    AcademicResultProgram,
+    AcademicStudent,
     ExcelImport,
     TdProgramasReference,
 )
@@ -75,11 +78,34 @@ class DashboardDatasetLoader:
                 .order_by(AcademicResult.source_row_number)
             )
         )
+        # Programas adicionales (doble programa): el mismo resultado cuenta en
+        # cada uno de ellos.
+        extra_programs: dict[int, list[int]] = {}
+        result_ids = [result.id for result in results]
+        for start in range(0, len(result_ids), 1000):
+            for result_id, extra_id in db.execute(
+                select(AcademicResultProgram.result_id, AcademicResultProgram.program_id)
+                .where(AcademicResultProgram.result_id.in_(result_ids[start:start + 1000]))
+                .order_by(AcademicResultProgram.program_id)
+            ):
+                extra_programs.setdefault(result_id, []).append(extra_id)
+        # Documento y tipo del estudiante (los de CORHUILA salen de matriculados).
+        student_ids = sorted({r.student_id for r in results if r.student_id is not None})
+        student_documents: dict[int, tuple[str | None, str | None]] = {}
+        for start in range(0, len(student_ids), 1000):
+            for student_id, number, kind in db.execute(
+                select(
+                    AcademicStudent.id,
+                    AcademicStudent.document_number,
+                    AcademicStudent.document_type,
+                ).where(AcademicStudent.id.in_(student_ids[start:start + 1000]))
+            ):
+                student_documents[student_id] = (number, kind)
         program_ids = {
             result.program_id
             for result in results
             if result.program_id is not None
-        }
+        } | {extra for extras in extra_programs.values() for extra in extras}
         programs = {
             str(program.id): program.canonical_name
             for program in db.scalars(
@@ -109,9 +135,12 @@ class DashboardDatasetLoader:
                 for value in (result.first_name_source, result.last_name_source)
                 if value
             )
+            student_document, document_type = student_documents.get(
+                result.student_id, (None, None)
+            )
             record = DashboardRecord(
                 source_row_number=result.source_row_number,
-                document=result.document_number_source,
+                document=result.document_number_source or student_document,
                 name=name,
                 email=result.email_source,
                 program_id=program_id,
@@ -145,16 +174,26 @@ class DashboardDatasetLoader:
                 email_key=result.email_key,
                 program_resolution=result.program_resolution,
                 student_id=result.student_id,
+                document_type=document_type,
             )
-            records.append(record)
-            records_by_program.setdefault(program_id, []).append(record)
+            copies = [record] + [
+                replace(
+                    record,
+                    program_id=str(extra_id),
+                    program_name=programs.get(str(extra_id), SIN_PROGRAMA_LABEL),
+                )
+                for extra_id in extra_programs.get(result.id, ())
+            ]
+            for copy in copies:
+                records.append(copy)
+                records_by_program.setdefault(copy.program_id, []).append(copy)
             group = (
                 ("student", result.student_id)
                 if result.student_id is not None
                 else record.student_key
             )
             if group is not None:
-                student_rows.setdefault(group, []).append(record)
+                student_rows.setdefault(group, []).extend(copies)
                 for key in {record.email_key, record.document} - {None}:
                     student_of_key.setdefault(key, group)
 

@@ -8,6 +8,7 @@ from modules.excel.entities.academic import (
     AcademicProgram,
     AcademicProgramAlias,
     AcademicResult,
+    AcademicResultProgram,
     AcademicStudent,
     AcademicStudentEmail,
     ActiveImport,
@@ -16,8 +17,11 @@ from modules.excel.entities.academic import (
     TdProgramasReference,
 )
 from modules.courses.entities import Course, CourseEnrollment
+from modules.enrollment.entities import EnrollmentRecord, EnrollmentUpload
 
 _IMPORTED_MODELS = (
+    EnrollmentRecord,
+    EnrollmentUpload,
     Course,
     CourseEnrollment,
     AccessToken,
@@ -25,6 +29,7 @@ _IMPORTED_MODELS = (
     AcademicProgram,
     AcademicProgramAlias,
     AcademicResult,
+    AcademicResultProgram,
     AcademicStudent,
     AcademicStudentEmail,
     ActiveImport,

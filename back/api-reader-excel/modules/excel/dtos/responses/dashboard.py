@@ -428,6 +428,8 @@ class StudentLevelItemResponse(BaseModel):
     """``academic_students.id``; ``None`` si la fila no tiene estudiante resuelto."""
     name: str
     document: str | None
+    document_type: str | None = None
+    """Tipo de documento de matriculados (``C``, ``T``, ``E``…)."""
     email: str | None
     program_id: str
     program: str

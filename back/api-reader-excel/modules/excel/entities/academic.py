@@ -151,6 +151,8 @@ class AcademicStudent(Base):
     document_number: Mapped[str | None] = mapped_column(
         String(80), nullable=True
     )
+    document_type: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    """Tipo de documento de matriculados (``C``, ``T``, ``E``, ``P``…)."""
     first_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     last_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     email: Mapped[str | None] = mapped_column(String(320), nullable=True)
@@ -462,4 +464,21 @@ class TdProgramasReference(Base):
     )
     source_payload: Mapped[dict[str, Any] | None] = mapped_column(
         JSON, nullable=True
+    )
+
+
+class AcademicResultProgram(Base):
+    """Programa adicional de una fila de CORHUILA (estudiante en doble programa).
+
+    ``academic_results.program_id`` guarda el primer programa; aquí quedan los
+    demás. El mismo resultado cuenta en todos sus programas.
+    """
+
+    __tablename__ = "academic_result_programs"
+
+    result_id: Mapped[int] = mapped_column(
+        ForeignKey("academic_results.id", ondelete="CASCADE"), primary_key=True
+    )
+    program_id: Mapped[int] = mapped_column(
+        ForeignKey("academic_programs.id", ondelete="CASCADE"), primary_key=True
     )

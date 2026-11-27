@@ -111,6 +111,8 @@ class DashboardRecord:
     """Solo CORHUILA: ``ProgramResolution``."""
     student_id: int | None = None
     """Estudiante resuelto (``academic_students.id``)."""
+    document_type: str | None = None
+    """Tipo de documento (de matriculados): ``C``, ``T``, ``E``…"""
 
     @property
     def student_key(self) -> str | None:

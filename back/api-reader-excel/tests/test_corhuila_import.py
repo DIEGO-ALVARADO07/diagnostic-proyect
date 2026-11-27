@@ -162,6 +162,7 @@ class CorhuilaImportTests(unittest.TestCase):
             quality.matches,
             {
                 "DOCUMENTO": 1,
+                "MATRICULADOS": 0,
                 "CORREO": 0,
                 "NOMBRE": 2,
                 "AMBIGUO": 1,

@@ -25,6 +25,8 @@ class Source(StrEnum):
 class ProgramResolution(StrEnum):
     """De dónde salió el programa de una fila de CORHUILA (que no lo trae)."""
 
+    MATRICULADOS = "MATRICULADOS"
+    """Programa del archivo de matriculados del mismo periodo (fuente principal)."""
     ESE = "ESE"
     """Programa del registro de ESE más reciente del estudiante (cualquier momento)."""
     MANUAL = "MANUAL"
@@ -43,6 +45,9 @@ class StudentMatch(StrEnum):
 
     DOCUMENTO = "DOCUMENTO"
     """Mismo documento de identidad (regla principal)."""
+    MATRICULADOS = "MATRICULADOS"
+    """Nombre completo y uno de los dos correos coinciden con la misma persona
+    del archivo de matriculados del periodo; de ahí sale su documento."""
     CORREO = "CORREO"
     """Alguno de los correos del estudiante en ESE coincide."""
     NOMBRE = "NOMBRE"

@@ -48,8 +48,8 @@ function periodosDeCarga(?DateTimeImmutable $hoy = null): array {
     return [$anio . '-2', $anio . '-1'];
 }
 
-function redirigir(string $vista): void {
-    header('Location: index.php?view=' . rawurlencode($vista));
+function redirigir(string $vista, array $parametros = []): void {
+    header('Location: index.php?' . http_build_query(['view' => $vista] + $parametros));
     exit;
 }
 
@@ -155,6 +155,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirigir('imports');
     }
 
+    // Matriculados (fase 14a): el archivo oficial de estudiantes del periodo.
+    // Solo el administrador lo sube; de él salen el programa y el semestre de CORHUILA.
+    if ($accion === 'upload_enrollment' && $rolSesion === 'superadmin') {
+        $uploadedFile = $_FILES['file'] ?? null;
+        $periodo = $_POST['period'] ?? '';
+        if (!is_string($periodo) || !in_array($periodo, periodosDeCarga(), true)) {
+            $_SESSION['flash'] = ['type' => 'error', 'message' => 'Solo se puede subir el archivo del periodo actual o del anterior (' . implode(' o ', periodosDeCarga()) . ').'];
+        } elseif (!is_array($uploadedFile) || ($uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            $_SESSION['flash'] = ['type' => 'error', 'message' => 'Selecciona un archivo Excel válido para continuar.'];
+        } elseif (($uploadedFile['size'] ?? 0) > 30 * 1024 * 1024) {
+            $_SESSION['flash'] = ['type' => 'error', 'message' => 'El archivo supera el límite permitido de 30 MB.'];
+        } else {
+            $respuesta = llamarBackendMultipart(
+                'enrollment/import',
+                ['period' => $periodo],
+                [
+                    'field' => 'file',
+                    'tmp_name' => $uploadedFile['tmp_name'],
+                    'type' => $uploadedFile['type'] ?? '',
+                    'name' => $uploadedFile['name'] ?? '',
+                ]
+            );
+            if ($respuesta['status'] === 201) {
+                $carga = $respuesta['data'];
+                $mensaje = 'Se cargaron ' . number_format((int) ($carga['students'] ?? 0), 0, ',', '.') . ' estudiantes matriculados en ' . $periodo
+                    . ' (' . number_format((int) ($carga['rows'] ?? 0), 0, ',', '.') . ' filas; '
+                    . (int) ($carga['double_program'] ?? 0) . ' en doble programa).';
+                if (!empty($carga['replaced_previous'])) {
+                    $mensaje .= ' Reemplazó al archivo anterior de ese periodo.';
+                }
+                if (!empty($carga['corhuila_rows_updated'])) {
+                    $mensaje .= ' Se actualizaron ' . (int) $carga['corhuila_rows_updated'] . ' resultados de CORHUILA con su programa, documento y semestre.';
+                }
+                if (!empty($carga['rejected'])) {
+                    $mensaje .= ' Se omitieron ' . (int) $carga['rejected'] . ' filas sin documento o sin programa.';
+                }
+                $_SESSION['flash'] = ['type' => 'success', 'message' => $mensaje];
+            } else {
+                $_SESSION['flash'] = ['type' => 'error', 'message' => mensajeDeRespuesta($respuesta, 'No se pudo cargar el archivo de matriculados.')];
+            }
+        }
+        redirigir('enrollment', is_string($periodo) && preg_match('/^\d{4}-[12]$/', $periodo) === 1 ? ['period' => $periodo] : []);
+    }
+
     if ($accion === 'upload_excel' && in_array($rolSesion, ['instructor', 'superadmin'], true)) {
         $uploadedFile = $_FILES['file'] ?? null;
         $fuente = $_POST['source'] ?? '';
@@ -221,6 +265,12 @@ $etiquetasRol = [
 $etiquetaRol = $etiquetasRol[$rol] ?? 'Cuenta';
 
 $vistas = [
+    'enrollment' => [
+        'title' => 'Matriculados',
+        'screen' => 'enrollment/screen.php',
+        'style' => ['shared/style.css', 'students/style.css', 'report/style.css', 'enrollment/style.css'],
+        'script' => 'partials/enrollment/js/main.js',
+    ],
     'dashboard' => [
         'title' => 'Dashboard',
         'screen' => 'dashboard/screen.php',
@@ -286,6 +336,8 @@ $vistas = [
 
 $menuPorRol = [
     'superadmin' => [
+        // Primero: sin los matriculados del periodo no se pueden trabajar los otros Excel.
+        ['view' => 'enrollment', 'label' => 'Matriculados', 'icon' => '▦'],
         ['view' => 'dashboard', 'label' => 'Dashboard', 'icon' => '⌂'],
         ['view' => 'ese', 'label' => 'ESE', 'icon' => '▥'],
         ['view' => 'corhuila', 'label' => 'CORHUILA', 'icon' => '◧'],

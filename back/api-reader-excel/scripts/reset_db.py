@@ -26,8 +26,11 @@ from collections.abc import Iterable
 from sqlalchemy import Engine, MetaData, Table, delete, func, inspect, select, text
 
 ACADEMIC_TABLES = (
+    "enrollment_records",
+    "enrollment_uploads",
     "course_enrollments",
     "courses",
+    "academic_result_programs",
     "academic_results",
     "td_programas_reference",
     "excel_active_imports",

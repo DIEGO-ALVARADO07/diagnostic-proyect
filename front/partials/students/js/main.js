@@ -141,7 +141,9 @@ if (root) {
             person.className = 'students-person';
             row.appendChild(person);
 
-            addCell(row, student.document || 'Sin documento');
+            addCell(row, student.document
+                ? (student.document_type ? student.document_type + ' ' : '') + student.document
+                : 'Sin documento');
             addCell(row, student.program, student.program_id === 'sin-programa' ? 'is-sin-programa' : '');
 
             const levelCell = document.createElement('td');

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from core.orm import Base
 from modules.courses.entities import Course, CourseEnrollment  # noqa: F401 (registra tablas)
+from modules.enrollment.entities import EnrollmentRecord, EnrollmentUpload  # noqa: F401 (registra tablas)
 from modules.excel.entities.academic import (
     AcademicProgram,
     AcademicStudent,

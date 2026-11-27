@@ -295,6 +295,50 @@ if ($resource === 'active') {
     $params['page'] = $page;
     $params['page_size'] = 50;
     $endpoint = 'excel/dashboard/students';
+} elseif ($resource === 'enrollment') {
+    // Matriculados (fase 14a): datos personales, solo para el administrador.
+    if ($role !== 'superadmin') {
+        dashboardJson(403, ['detail' => 'Solo el administrador puede consultar los matriculados.']);
+    }
+    $params = [];
+    $period = $_GET['period'] ?? '';
+    if ($period !== '') {
+        if (!dashboardIdentifier($period, DASHBOARD_PERIOD_PATTERN)) {
+            dashboardJson(422, ['detail' => 'El periodo seleccionado no es válido.']);
+        }
+        $params['period'] = $period;
+    }
+    $enrollmentFilters = [
+        'program' => '/^[\p{L}\p{N} .,()\-_\/]{1,255}$/u',
+        'semester' => '/^[1-9][0-9]?$/',
+        'document_type' => '/^[A-Za-z]{1,10}$/',
+        'gender' => '/^[A-Za-z]{1,10}$/',
+        'stratum' => '/^[0-9]$/',
+    ];
+    foreach ($enrollmentFilters as $key => $pattern) {
+        $value = $_GET[$key] ?? '';
+        if ($value === '') {
+            continue;
+        }
+        if (!dashboardIdentifier($value, $pattern)) {
+            dashboardJson(422, ['detail' => 'Uno de los filtros enviados no es válido.']);
+        }
+        $params[$key] = $value;
+    }
+    $search = $_GET['search'] ?? '';
+    if (!is_string($search) || mb_strlen($search) > 120) {
+        dashboardJson(422, ['detail' => 'El texto de búsqueda es demasiado largo.']);
+    }
+    if (trim($search) !== '') {
+        $params['search'] = trim($search);
+    }
+    $page = filter_var($_GET['page'] ?? 1, FILTER_VALIDATE_INT);
+    if ($page === false || $page < 1) {
+        dashboardJson(422, ['detail' => 'El número de página no es válido.']);
+    }
+    $params['page'] = $page;
+    $params['page_size'] = 50;
+    $endpoint = 'enrollment/records';
 } elseif ($resource === 'courses') {
     $endpoint = 'courses';
     $params = [];

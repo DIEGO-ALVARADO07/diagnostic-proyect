@@ -1,0 +1,36 @@
+/* Matriculados (fase 14a). Usa shared, students y report/style.css. */
+
+.enrollment-app { max-width: 1280px; }
+.enrollment-app .module-heading p:not(.eyebrow) { max-width: 760px; }
+.enrollment-upload { margin-bottom: 16px; }
+
+.enrollment-uploads { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 14px; }
+.enrollment-upload-cards { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); margin-top: 8px; }
+.enrollment-upload-card { background: #f8fafb; border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; gap: 3px; padding: 11px 13px; }
+.enrollment-upload-card.is-current { background: #edf8f5; border-color: #3f9b8a; }
+.enrollment-upload-period { color: #1d3b4e; font: 700 15px 'Manrope', sans-serif; }
+.enrollment-upload-file { color: #445a6b; font-size: 10px; overflow-wrap: anywhere; }
+.enrollment-upload-stats { color: #31495b; font-size: 10px; font-weight: 600; }
+.enrollment-upload-card small { color: #8a98a3; font-size: 9px; }
+
+.enrollment-filter-controls { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.enrollment-table { min-width: 1240px; }
+.enrollment-table th { font-size: 8px; padding: 10px 8px; white-space: nowrap; }
+.enrollment-table td { font-size: 10px; padding: 9px 8px; vertical-align: top; }
+.enrollment-student { min-width: 170px; }
+.enrollment-student strong { color: #31495b; display: block; font-weight: 700; }
+.enrollment-student small, .enrollment-program small { color: #8a98a3; display: block; font-size: 9px; margin-top: 2px; }
+.enrollment-document { white-space: nowrap; }
+.enrollment-doc-type { background: #eef2f5; border-radius: 4px; color: #526779; display: inline-block; font-size: 8px; font-weight: 700; padding: 1px 5px; }
+.enrollment-program { min-width: 190px; }
+.enrollment-double { background: #fff4e5; border-radius: 999px; color: #a3621a; display: inline-block; font-size: 8px; font-weight: 700; margin-top: 4px; padding: 2px 7px; }
+.enrollment-email { overflow-wrap: anywhere; min-width: 160px; }
+.enrollment-center { text-align: center; }
+
+@media (max-width: 900px) {
+    .enrollment-filter-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+    .enrollment-filter-controls { grid-template-columns: 1fr; }
+}

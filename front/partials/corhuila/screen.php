@@ -53,7 +53,7 @@ require __DIR__ . '/../shared/compare-side.php';
                 <div>
                     <p class="eyebrow">POR REVISAR</p>
                     <h3>Sin programa <span class="chart-badge" data-without-total></span></h3>
-                    <p>Estudiantes de CORHUILA que no se encontraron en el histórico de ESE (ni por documento, ni por nombre completo, ni por correo). Asígnales el programa a mano: la asignación manual manda sobre ESE.</p>
+                    <p>Estudiantes de CORHUILA que no se encontraron en <strong>matriculados</strong> del periodo (por documento, o por nombre completo y uno de sus correos) ni en el histórico de ESE. Asígnales el programa a mano: la asignación manual manda sobre todo lo demás.</p>
                 </div>
                 <button type="button" class="button button-secondary" data-resolve>Recalcular cruce</button>
             </div>
