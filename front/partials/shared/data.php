@@ -368,6 +368,41 @@ if ($resource === 'active') {
         $params['period'] = $period;
     }
     $endpoint = 'excel/dashboard/review/without-program';
+} elseif ($resource === 'results') {
+    // Módulo CORHUILA: filas de una carga con programa, semestre y búsqueda.
+    $importId = $_GET['import_id'] ?? '';
+    if (!dashboardIdentifier($importId, '/^[a-f0-9-]{36}$/i')) {
+        dashboardJson(422, ['detail' => 'La importación seleccionada no es válida.']);
+    }
+    $params = [];
+    $programId = $_GET['program_id'] ?? '';
+    if ($programId !== '') {
+        if (!dashboardIdentifier($programId, DASHBOARD_COMPARE_PROGRAM_PATTERN)) {
+            dashboardJson(422, ['detail' => 'El programa seleccionado no es válido.']);
+        }
+        $params['program_id'] = $programId;
+    }
+    $semester = $_GET['semester'] ?? '';
+    if ($semester !== '') {
+        if (!dashboardIdentifier($semester, '/^[\p{L}\p{N} \-]{1,60}$/u')) {
+            dashboardJson(422, ['detail' => 'El semestre seleccionado no es válido.']);
+        }
+        $params['semester'] = $semester;
+    }
+    $search = $_GET['search'] ?? '';
+    if (!is_string($search) || mb_strlen($search) > 120) {
+        dashboardJson(422, ['detail' => 'El texto de búsqueda es demasiado largo.']);
+    }
+    if (trim($search) !== '') {
+        $params['search'] = trim($search);
+    }
+    $page = filter_var($_GET['page'] ?? 1, FILTER_VALIDATE_INT);
+    if ($page === false || $page < 1) {
+        dashboardJson(422, ['detail' => 'El número de página no es válido.']);
+    }
+    $params['page'] = $page;
+    $params['page_size'] = 25;
+    $endpoint = 'excel/dashboard/' . $importId . '/results';
 } elseif (in_array($resource, ['overview', 'program'], true)) {
     $importId = $_GET['import_id'] ?? '';
     if (!dashboardIdentifier($importId, '/^[a-f0-9-]{36}$/i')) {

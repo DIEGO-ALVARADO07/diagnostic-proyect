@@ -36,8 +36,8 @@ if (!function_exists('renderCompareSide')) {
                 <div class="empty-chart" data-side-chart-empty hidden>No hay resultados por competencia con estos filtros.</div>
             </div>
 
-            <div class="compare-block">
-                <div class="chart-card-heading"><div><p class="eyebrow">PROGRAMAS</p><h3>Promedio por programa</h3><p>Del mejor al más bajo. "Sin programa" va al final.</p></div></div>
+            <div class="compare-block" data-side-programs-block>
+                <div class="chart-card-heading"><div><p class="eyebrow">PROGRAMAS</p><h3>Promedio por programa</h3><p data-side-programs-hint>Del mejor al más bajo. "Sin programa" va al final.</p></div></div>
                 <div class="table-wrap">
                     <table class="compare-programs-table">
                         <thead><tr><th>PROGRAMA</th><th>PROMEDIO</th><th>NIVEL</th><th>ESTUDIANTES</th></tr></thead>

@@ -286,7 +286,7 @@ $vistas = [
     'corhuila' => [
         'title' => 'CORHUILA',
         'screen' => 'corhuila/screen.php',
-        'style' => ['shared/style.css', 'dashboard/style.css', 'corhuila/style.css'],
+        'style' => ['shared/style.css', 'dashboard/style.css', 'students/style.css', 'corhuila/style.css'],
         'script' => 'partials/corhuila/js/main.js',
     ],
     'users' => [

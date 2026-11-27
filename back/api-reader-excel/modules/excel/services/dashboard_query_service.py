@@ -14,6 +14,7 @@ from modules.excel.dtos.responses.dashboard import (
     DashboardMetricsResponse,
     DashboardOverviewResponse,
     DashboardProgramResponse,
+    DashboardResultsResponse,
     DashboardStudentAttemptResponse,
     DashboardStudentResponse,
     ProgramOptionResponse,
@@ -31,6 +32,7 @@ from modules.excel.services import dashboard_filters as filters_
 from modules.excel.services import dashboard_mappers as mappers
 from modules.excel.services.dashboard_audit import build_source_audit
 from modules.excel.services.dashboard_dataset_loader import DashboardDatasetLoader
+from modules.excel.services.dashboard_results import build_results
 from modules.excel.services.dashboard_normalizer import (
     document_value,
     email_key,
@@ -153,6 +155,22 @@ class DashboardQueryService:
             total_records=total_records,
             total_pages=mappers.total_pages(total_records, page_size),
         )
+
+    def get_results(
+        self,
+        db: Session,
+        import_id: str,
+        program_id: str | None,
+        semester: str | None,
+        search: str | None,
+        page: int,
+        page_size: int,
+        account: Account | None = None,
+    ) -> DashboardResultsResponse:
+        """Filas de la importación con programa, semestre y búsqueda (ver ``dashboard_results``)."""
+        dataset = self._visible_dataset(db, import_id, account)
+        _validate_page(page, page_size)
+        return build_results(dataset, program_id, semester, search, page, page_size)
 
     def get_student(
         self,

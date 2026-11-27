@@ -41,6 +41,7 @@ from modules.excel.dtos.responses.dashboard import (
     DashboardImportRestoreResponse,
     DashboardOverviewResponse,
     DashboardProgramResponse,
+    DashboardResultsResponse,
     DashboardStudentResponse,
     StudentLevelsResponse,
 )
@@ -226,6 +227,21 @@ class DashboardService:
     ) -> DashboardProgramResponse:
         return self.queries.get_program(
             db, import_id, program_id, filters, search, page, page_size, account
+        )
+
+    def get_results(
+        self,
+        db: Session,
+        import_id: str,
+        program_id: str | None,
+        semester: str | None,
+        search: str | None,
+        page: int,
+        page_size: int,
+        account: Account | None = None,
+    ) -> DashboardResultsResponse:
+        return self.queries.get_results(
+            db, import_id, program_id, semester, search, page, page_size, account
         )
 
     def get_student(

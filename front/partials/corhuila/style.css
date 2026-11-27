@@ -1,6 +1,20 @@
-/* Módulo CORHUILA (fase 12b). Usa shared/style.css y dashboard/style.css. */
+/* Módulo CORHUILA (fases 12b y 15). Usa shared, dashboard y students/style.css. */
 
-.corhuila-filter-controls { grid-template-columns: minmax(0, 320px); }
+.corhuila-filter-controls { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.4fr); }
+.corhuila-search-field .search-box { background: #fff; border-color: #dfe7ea; border-radius: 6px; max-width: none; min-height: 37px; }
+
+/* Detalle de un programa: encabezado con "← Todos los programas". */
+.corhuila-program-heading { margin: 4px 0 14px; }
+.corhuila-program-heading .back-link { padding: 0; }
+
+/* Tabla de programas: el nombre abre el detalle. */
+.compare-program-open { color: #31495b; font-size: 10px; font-weight: 600; overflow-wrap: anywhere; padding: 0; text-align: left; }
+.compare-program-open:hover, .compare-program-open:focus-visible { color: var(--green-dark); text-decoration: underline; }
+.is-sin-programa .compare-program-open { color: #8a5a2b; }
+
+.corhuila-students-panel { margin-bottom: 15px; }
+.corhuila-students-panel h3 { align-items: center; display: flex; gap: 8px; }
+.corhuila-results-table { min-width: 1040px; }
 .corhuila-app .compare-side { margin-bottom: 15px; }
 .corhuila-app .compare-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .corhuila-app .compare-waiting { min-height: 200px; }
@@ -20,10 +34,11 @@
 
 @media (max-width: 1050px) {
     .corhuila-app .compare-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .corhuila-filter-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 760px) {
     .corhuila-app .dashboard-welcome .button { align-self: stretch; justify-content: center; }
     .corhuila-filter-controls { grid-template-columns: 1fr; }
-    .without-program-panel { padding: 14px; }
+    .without-program-panel, .corhuila-students-panel { padding: 14px; }
 }

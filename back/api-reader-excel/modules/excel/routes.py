@@ -19,6 +19,7 @@ from modules.excel.dtos.responses.dashboard import (
     DashboardImportRestoreResponse,
     DashboardOverviewResponse,
     DashboardProgramResponse,
+    DashboardResultsResponse,
     AssignProgramRequest,
     CorhuilaResolveResponse,
     DashboardCompareResponse,
@@ -461,6 +462,43 @@ async def get_dashboard_program(
             period, moment,
         ),
         search,
+        page,
+        page_size,
+        account,
+    )
+
+
+@router.get(
+    "/dashboard/{import_id}/results",
+    response_model=DashboardResultsResponse,
+    dependencies=[Depends(require_roles(Role.INSTRUCTOR, Role.SUPERADMIN))],
+)
+async def get_dashboard_results(
+    db: DbSession,
+    account: CurrentAccount,
+    import_id: str,
+    program_id: str | None = Query(
+        default=None, pattern=r"^([1-9][0-9]{0,9}|sin-programa)$"
+    ),
+    semester: str | None = Query(default=None, max_length=60),
+    search: str | None = Query(default=None, max_length=120),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=MAX_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+) -> DashboardResultsResponse:
+    """Filas de una importación (CORHUILA o ESE) con filtros y búsqueda.
+
+    ``program_id`` deja un programa (``sin-programa`` incluido); ``semester``
+    uno de ``semester_options`` (``sin-semestre`` = sin dato); ``search`` busca
+    cada palabra en nombre, documento, correo y programa. ``metrics`` y
+    ``programs`` no usan la búsqueda: sirven para los KPIs y la gráfica.
+    """
+    return await run_in_threadpool(
+        dashboard_service.get_results,
+        db,
+        import_id,
+        program_id,
+        semester.strip() or None if semester else None,
+        search.strip() or None if search else None,
         page,
         page_size,
         account,

@@ -40,7 +40,8 @@ function renderWaiting(element, options) {
     }
 }
 
-function renderPrograms(element, programs) {
+/** Con `onOpen`, el nombre de cada programa es un botón que abre su detalle. */
+function renderPrograms(element, programs, onOpen) {
     const tbody = element.querySelector('[data-side-programs]');
     tbody.replaceChildren();
     programs.forEach((program) => {
@@ -48,7 +49,19 @@ function renderPrograms(element, programs) {
         if (program.program_id === SIN_PROGRAMA_ID) {
             row.className = 'is-sin-programa';
         }
-        addCell(row, program.name);
+        if (onOpen) {
+            const cell = document.createElement('td');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'text-button compare-program-open';
+            button.textContent = program.name + ' →';
+            button.title = 'Ver estudiantes y gráfica de ' + program.name;
+            button.addEventListener('click', () => onOpen(program));
+            cell.appendChild(button);
+            row.appendChild(cell);
+        } else {
+            addCell(row, program.name);
+        }
         addCell(row, formatNumber(program.metrics.average_general));
         addCell(row, levelText(program.metrics.average_level));
         addCell(row, formatNumber(program.metrics.unique_students));
@@ -60,7 +73,7 @@ function renderPrograms(element, programs) {
 /**
  * @param {HTMLElement} element  La sección [data-side].
  * @param {object|null} side     `ese` o `corhuila` de /compare; null = a la espera.
- * @param {{label: string, source: string, period: string|null, uploadPeriods: string[]}} options
+ * @param {{label: string, source: string, period: string|null, uploadPeriods: string[], onOpenProgram?: Function}} options
  */
 export function renderSide(element, side, options) {
     if (!side) {
@@ -86,5 +99,5 @@ export function renderSide(element, side, options) {
         'Promedio de las 4 competencias comunes en ' + options.label + '.',
         element.querySelector('[data-side-chart-empty]')
     );
-    renderPrograms(element, side.programs || []);
+    renderPrograms(element, side.programs || [], options.onOpenProgram);
 }

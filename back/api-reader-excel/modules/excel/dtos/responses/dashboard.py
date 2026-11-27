@@ -333,6 +333,54 @@ class DashboardProgramResponse(BaseModel):
     total_pages: int
 
 
+# --- Resultados de una importación con búsqueda (módulo CORHUILA) ------------
+
+
+class ResultStudentResponse(BaseModel):
+    """Una fila de resultados: un estudiante en un programa."""
+
+    document: str | None
+    document_type: str | None
+    name: str
+    email: str | None
+    program_id: str
+    program: str
+    semester: str | None
+    presented: bool | None
+    average: float | None
+    """Promedio de las 4 competencias comunes de esta fila."""
+    level: int | None
+    """Nivel 1–4 (promedio de los niveles de las 4 competencias); ``None`` sin resultado."""
+    scores: dict[str, float | None]
+    levels: dict[str, str]
+
+
+class ResultOptionResponse(BaseModel):
+    value: str
+    label: str
+    count: int
+    """Filas con los demás filtros y la búsqueda aplicados."""
+
+
+class DashboardResultsResponse(BaseModel):
+    import_id: str
+    program: ProgramOptionResponse | None
+    """Programa elegido; ``None`` = todos."""
+    semester: str | None
+    search: str | None
+    metrics: DashboardMetricsResponse
+    """KPIs y competencias del programa y semestre elegidos (sin la búsqueda)."""
+    programs: list[ProgramSummaryResponse]
+    """Promedio por programa con el semestre aplicado; "Sin programa" al final."""
+    program_options: list[ResultOptionResponse]
+    semester_options: list[ResultOptionResponse]
+    students: list[ResultStudentResponse]
+    page: int
+    page_size: int
+    total_records: int
+    total_pages: int
+
+
 # --- Dashboard comparativo (ESE frente a CORHUILA) ---------------------------
 
 
