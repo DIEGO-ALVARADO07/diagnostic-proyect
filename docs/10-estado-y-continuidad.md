@@ -6,7 +6,7 @@
 
 | Rama | Contenido |
 |---|---|
-| `dev` | Código: backend en `back/api-reader-excel/` y frontend en `front/`. HEAD: `e813cb9` (fase 13b). |
+| `dev` | Código: backend en `back/api-reader-excel/` y frontend en `front/`. HEAD: `a914c58` (interfaz: menú con scroll y confirmación propia). |
 | `docs` | Esta documentación (`docs/`) y la [bitácora de cambios](bitacora/README.md). |
 | `main` | Rama principal; aún no recibe los cambios de las fases 1–5. |
 
@@ -35,6 +35,8 @@ Cada cambio está explicado en orden (qué, dónde y por qué) en la [bitácora]
 | 13a | Estudiantes de los Excel por nivel (N1–N4 y Sin resultado) con filtro de periodo, ESE con Año → Periodo → Momento, "Ver módulo" con los filtros del dashboard | Completada | `b3acc77` |
 | 12c | Crecimiento por programa (M1 → M2 → CORHUILA → M3); necesita un endpoint nuevo | **Pendiente** | — |
 | 13b | Cursos por nivel y materia (nombre, descripción, metodología), inscripción en bloque por el nivel en la materia, eliminación lógica con auditoría y restauración solo del superadmin (cursos e importaciones); migraciones `0009`–`0011` | Completada | `e813cb9` |
+| Operación | Copia diaria solo con cambios, tarea programada de Windows (02:30) y `tasks.ps1 reset` para empezar desde cero | Completada | `b445b9a` |
+| Interfaz | Menú lateral con scroll (siempre se ve "Cerrar sesión") y ventana de confirmación propia en lugar de las alertas del navegador | Completada | `a914c58` |
 | 13c | Exportar los estudiantes (por curso o por nivel) a Excel, o una carga masiva, para crearlos en la plataforma oficial de CORHUILA | **Pendiente** — por definir con el usuario | — |
 Decisiones de negocio tomadas en la fase 5 (22/11/2026):
 

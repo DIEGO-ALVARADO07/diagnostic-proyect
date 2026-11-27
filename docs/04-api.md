@@ -1,119 +1,118 @@
 # API y contratos HTTP
 
-La especificación OpenAPI está disponible en `/openapi.json`; la interfaz Swagger UI se sirve en `/docs` cuando la API está en ejecución.
+> Actualizado el 27 de noviembre de 2026 (rama `dev`, commit `a914c58`).
+
+La especificación OpenAPI está en `/openapi.json` y Swagger UI en `/docs` mientras la API esté en ejecución. Ahí están todos los campos de cada respuesta; este documento resume qué hace cada ruta y quién puede usarla.
+
+## Convenciones
+
+- Todas las rutas, excepto `POST /auth/login` y `GET /health`, requieren `Authorization: Bearer <access_token>`.
+- **Roles:** `superadmin`, `instructor` y `estudiante`. Si el rol no alcanza, la respuesta es `403`; sin sesión o con el token vencido, `401`.
+- **Errores:** JSON con `detail` (texto o un objeto con `message`). Los más comunes:
+
+  | Código | Cuándo |
+  |---|---|
+  | `404` | No existe. |
+  | `409` | Conflicto: duplicado o elemento eliminado. |
+  | `413` | Archivo de más de 30 MB. |
+  | `415` | Tipo de archivo no válido. |
+  | `422` | Datos inválidos. |
+
+- **Periodo:** `AAAA-1` o `AAAA-2`, por ejemplo `2026-2`. Algunas rutas aceptan además `all` (todo el histórico).
+- **Materias** (las 4 competencias comunes): `lectura_critica`, `competencias_ciudadanas`, `razonamiento_cuantitativo` e `ingles`.
+- **Programa:** `program_id` es el id numérico como texto, o `sin-programa` para los estudiantes sin programa.
 
 ## Autenticación
 
-### `POST /auth/login`
-
-Request JSON:
-
-```json
-{
-  "username": "usuario",
-  "password": "contraseña"
-}
-```
-
-Respuesta: `access_token`, `token_type`, `expires_in` en segundos y el perfil público del usuario (`id`, `username`, `email`, `full_name`, `role`, `is_active`). El token dura 8 horas. Una credencial incorrecta produce `401`.
-
-### `POST /auth/logout`
-
-Requiere `Authorization: Bearer <access_token>`. Revoca el token actual y responde `204`.
-
-Todas las rutas siguientes, excepto `/health`, requieren autenticación Bearer.
+| Método y ruta | Función |
+|---|---|
+| `POST /auth/login` | Body `{"username", "password"}`. Devuelve `access_token`, `token_type`, `expires_in` (segundos) y el perfil. El token dura **8 horas**. Una credencial incorrecta da `401`. |
+| `POST /auth/logout` | Revoca el token actual (`204`). |
 
 ## Usuarios
 
 | Método y ruta | Función | Acceso |
 |---|---|---|
-| `GET /users/me` | Consultar perfil propio. | Cualquier usuario autenticado. |
-| `PATCH /users/me` | Cambiar correo, nombre o contraseña propia. | Cualquier usuario autenticado. |
-| `GET /users` | Listar cuentas activas; acepta `offset` y `limit` (máximo 100). | Instructor y superadmin. |
-| `POST /users` | Crear instructor o estudiante. | Solo superadmin. |
-| `GET /users/{user_id}` | Consultar perfil. | Según rol; estudiantes solo el propio. |
-| `PATCH /users/{user_id}` | Actualizar perfil según permisos. | Según rol y objetivo. |
-| `DELETE /users/{user_id}` | Desactivar cuenta y revocar tokens. | Solo superadmin. |
+| `GET /users/me` | Perfil propio. | Cualquier usuario. |
+| `PATCH /users/me` | Cambiar el correo, el nombre o la contraseña propia. | Cualquier usuario. |
+| `GET /users` | Cuentas activas (`offset`, `limit` ≤ 100). | Instructor y superadmin. |
+| `POST /users` | Crear instructor o estudiante. | Superadmin. |
+| `GET /users/{user_id}` | Consultar un perfil. | Según rol; el estudiante solo ve el propio. |
+| `PATCH /users/{user_id}` | Actualizar un perfil. | Según rol y cuenta objetivo. |
+| `DELETE /users/{user_id}` | Desactivar la cuenta y revocar sus tokens. | Superadmin. |
 
-La contraseña al crear o cambiar cuenta requiere al menos 12 caracteres. Las respuestas de usuario no contienen `password` ni `password_hash`. No hay registro público ni endpoint para crear/promover un superadmin.
+Las contraseñas requieren al menos 12 caracteres. Las respuestas nunca incluyen `password` ni `password_hash`. No hay registro público, y el superadmin solo se crea con `tasks.ps1 bootstrap`.
 
-## Lectura Excel
+## Lectura simple de Excel
 
-### `POST /excel/read`
+`POST /excel/read` (instructor y superadmin) recibe `multipart/form-data` con:
+- `file`: `.xlsx`, `.xlsm`, `.xls` u `.ods`, de hasta 30 MB;
+- `sheet_name`, opcional: si falta, lee la primera hoja.
 
-Requiere rol instructor o superadmin. `multipart/form-data`:
+Devuelve las filas como JSON **sin guardar nada**.
 
-- `file`: archivo `.xlsx`, `.xlsm`, `.xls` u `.ods`, hasta 30 MB.
-- `sheet_name`: opcional; debe coincidir exactamente con una hoja. Si se omite, se lee la primera.
+## Importación y consulta de resultados
 
-Ejemplo con `curl.exe` en PowerShell:
-
-```powershell
-$filePath = (Resolve-Path "C:\datos\resultados.xlsx").Path
-curl.exe --request POST "http://127.0.0.1:8000/excel/read" `
-  --header "Authorization: Bearer $token" `
-  --form "file=@$filePath" `
-  --form "sheet_name=Hoja1"
-```
-
-La respuesta contiene:
-
-```json
-{
-  "filename": "resultados.xlsx",
-  "available_sheets": ["Hoja1"],
-  "sheet_read": "Hoja1",
-  "total_rows": 1,
-  "data": [{"columna": "valor"}]
-}
-```
-
-La hoja inválida responde `422` con las hojas disponibles; archivo no válido `415`; archivo mayor a 30 MB `413`; usuario sin permiso `403`. El endpoint procesa en memoria y no almacena el archivo ni el JSON.
-
-## Dashboard académico persistente
-
-Estas rutas requieren rol `instructor` o `superadmin` y `Authorization: Bearer <access_token>`. A diferencia de `/excel/read`, importan resultados a MySQL. No guardan el Excel binario. El flujo explicado paso a paso está en la [guía del dashboard](09-flujo-dashboard-academico.md).
+Rutas de instructor y superadmin, salvo donde se indica.
 
 | Método y ruta | Función |
 |---|---|
-| `POST /excel/dashboard/import` | Recibe `file` como `multipart/form-data`, valida `BD GEN` y `TD PROGRAMAS`, crea un snapshot y lo activa si todo termina correctamente. Devuelve filtros, auditoría, métricas y la primera página de programas. |
-| `GET /excel/dashboard/active` | Devuelve la importación activa con su resumen y primera página. Responde `404` si todavía no hay snapshot activo. |
-| `GET /excel/dashboard/imports?limit=20` | Solo superadmin. Lista snapshots no desactivados, incluidos activos, históricos y fallidos. `limit` va de 1 a 100. Incluye `active_import_id`. |
-| `GET /excel/dashboard/admin/imports?limit=100` | Solo superadmin. Historial administrativo completo, incluidos los desactivados, que se presentan con estado `DELETED`. |
-| `DELETE /excel/dashboard/imports/{import_id}` | Solo superadmin. Desactivación lógica para estados `ACTIVE`, `HISTORICAL` y `FAILED`; no borra el snapshot. |
-| `GET /excel/dashboard/{import_id}` | Devuelve filtros, indicadores y programas de un snapshot no desactivado; instructor solo puede consultar el activo, superadmin también los históricos. |
-| `GET /excel/dashboard/{import_id}/programs/{program_id}` | Devuelve métricas del programa y estudiantes paginados. |
-| `GET /excel/dashboard/{import_id}/students/{document}` | Devuelve los intentos históricos del documento dentro de esa importación. |
+| `POST /excel/dashboard/import` | `multipart/form-data` con `file`, `source` (`ESE` o `CORHUILA`) y `period` (`AAAA-S`), los tres obligatorios. **ESE:** libro con las hojas `BD GEN` y `TD PROGRAMAS`; trae todo el histórico. **CORHUILA:** hoja `Calificaciones` exportada de Moodle; es un archivo por periodo. La nueva importación pasa a ser la activa de su espacio (ESE, o CORHUILA de ese periodo) y la anterior queda histórica. Si el mismo archivo (SHA-256) ya estaba importado, devuelve esa importación; si estaba desactivado, responde `409` y pide restaurarlo. |
+| `GET /excel/dashboard/active?source=&period=` | Importación activa de ESE (por defecto) o de CORHUILA en un periodo, con filtros, resumen y auditoría. `404` si no hay ninguna. |
+| `GET /excel/dashboard/{import_id}` | Resumen del histórico de ESE: indicadores y programas. Filtros: `year`, `period`, `moment` (1–4), `simulation`, `group`, `test_type`, `presented`, `page` y `page_size` (≤ 50). |
+| `GET /excel/dashboard/{import_id}/programs/{program_id}` | Métricas de un programa y sus estudiantes paginados (`search`, `page`, `page_size`), con los mismos filtros. |
+| `GET /excel/dashboard/{import_id}/students/{document}` | Historial de un estudiante; `document` acepta el documento o el correo. |
+| `GET /excel/dashboard/compare?period=&moment=&program_id=` | **Dashboard principal:** ESE y CORHUILA en un periodo (por defecto, el último cargado). Devuelve cada lado (`ese`, `corhuila`; `null` = "a la espera del archivo"), `filters.periods`, `filters.corhuila_periods`, momentos y programas del periodo, el programa con peor nivel y la competencia más baja en común. |
+| `GET /excel/dashboard/students` | **Estudiantes por nivel:** todos los de los Excel (ESE y CORHUILA juntos), cada uno con un nivel. Parámetros: `period` (por defecto el último; `all` = histórico), `level` (`1`–`4` o `sin-resultado`), `program_id`, `search`, `page` y `page_size` (≤ 50). Devuelve `groups` (conteo por nivel), `periods`, `programs` y `students`, que trae los niveles por competencia, el promedio y de qué periodo y prueba sale el nivel. |
+| `GET /excel/dashboard/program-lookup?document=&email=&full_name=` | Busca en el histórico de ESE a un estudiante y su programa actual (documento → nombre completo → correo). |
 
-`POST /excel/dashboard/import` acepta archivos de hasta 30 MB en las extensiones que permite el servicio Excel. El mismo contenido identificado por SHA-256 no se vuelve a insertar; si ya existe una importación válida no desactivada, la respuesta vuelve a identificarla. Si ese contenido fue desactivado, la API responde `409`; no hay restauración automática. La vista global pagina hasta 50 programas por petición (`page` empieza en 1; `page_size` de 1 a 50).
+**Estados de una importación:**
 
-Los endpoints de programa y vista global aceptan `year`, `simulation`, `group`, `semester`, `test_type` y `presented`; el endpoint de programa también admite `search`, `page` y `page_size`. `program_id` se obtiene de `filters.programs` o de la lista `overview.programs` de la respuesta de importación. Un programa agrupa todas las escrituras de su nombre que solo difieren en tildes, mayúsculas o espacios; el filtro `semester` trata `4` y `SEMESTRE 4` como el mismo valor. En búsquedas y filtros se conserva el identificador de importación para que las consultas lean siempre el mismo snapshot.
-
-El estado persistido de cada carga puede ser `PROCESSING`, `VALIDATED`, `ACTIVE`, `HISTORICAL` o `FAILED`. `PROCESSING`/`VALIDATED` son estados internos transitorios; normalmente la respuesta exitosa será `ACTIVE`. Si la validación del libro falla se responde `422` y la carga queda registrada como `FAILED`; ningún resultado parcial reemplaza el snapshot activo. `DELETED` es un estado que proyecta el listado administrativo cuando `deleted_at` está establecido; no reemplaza el estado almacenado. Al desactivar el snapshot activo, se limpia `active_import_id`. Los endpoints normales ocultan snapshots desactivados y responden `404` al consultarlos por ID.
-
-### Auditoría y calidad de datos
-
-La respuesta de importación (y `GET /excel/dashboard/active`) incluye `source_audit`:
-
-| Campo | Contenido |
+| Estado | Significado |
 |---|---|
-| `years_in_bd_gen`, `td_programas_visible_year` | Años de `BD GEN` y año seleccionado en `TD PROGRAMAS`. |
-| `compared_program_rows`, `compared_metrics`, `difference_count`, `differences` | Comparación de `TD PROGRAMAS` con lo calculado desde `BD GEN`, emparejando programa y simulacro por nombre normalizado (máximo 100 diferencias detalladas). |
-| `records_without_document` | Intentos sin documento. |
-| `data_quality` | `score_codes` (textos no numéricos en puntajes, por competencia), `levels_without_numeric_score`, `unknown_levels`, `source_level_mismatches` (filas cuyo nivel del Excel difiere del calculado). Es `null` en importaciones anteriores al 22/11/2026. |
+| `PROCESSING`, `VALIDATED` | Transitorios, mientras se procesa. |
+| `ACTIVE` | La que se consulta en su espacio. |
+| `HISTORICAL` | Reemplazada por una más reciente. |
+| `FAILED` | La validación falló (`422` al importar). Ningún resultado parcial reemplaza a la activa. |
+| `DELETED` | Solo en el listado administrativo, cuando la importación tiene `deleted_at`. |
 
-Ejemplo de `data_quality` con el libro CORHUILA:
+La respuesta de importación y de `active` incluye `source_audit` con la auditoría frente a `TD PROGRAMAS` y la calidad de datos (`data_quality`). El detalle está en el [flujo del dashboard](09-flujo-dashboard-academico.md).
 
-```json
-{
-  "score_codes": {"comunicacion_escrita": {"N": 254, "N/A": 489, "P": 12}},
-  "levels_without_numeric_score": {"comunicacion_escrita": 60},
-  "unknown_levels": {"ingles": {"false": 2}}
-}
-```
+## Revisión de programas (CORHUILA)
+
+Instructor y superadmin.
+
+| Método y ruta | Función |
+|---|---|
+| `GET /excel/dashboard/review/without-program?period=` | Estudiantes de CORHUILA "sin programa" (no encontrados en ESE). |
+| `GET /excel/dashboard/catalog/programs` | Programas activos para asignar a mano. |
+| `PUT /excel/dashboard/review/students/{student_id}/program` | Body `{"program_id": n}` (o `null` para quitarlo). La asignación manual manda sobre ESE. |
+| `POST /excel/dashboard/corhuila/resolve` | Vuelve a cruzar todas las filas de CORHUILA con el histórico de ESE. |
+
+## Administración de importaciones (solo superadmin)
+
+| Método y ruta | Función |
+|---|---|
+| `GET /excel/dashboard/imports?limit=` | Importaciones no desactivadas. |
+| `GET /excel/dashboard/admin/imports?limit=` | Historial completo; las desactivadas aparecen como `DELETED`, con `deleted_at`, `deleted_by`, `restored_at` y `restored_by`. |
+| `DELETE /excel/dashboard/imports/{import_id}` | Desactivación lógica de una importación `ACTIVE`, `HISTORICAL` o `FAILED`. Guarda quién y cuándo. |
+| `POST /excel/dashboard/imports/{import_id}/restore` | Restaura una desactivada. Vuelve a ser la activa si su espacio no tiene otra; si no, queda `HISTORICAL`. Las fallidas siguen fallidas. Devuelve `status`, `activated` y `message`. |
+
+## Cursos
+
+Instructor y superadmin, salvo donde se indica.
+
+| Método y ruta | Función |
+|---|---|
+| `GET /courses` | Cursos activos agrupados en los 4 niveles. Cada nivel trae `available_students` por materia (cuántos tienen ese nivel en el último periodo), además de `periods` y `competencies`. |
+| `POST /courses` | Crea un curso. Body: `name` (3–150), `level` (1–4), `competency`, `description` (10–2000) y `methodology` (10–2000). El nombre no se repite en el mismo nivel y materia: si existe, `409`; si está eliminado, el `409` pide que el administrador lo habilite. |
+| `DELETE /courses/{course_id}` | **Eliminación lógica:** conserva el curso y sus inscripciones y guarda quién y cuándo. Devuelve el curso. |
+| `GET /courses/{course_id}/students` | Inscritos, con documento, correo, programa, nivel y periodo al inscribirse, y nivel actual en la materia. También funciona con un curso eliminado (auditoría). |
+| `POST /courses/{course_id}/enroll` | Body `{"period": "2026-2" \| "all" \| null}`. Inscribe a **todos los que tienen el nivel del curso en su materia** en ese periodo, sin repetir. Devuelve `added`, `already_enrolled` y `level_students`. `409` si el curso está eliminado. |
+| `DELETE /courses/{course_id}/students/{student_id}` | Quita a un estudiante del curso (`204`). |
+| `GET /courses/deleted` | **Solo superadmin.** Cursos eliminados con toda su información y auditoría. |
+| `POST /courses/{course_id}/restore` | **Solo superadmin.** Habilita un curso eliminado con sus inscripciones y guarda quién y cuándo. |
 
 ## Estado
 
-### `GET /health`
-
-No requiere autenticación ni consulta MySQL. Responde `{"status":"ok"}` para indicar que la aplicación atiende peticiones; no garantiza disponibilidad de la base de datos.
+`GET /health` no requiere autenticación ni consulta MySQL. Responde `{"status":"ok"}`, lo que indica que la aplicación atiende, no que la base esté disponible.

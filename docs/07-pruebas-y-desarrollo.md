@@ -8,7 +8,7 @@ Desde `back/api-reader-excel`:
 .\tasks.ps1 test
 ```
 
-Ejecuta `python -m unittest discover -s tests` con el Python del `venv` y `LOG_LEVEL=WARNING` (para que los logs no se mezclen con el reporte). **58 pruebas**, todas en SQLite en memoria: no necesitan `core/.env` ni MySQL.
+Ejecuta `python -m unittest discover -s tests` con el Python del `venv` y `LOG_LEVEL=WARNING` (para que los logs no se mezclen con el reporte). **146 pruebas**, todas en SQLite en memoria: no necesitan `core/.env` ni MySQL.
 
 | Archivo | Cubre |
 |---|---|
@@ -19,7 +19,7 @@ Ejecuta `python -m unittest discover -s tests` con el Python del `venv` y `LOG_L
 | `tests/test_dashboard_cache.py` | Caché LRU de datasets y su relación con la desactivación (incluido el caso de varios procesos). |
 | `tests/test_dashboard_rules.py` | Reglas de datos: nombre de programa, unificación con alias, semestres y reporte de calidad. |
 | `tests/test_error_handling.py` | Contrato de errores (`401` con `WWW-Authenticate`, `{"detail": ...}`). |
-| `tests/test_security_migrations.py` | Cadena de migraciones `0001`–`0004` frente a los modelos, reversión, fusión de programas de `0004` y bases antiguas sin historial. |
+| `tests/test_security_migrations.py` | Cadena de migraciones `0001`–`0011` frente a los modelos, reversión, fusión de programas de `0004` y bases antiguas sin historial. |
 
 La prueba de migraciones sobre SQLite no sustituye validar la migración en el MySQL de destino (con copia de seguridad).
 
@@ -70,10 +70,11 @@ back/api-reader-excel/
 ├── app/            crea la app FastAPI y configura logging y errores
 ├── api/            ensambla los routers
 ├── core/           config, engine, sesión por petición, Base ORM, errores, logging
-├── migrations/     Alembic (env, runner y versiones 0001–0004)
+├── migrations/     Alembic (env, runner y versiones 0001–0011)
 ├── modules/
 │   ├── security/   autenticación, usuarios, roles y permisos
-│   └── excel/      lectura de Excel y dashboard académico
+│   ├── excel/      lectura de Excel y dashboard académico
+|   └── courses/ cursos por nivel y materia e inscripciones
 ├── scripts/        utilidades: backup_db (copias), reset_db (vaciar la base), benchmark
 ├── tests/
 └── tasks.ps1       install / migrate / bootstrap / run / test / backup / backup-daily / schedule-backup / reset

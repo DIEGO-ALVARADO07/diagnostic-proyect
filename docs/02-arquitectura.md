@@ -26,6 +26,9 @@ Uvicorn
 
 Las migraciones de todos los módulos están en `back/api-reader-excel/migrations/`. Los antiguos módulos de compatibilidad (`models.py`, `role.py`, `permission.py`, `user.py`, `excel/service.py`) se eliminaron: se importa siempre desde `entities/` o `dtos/`.
 
+Módulos actuales: `modules/security` (autenticación, usuarios y roles), `modules/excel` (lectura e importación de Excel, dashboard, comparación ESE–CORHUILA, estudiantes por nivel y revisión de programas) y `modules/courses` (cursos por nivel y materia, e inscripciones). La arquitectura completa está en el [Manual técnico](manuales/04-manual-tecnico.md).
+
+
 ## Componentes compartidos
 
 - `app/`: construye la aplicación FastAPI, configura el logging y convierte los errores esperados `ApplicationError` en respuestas HTTP `{"detail": ...}`. Las dependencias de seguridad también usan `ApplicationError` (`401` con `WWW-Authenticate: Bearer`, `403`).
@@ -35,7 +38,7 @@ Las migraciones de todos los módulos están en `back/api-reader-excel/migration
 - `core/db_session.py`: `get_db` y el tipo `DbSession`, que todas las rutas usan para recibir una sesión por petición. Importa la configuración de forma diferida, así la app y las pruebas se construyen sin credenciales.
 - `core/orm.py`: base declarativa `Base` compartida por todos los modelos y `utcnow()`.
 - `core/logging_config.py`: formato y nivel de logs (`LOG_LEVEL`).
-- `migrations/`: Alembic (`env.py`, `runner.py` con `DatabaseMigrationService` y las revisiones `0001`–`0004`).
+- `migrations/`: Alembic (`env.py`, `runner.py` con `DatabaseMigrationService` y las revisiones `0001`–`0011`).
 
 ### Servicios del dashboard (`modules/excel/services`)
 

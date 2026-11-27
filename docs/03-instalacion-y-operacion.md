@@ -1,6 +1,7 @@
 # Instalación, uso y operación
 
-> Actualizado el 22 de noviembre de 2026 (código en la rama `dev`, commit `2ae0476`). Los cambios que llevaron a esta forma de trabajo están en la [bitácora](bitacora/README.md).
+> Actualizado el 27 de noviembre de 2026 (código en la rama `dev`, commit `a914c58`). Versión paso a paso para personas no técnicas: [Manual de instalación](manuales/02-manual-de-instalacion.md).
+
 
 Esta guía lleva desde un equipo vacío hasta usar el dashboard: instalar, configurar, crear la base, arrancar la API y el frontend, importar el Excel y mantener el sistema actualizado. Todos los comandos son de **PowerShell en Windows**.
 
@@ -112,7 +113,7 @@ El script pide usuario, correo, nombre completo y contraseña del superadmin (oc
 
 Qué hace:
 
-1. Aplica todas las migraciones (`0001` a `0004`): usuarios, tokens, esquema académico, desactivación lógica y unificación de programas.
+1. Aplica todas las migraciones (`0001` a `0011`).
 2. Crea la cuenta `superadmin`.
 
 Continúa solo si imprime `Cuenta superadmin inicial creada.`. Es un paso **de una sola vez**: si ya existe un superadmin, se cancela sin cambiar nada. Las demás cuentas (instructores y estudiantes) se crean después desde el frontend o con `POST /users`.
@@ -142,17 +143,16 @@ Abre `http://127.0.0.1:8081/front/login.php` e inicia sesión con el superadmin.
 
 ## Uso diario
 
-### Roles
-
 | Rol | Puede |
 |---|---|
-| `superadmin` | Todo: cuentas, importar, consultar el dashboard activo e históricos, historial de importaciones y desactivarlas. |
-| `instructor` | Importar el Excel y consultar el dashboard activo; ver estudiantes. |
+| `superadmin` | Todo: cuentas, importar, consultar, estudiantes, cursos; además ver y habilitar cursos eliminados, y desactivar o restaurar importaciones. |
+| `instructor` | Importar ESE y CORHUILA, consultar el dashboard, ESE y CORHUILA, asignar el programa a los "Sin programa", ver estudiantes por nivel, y crear, llenar y eliminar cursos. |
 | `estudiante` | Ver y editar su perfil. |
 
 ### Importar el Excel académico
 
-Desde el frontend (**Leer reporte** / importar) o con la API, sube el libro (`.xlsx`, `.xlsm`, `.xls` u `.ods`, máximo 30 MB). La API:
+Desde **Importar Excel** (o `POST /excel/dashboard/import`) elige la **prueba** (ESE o CORHUILA), el **periodo** (solo el actual o el anterior) y el archivo (`.xlsx`, `.xlsm`, `.xls` u `.ods`, máximo 30 MB). ESE debe traer las hojas `BD GEN` y `TD PROGRAMAS` y contiene todo el histórico; CORHUILA es la hoja `Calificaciones` exportada de Moodle, un archivo por periodo. La API:
+
 
 1. calcula la huella SHA-256: si el mismo archivo ya se importó, devuelve esa importación en lugar de duplicarla;
 2. lee **solo** las hojas `BD GEN` y `TD PROGRAMAS` (no ejecuta macros ni guarda el archivo);
@@ -167,13 +167,20 @@ Reglas de datos que conviene conocer (detalle en [Flujo del dashboard](09-flujo-
 
 La respuesta (y la pantalla) incluye una **auditoría** que compara `TD PROGRAMAS` con lo calculado desde `BD GEN`. Las diferencias se informan, no bloquean la importación. Con el libro CORHUILA revisado aparecen 14 diferencias en `average_global` porque `TD PROGRAMAS` promedia también a quienes no presentaron (GLOBAL = 0), mientras la API promedia solo a quienes presentaron.
 
-### Consultar el dashboard
+### Consultar los resultados
 
-Vista global → programa → estudiante, siempre sobre la misma importación. Filtros: año, simulacro, grupo, semestre, tipo de prueba y "presentó". Ejemplos con PowerShell en [Flujo del dashboard](09-flujo-dashboard-academico.md#cómo-usarlo-desde-powershell).
+- **Dashboard:** ESE y CORHUILA lado a lado en el último periodo; filtros Año → Periodo → Momento → Programa.
+- **ESE:** histórico, por programa y por estudiante.
+- **CORHUILA:** el periodo y la lista "Sin programa".
+- **Estudiantes:** todos los de los Excel, por nivel.
+- **Cursos:** por nivel y materia.
 
-### Desactivar una importación (superadmin)
+Detalle de cada pantalla en el [Manual de usuario](manuales/01-manual-de-usuario.md).
 
-Módulo **Importaciones** del frontend. Es una desactivación lógica: los datos se conservan, pero dejan de mostrarse. Si se desactiva la activa, el dashboard queda vacío hasta la siguiente importación.
+### Desactivar o restaurar una importación (superadmin)
+
+En el módulo **Importaciones**. La desactivación es lógica y guarda quién y cuándo. **Restaurar** la vuelve activa si su prueba y periodo no tienen otra; si después se subió una más reciente, queda histórica.
+
 
 ## Actualizar a una versión nueva
 
@@ -197,6 +204,14 @@ El servidor nunca crea ni modifica tablas por sí solo. Usa siempre `.\tasks.ps1
 | `0002_academic_dashboard` | Esquema académico del dashboard. | — |
 | `0003_soft_delete_excel_imports` | Añade `deleted_at` a las importaciones. | Recomendado |
 | `0004_unify_programs` | **Fusiona** programas duplicados por tildes/mayúsculas/espacios y vuelve única la clave. No se revierte la fusión. | **Obligatorio** |
+| `0005_sources_periods_moments` | Prueba (ESE o CORHUILA), periodo y momento; una importación activa por espacio. | Recomendado |
+| `0006_student_identity_by_email` | Estudiantes identificados por correo. | **Obligatorio** |
+| `0007_document_identity` | Identidad por documento con los correos como alias; Momento 4. | **Obligatorio** |
+| `0008_manual_program` | Programa manual de los estudiantes "Sin programa". | Recomendado |
+| `0009_courses` | Tablas de cursos e inscripciones. | — |
+| `0010_soft_delete_audit` | Auditoría de eliminar y restaurar (cursos e importaciones). | — |
+| `0011_course_details` | Materia, descripción y metodología de los cursos. | — |
+
 
 > **Pendiente en las bases existentes:** la migración `0004` se publicó el 22/11/2026. Hasta aplicarla, los programas de las importaciones anteriores siguen separados por escritura y la base no impide duplicados nuevos.
 

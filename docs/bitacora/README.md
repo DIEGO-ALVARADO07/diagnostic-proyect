@@ -60,3 +60,5 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 031 | 13a | [Estudiantes por nivel, filtros por periodo y "Ver módulo" con filtros](031-estudiantes-por-nivel-y-filtros-por-periodo.md) |
 | 032 | 13b | [Cursos por nivel y materia, eliminación lógica con auditoría y restauración del administrador](032-cursos-por-nivel-y-materia-y-eliminacion-logica.md) |
 | 033 | Operación | [Copia diaria solo con cambios y vaciado de la base para empezar desde cero](033-respaldo-diario-y-vaciado.md) |
+| 034 | Interfaz | [Menú lateral con scroll y ventana de confirmación propia](034-menu-con-scroll-y-confirmacion-propia.md) |
+
