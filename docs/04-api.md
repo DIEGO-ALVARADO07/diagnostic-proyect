@@ -1,6 +1,6 @@
 # API y contratos HTTP
 
-> Actualizado el 27 de noviembre de 2026 (rama `dev`, commit `a914c58`).
+> Actualizado el 27 de noviembre de 2026 (rama `dev`, commit `543d7fb`).
 
 La especificación OpenAPI está en `/openapi.json` y Swagger UI en `/docs` mientras la API esté en ejecución. Ahí están todos los campos de cada respuesta; este documento resume qué hace cada ruta y quién puede usarla.
 
@@ -61,6 +61,7 @@ Rutas de instructor y superadmin, salvo donde se indica.
 | `GET /excel/dashboard/active?source=&period=` | Importación activa de ESE (por defecto) o de CORHUILA en un periodo, con filtros, resumen y auditoría. `404` si no hay ninguna. |
 | `GET /excel/dashboard/{import_id}` | Resumen del histórico de ESE: indicadores y programas. Filtros: `year`, `period`, `moment` (1–4), `simulation`, `group`, `test_type`, `presented`, `page` y `page_size` (≤ 50). |
 | `GET /excel/dashboard/{import_id}/programs/{program_id}` | Métricas de un programa y sus estudiantes paginados (`search`, `page`, `page_size`), con los mismos filtros. |
+| `GET /excel/dashboard/{import_id}/results` | **Resultados con filtros** (módulo CORHUILA; sirve para cualquier carga). Parámetros: `program_id` (incluido `sin-programa`; `404` si no está en la carga), `semester` (`SEMESTRE 5`…, o `sin-semestre`), `search` (≤ 120; cada palabra debe estar en el nombre, el documento, el correo o el programa), `page` y `page_size` (≤ 50). Devuelve `metrics` (programa y semestre, sin la búsqueda), `programs` (promedio por programa), `program_options` y `semester_options` con conteos, y `students`: una fila por estudiante y programa con documento y tipo, semestre, puntajes de las 4 competencias, `average` y `level` (1–4 o `null`). |
 | `GET /excel/dashboard/{import_id}/students/{document}` | Historial de un estudiante; `document` acepta el documento o el correo. |
 | `GET /excel/dashboard/compare?period=&moment=&program_id=` | **Dashboard principal:** ESE y CORHUILA en un periodo (por defecto, el último cargado). Devuelve cada lado (`ese`, `corhuila`; `null` = "a la espera del archivo"), `filters.periods`, `filters.corhuila_periods`, momentos y programas del periodo, el programa con peor nivel y la competencia más baja en común. |
 | `GET /excel/dashboard/students` | **Estudiantes por nivel:** todos los de los Excel (ESE y CORHUILA juntos), cada uno con un nivel. Parámetros: `period` (por defecto el último; `all` = histórico), `level` (`1`–`4` o `sin-resultado`), `program_id`, `search`, `page` y `page_size` (≤ 50). Devuelve `groups` (conteo por nivel), `periods`, `programs` y `students`, que trae los niveles por competencia, el promedio y de qué periodo y prueba sale el nivel. |
@@ -84,10 +85,26 @@ Instructor y superadmin.
 
 | Método y ruta | Función |
 |---|---|
-| `GET /excel/dashboard/review/without-program?period=` | Estudiantes de CORHUILA "sin programa" (no encontrados en ESE). |
+| `GET /excel/dashboard/review/without-program?period=` | Estudiantes de CORHUILA "sin programa" (no encontrados en matriculados del periodo ni en ESE). |
 | `GET /excel/dashboard/catalog/programs` | Programas activos para asignar a mano. |
-| `PUT /excel/dashboard/review/students/{student_id}/program` | Body `{"program_id": n}` (o `null` para quitarlo). La asignación manual manda sobre ESE. |
-| `POST /excel/dashboard/corhuila/resolve` | Vuelve a cruzar todas las filas de CORHUILA con el histórico de ESE. |
+| `PUT /excel/dashboard/review/students/{student_id}/program` | Body `{"program_id": n}` (o `null` para quitarlo). La asignación manual manda sobre matriculados y ESE. |
+| `POST /excel/dashboard/corhuila/resolve` | Vuelve a cruzar todas las filas de CORHUILA con matriculados y con el histórico de ESE. |
+
+**Cómo se resuelve el programa de una fila de CORHUILA** (orden de prioridad):
+
+1. `MANUAL`: asignado a mano. Siempre manda.
+2. `MATRICULADOS`: la fila es de un matriculado del mismo periodo, por **documento** o por **nombre completo y uno de los dos correos** de la misma persona. Toma también el documento (tipo y número) y el semestre. Con doble programa, el resultado cuenta en los dos.
+3. `ESE`: el programa de su registro de ESE más reciente.
+4. `SIN_PROGRAMA`: por revisar.
+
+## Matriculados (solo superadmin)
+
+El archivo oficial de matriculados de cada periodo. Instructor y estudiante reciben `403`.
+
+| Método y ruta | Función |
+|---|---|
+| `POST /enrollment/import` | `multipart/form-data` con `file` (`.xlsx`, `.xlsm`, `.xls` u `.ods`, hasta 30 MB) y `period` (`AAAA-S`). Columnas obligatorias: `PROGRAMA`, `IDENTIFICACION`, `NOMBRES` y `APELLIDOS` (`422` si falta alguna). Si trae `COD_PERIODO` (`20262`), debe coincidir con `period` (`422`). Reemplaza la carga anterior del periodo, que queda `REPLACED` y pierde sus filas; el mismo archivo que la activa da `409`. Responde `201` con `rows`, `students`, `double_program`, `rejected`, `duplicates`, `replaced_previous` y `corhuila_rows_updated` (filas de CORHUILA que cambiaron con el nuevo cruce). |
+| `GET /enrollment/records` | Filas de un periodo (por defecto, el más reciente) con todas sus columnas. Filtros: `period`, `program` (la clave de `filters.programs`), `semester`, `document_type`, `gender`, `stratum` y `search` (nombre, documento, código o correo); `page` y `page_size` (≤ 200). Devuelve `uploads` (la carga activa de cada periodo), `filters` con conteos, `items`, `filtered_total` y `filtered_students`. |
 
 ## Administración de importaciones (solo superadmin)
 

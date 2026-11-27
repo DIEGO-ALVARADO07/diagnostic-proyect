@@ -1,10 +1,10 @@
 # Frontend PHP
 
-> Actualizado el 27 de noviembre de 2026 (rama `dev`, commit `a914c58`).
+> Actualizado el 27 de noviembre de 2026 (rama `dev`, commit `543d7fb`).
 
 ## Propósito
 
-Interfaz web para que el instructor y el superadmin carguen los Excel de ESE y CORHUILA, comparen resultados, revisen a los estudiantes por nivel y armen cursos por nivel y materia.
+Interfaz web para que el instructor y el superadmin carguen los Excel de ESE y CORHUILA, comparen resultados, revisen a los estudiantes por nivel y armen cursos por nivel y materia. El superadmin sube además el archivo de matriculados de cada periodo.
 
 - Está hecha en **PHP**, que pinta cada pantalla en el servidor, y en **JavaScript con módulos ES nativos** (`type="module"`), que pide los datos a la API.
 - **No necesita** Node.js, npm ni compilación.
@@ -27,7 +27,7 @@ Contenido de `front/partials/shared/`:
 |---|---|
 | `data.php` | **Proxy** de mismo origen hacia la API: valida los parámetros, adjunta el token y pide el token CSRF en los cambios (POST). |
 | `style.css` | Tarjetas y gráficas. |
-| `compare-side.php` y `js/compare-side.js` | Plantilla de una mitad del comparativo. |
+| `compare-side.php` y `js/compare-side.js` | Plantilla de una mitad del comparativo. Con la opción `onOpenProgram`, el nombre de cada programa es un botón (lo usa CORHUILA). |
 | `js/api.js` | `apiRequest` (consultas) y `apiPost` (cambios con CSRF). |
 | `js/dom.js` y `js/format.js` | Ayudas de pantalla y de formato de números. |
 | `js/periods.js` | Año y periodo del año para los filtros. |
@@ -38,11 +38,12 @@ Contenido de `front/partials/shared/`:
 
 | Vista (`?view=`) | Carpeta | Función |
 |---|---|---|
+| `enrollment` | `enrollment/` | **Solo superadmin; primera opción de su menú.** Carga del archivo de matriculados por periodo (el actual o el anterior), tarjetas con las cargas y la lista completa con filtros (periodo, programa, semestre, tipo de documento, género y estrato) y búsqueda. |
 | `dashboard` | `dashboard/` | **Inicio.** ESE y CORHUILA lado a lado en un periodo. Filtros en cascada Año → Periodo → Momento (solo ESE) → Programa, que arrancan en el último periodo. Abajo, el programa y la competencia más bajos en común. "Ver módulo" abre ESE o CORHUILA con los mismos filtros. |
 | `ese` | `ese/` | **Histórico de ESE.** Filtros Año → Periodo (o "Todo el año") → Momento y Asignatura. Tarjetas de programas, vista de programa y vista de estudiante. |
-| `corhuila` | `corhuila/` | Resultados de CORHUILA por periodo y lista **"Sin programa"**, con asignación manual del programa y "Recalcular cruce". |
+| `corhuila` | `corhuila/` | Resultados de CORHUILA por periodo. Filtros de periodo, programa y semestre, y búsqueda por nombre, documento, correo o programa. Pulsar un programa abre su detalle (indicadores, gráfica y estudiantes). Tabla de estudiantes de 25 en 25 con nivel y puntajes, y lista **"Sin programa"** con asignación manual y "Recalcular cruce". |
 | `report` | `report/` | **Importar Excel:** prueba (ESE o CORHUILA), periodo (solo el actual o el anterior) y archivo. |
-| `students` | `students/` | **Estudiantes de los Excel** en 5 grupos: N1–N4 y Sin resultado. Filtro Año → Periodo (o "Todo el histórico"), búsqueda y programa. Elegir un nivel no cambia el periodo. |
+| `students` | `students/` | **Estudiantes de los Excel** en 5 grupos: N1–N4 y Sin resultado. Filtro Año → Periodo (o "Todo el histórico"), búsqueda y programa. Elegir un nivel no cambia el periodo. El documento se muestra con su tipo (`C 1075…`) y quien tiene doble programa aparece una vez por programa. |
 | `courses` | `courses/` | **Cursos:** Nivel → Curso (materia, nombre, descripción y metodología) → Estudiantes. "Agregar estudiantes" inscribe en bloque por el nivel en la materia; también "Ver estudiantes" (con "Quitar") y "Eliminar" (lógico). |
 | `courses_deleted` | `courses_deleted/` | **Solo superadmin.** Tabla de cursos eliminados con toda su información y el botón "Habilitar". |
 | `imports` | `imports/` | **Solo superadmin.** Historial de importaciones con su auditoría. Permite desactivar y restaurar. |
@@ -52,26 +53,26 @@ Contenido de `front/partials/shared/`:
 
 ## Navegación y permisos
 
-El menú y la lista de vistas permitidas se arman en `index.php` según el rol. Una vista que no está en el menú del rol vuelve al inicio.
+El menú y la lista de vistas permitidas se arman en `index.php` según el rol. Al iniciar sesión se abre el Dashboard. Si se pide una vista que no está en el menú del rol, se abre la **primera opción** de su menú.
 
 | Rol | Menú |
 |---|---|
-| `superadmin` | Dashboard, ESE, CORHUILA, Importar Excel, Estudiantes, Cursos, Cursos eliminados, Importaciones, Usuarios, Crear cuenta y Mi perfil. |
+| `superadmin` | Matriculados, Dashboard, ESE, CORHUILA, Importar Excel, Estudiantes, Cursos, Cursos eliminados, Importaciones, Usuarios, Crear cuenta y Mi perfil. |
 | `instructor` | Dashboard, ESE, CORHUILA, Importar Excel, Estudiantes, Cursos y Mi perfil. |
 | `estudiante` | Mi perfil. |
 
-**La API es la autoridad de los permisos:** ocultar una opción en PHP no reemplaza la autorización del backend. Por ejemplo, `course_restore` y `courses_deleted` se rechazan en el proxy para quien no es superadmin, y la API también lo exige.
+**La API es la autoridad de los permisos:** ocultar una opción en PHP no reemplaza la autorización del backend. Por ejemplo, `course_restore`, `courses_deleted` y `enrollment` se rechazan en el proxy para quien no es superadmin, y la API también lo exige.
 
 ## Flujo de datos
 
 1. `login.php` envía las credenciales a `POST /auth/login`. PHP regenera la sesión y guarda el token y el usuario **en el servidor**, nunca en `localStorage`.
 2. Cada visita a `index.php` consulta `GET /users/me` para el rol y el menú.
-3. Las pantallas con datos (Dashboard, ESE, CORHUILA, Estudiantes, Cursos y Cursos eliminados) cargan su `js/main.js`.
+3. Las pantallas con datos (Matriculados, Dashboard, ESE, CORHUILA, Estudiantes, Cursos y Cursos eliminados) cargan su `js/main.js`.
    - Ese JS llama a `partials/shared/data.php?resource=…`, que valida y reenvía a la API con el token.
    - Si la API responde `401`, se cierra la sesión y se vuelve al login.
 4. Los cambios hechos desde JS (asignar programa, recalcular, crear, eliminar o habilitar un curso, inscribir, quitar estudiante) son POST al proxy con el encabezado `X-CSRF-Token`.
-5. Los formularios PHP (subir Excel, crear o desactivar cuentas, desactivar o restaurar importaciones) llevan `csrf_token` y los procesa `index.php`.
-6. Los filtros se reflejan en la URL (`history.replaceState`), así que recargar la página o compartir el enlace conserva el periodo, el nivel y el programa.
+5. Los formularios PHP (subir Excel, subir matriculados, crear o desactivar cuentas, desactivar o restaurar importaciones) llevan `csrf_token` y los procesa `index.php`.
+6. Los filtros se reflejan en la URL (`history.replaceState`), así que recargar la página o compartir el enlace conserva el periodo, el nivel y el programa. En CORHUILA, entrar o salir de un programa usa `history.pushState`, así que **Atrás** del navegador vuelve a la vista anterior.
 
 ## Confirmaciones
 

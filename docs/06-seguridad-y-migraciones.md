@@ -20,6 +20,7 @@
 | Leer Excel | Sí | Sí | No |
 | Importar snapshot académico | Sí | Sí | No |
 | Consultar historial o desactivar snapshots | Sí | No | No |
+| Subir y consultar matriculados (datos personales) | Sí | No | No |
 
 Un instructor no cambia usuario, rol ni contraseña de otras cuentas. Un estudiante solo administra su propio perfil y no cambia usuario ni rol. No se puede desactivar al último superadmin activo. No hay registro público ni endpoint público para crear o promover superadmins.
 
@@ -42,6 +43,9 @@ Las variables `BOOTSTRAP_SUPERADMIN_*` se usan solo durante el aprovisionamiento
 | `0002_academic_dashboard` | Esquema del dashboard: importaciones, estudiantes, programas, alias, resultados, referencia de `TD PROGRAMAS` y la fila única `excel_dashboard_state`. |
 | `0003_soft_delete_excel_imports` | `excel_imports.deleted_at` para desactivación lógica. |
 | `0004_unify_programs` | Fusiona programas cuyo nombre solo difiere en tildes, mayúsculas o espacios: conserva el de menor id, reasigna resultados y alias, guarda cada nombre como alias y hace **único** `academic_programs.normalized_key`. |
+| `0005`–`0011` | Prueba, periodo y momento; identidad por correo y luego por documento; programa manual; cursos y auditoría de eliminar y restaurar. Detalle en [Instalación y operación](03-instalacion-y-operacion.md). |
+| `0012_enrollment_records` | Tablas de matriculados: `enrollment_uploads` (una carga activa por periodo) y `enrollment_records` (una fila por estudiante y programa, con todas las columnas del archivo). |
+| `0013_enrollment_matching` | `academic_students.document_type` y la tabla `academic_result_programs` (los programas extra de un resultado, para el doble programa). |
 
 ### Base nueva
 
@@ -62,12 +66,14 @@ Si existe una base legacy con las dos tablas de seguridad y sin historial Alembi
 
 **Antes de `0004` haz una copia de seguridad**: fusiona datos. En MySQL los cambios de índice confirman la transacción de forma implícita; si fallara la creación del índice único, la fusión ya estaría aplicada (es correcta por sí misma) y basta con revisar el error y reintentar.
 
-La importación registra contenido personal de estudiantes (documento, nombre, correo y filas fuente) en MySQL para habilitar búsquedas e historial. El Excel binario no se persiste. Restringe el acceso a la base, las copias de seguridad y los snapshots de acuerdo con las políticas de datos de la institución; los logs no incluyen payload ni datos personales.
+La importación registra contenido personal de estudiantes (documento, nombre, correo y filas fuente) en MySQL para habilitar búsquedas e historial. El archivo de **matriculados** guarda además teléfonos, género, estrato y fecha de nacimiento: la API solo los entrega al superadmin (`/enrollment/*`) y el resto de pantallas solo reciben el programa, el semestre y el tipo y número de documento. El Excel binario no se persiste. Restringe el acceso a la base, las copias de seguridad y los snapshots de acuerdo con las políticas de datos de la institución; los logs no incluyen payload ni datos personales.
 
 ### Reversión
 
 | Revisión | Efecto del `downgrade` |
 |---|---|
+| `0013_enrollment_matching` | Quita el tipo de documento y los programas extra: el doble programa deja de contar en el segundo programa. |
+| `0012_enrollment_records` | Elimina las tablas de matriculados y sus cargas. |
 | `0004_unify_programs` | Solo vuelve al índice no único. **No separa** los programas fusionados (cada resultado conserva su `program_name_raw`). |
 | `0003_soft_delete_excel_imports` | Quita `deleted_at`: los registros desactivados dejan de estar marcados y podrían volver a aparecer. |
 | `0002_academic_dashboard` | Elimina las tablas académicas y sus snapshots. |

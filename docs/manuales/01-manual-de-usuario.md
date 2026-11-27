@@ -23,6 +23,8 @@ Con esos archivos puedes:
 
 Los estudiantes **no se crean a mano**: aparecen solos al subir los Excel.
 
+El administrador sube además, en cada periodo, el **archivo de matriculados** de la institución. De ahí salen el **programa**, el **documento** y el **semestre** de los estudiantes de CORHUILA, que el Excel de Moodle no trae.
+
 ## 2. Conceptos básicos
 
 **Periodo.** El año se divide en dos periodos: `AAAA-1` (primer semestre) y `AAAA-2` (segundo semestre). Ejemplo: `2026-2`.
@@ -119,15 +121,54 @@ Muestra **ESE a la izquierda y CORHUILA a la derecha**, en el mismo periodo.
 
 ## 7. Módulo CORHUILA
 
-- **Periodo con archivo de CORHUILA:** solo ofrece los periodos que tienen archivo. Al entrar se ve el más reciente.
-- **Resultados del periodo:** las mismas tarjetas, barras y programas del dashboard.
-- **Sin programa:** son estudiantes de CORHUILA que no se encontraron en ESE (ni por documento, ni por nombre completo, ni por correo). Para asignarles el programa:
-  1. Elige el programa en la fila del estudiante.
-  2. Pulsa **Guardar**.
-  3. El estudiante sale de la lista y sus resultados pasan a ese programa.
+### Filtros
 
-  La asignación manual **manda sobre ESE**.
-- **Recalcular cruce:** vuelve a buscar a todos en ESE. Úsalo después de subir un ESE nuevo.
+| Filtro | Qué hace |
+|---|---|
+| Periodo con archivo de CORHUILA | Solo ofrece los periodos que tienen archivo. Al entrar se ve el más reciente. |
+| Programa | Deja un programa. Cada opción dice cuántas filas tiene, por ejemplo "INGENIERIA DE SISTEMAS (45)". |
+| Semestre | El semestre en el que está el estudiante (sale de matriculados). "Sin semestre" son los que no están en matriculados. |
+| Buscar estudiante | Por **nombre**, **documento**, **correo** o **programa**. Cada palabra puede estar en un dato distinto: "ana sistemas" encuentra a Ana en Ingeniería de Sistemas. |
+
+**Restablecer** quita el programa, el semestre y la búsqueda. Debajo de los filtros se ve un resumen de lo que está activo.
+
+### Vista general
+
+- Los indicadores del periodo: promedio, nivel promedio, estudiantes evaluados y presentaciones.
+- Las barras de las 4 competencias, con la más baja marcada.
+- **Promedio por programa:** pulsa el nombre de un programa para entrar a su detalle.
+
+### Detalle de un programa
+
+Se abre al pulsar un programa o al elegirlo en el filtro **Programa**. Muestra:
+- sus indicadores;
+- su gráfica por competencia;
+- la tabla con **solo sus estudiantes**.
+
+Para volver, pulsa **← Todos los programas** o el botón **Atrás** del navegador.
+
+### Resultados por estudiante
+
+Una fila por estudiante y programa, de 25 en 25, con **Anterior** y **Siguiente**:
+- nombre y correo;
+- documento con su tipo (por ejemplo `C 1075…`), programa y semestre;
+- nivel general;
+- puntaje de Lectura, Ciudadanas, Cuantitativo e Inglés, y su promedio.
+
+Quien está en **dos programas** aparece una vez por cada uno: su resultado cuenta en los dos.
+
+La búsqueda solo cambia la tabla. Los indicadores y la gráfica siguen el programa y el semestre elegidos.
+
+### Sin programa
+
+Son estudiantes de CORHUILA que no se encontraron en **matriculados** del periodo (ni por documento, ni por nombre completo con uno de sus correos) ni en ESE. Para asignarles el programa:
+1. Elige el programa en la fila del estudiante.
+2. Pulsa **Guardar**.
+3. El estudiante sale de la lista y sus resultados pasan a ese programa.
+
+La asignación manual **manda sobre todo lo demás**.
+
+- **Recalcular cruce:** vuelve a buscar a todos en matriculados y en ESE. Úsalo después de subir un ESE nuevo. Al subir matriculados se recalcula solo.
 - **Subir Excel de CORHUILA:** te lleva a Importar Excel con la prueba ya elegida.
 
 ## 8. Estudiantes
@@ -139,7 +180,8 @@ Lista a **todos los estudiantes de los Excel** (ESE y CORHUILA juntos), en **5 g
   - La opción **"Todo el histórico"** (al final de la lista de años) muestra a todos, cada uno con el nivel de su periodo más reciente con puntajes.
 - **Pulsar un grupo** deja la lista solo con ese nivel, **sin cambiar el periodo**. Pulsarlo otra vez muestra todos; también sirve **Ver todos los niveles**.
 - **Búsqueda** por nombre, documento o correo, y filtro por **Programa**.
-- **Cada fila** trae el nombre y correo, documento, programa, nivel general, nivel por competencia, promedio y "Según" (el periodo y la prueba de los que sale el nivel).
+- **Cada fila** trae el nombre y correo, documento con su tipo (por ejemplo `C 1075…`), programa, nivel general, nivel por competencia, promedio y "Según" (el periodo y la prueba de los que sale el nivel).
+- Quien está matriculado en **dos programas** aparece **dos veces**, con los mismos datos y el mismo nivel; solo cambia el programa.
 - La lista va de 50 en 50, con **Anterior** y **Siguiente**.
 
 ## 9. Cursos
@@ -192,7 +234,9 @@ Antes de eliminar o quitar algo, el sistema muestra una ventana con los datos de
 |---|---|
 | En Importar Excel no aparece un periodo viejo (por ejemplo, 2025-1). | Es a propósito: solo se puede subir el periodo actual o el anterior, para no mezclar archivos de otros años. |
 | Una mitad del dashboard dice "A la espera del archivo". | Esa prueba aún no tiene archivo en ese periodo. |
-| Un estudiante de CORHUILA aparece "Sin programa". | No se encontró en ESE. Asígnale el programa en el módulo CORHUILA o pulsa "Recalcular cruce" después de subir un ESE nuevo. |
+| Un estudiante de CORHUILA aparece "Sin programa". | No se encontró en matriculados del periodo ni en ESE. Asígnale el programa en el módulo CORHUILA, o pulsa "Recalcular cruce" después de subir un ESE nuevo. Si falta el archivo de matriculados del periodo, pídeselo al administrador. |
+| Un estudiante aparece dos veces en Estudiantes o en CORHUILA. | Está matriculado en dos programas. Su resultado cuenta en los dos; los registros solo difieren en el programa. |
+| No encuentro a un estudiante en CORHUILA. | Escribe solo una parte: el documento, el correo o el nombre y un apellido. Revisa también que el filtro de Programa o Semestre no lo esté dejando fuera, o pulsa **Restablecer**. |
 | ¿Por qué un estudiante está en Nivel 2 si en Inglés tiene B2? | El nivel general es el promedio de las 4 competencias. Para cursos de una materia se usa el nivel de esa materia. |
 | Eliminé un curso por error. | Pídele al administrador que lo habilite en "Cursos eliminados". Vuelve con sus estudiantes. |
 | El sistema me sacó a la pantalla de ingreso. | La sesión venció (8 horas). Entra de nuevo. |

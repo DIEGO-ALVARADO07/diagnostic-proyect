@@ -9,7 +9,9 @@ Uvicorn
 └── app.create_app()
     └── api (ensambla los routers)
         ├── modules.security
-        └── modules.excel
+        ├── modules.excel
+        ├── modules.courses
+        └── modules.enrollment   (matriculados)
 ```
 
 ## Capas por módulo
@@ -38,7 +40,7 @@ Módulos actuales: `modules/security` (autenticación, usuarios y roles), `modul
 - `core/db_session.py`: `get_db` y el tipo `DbSession`, que todas las rutas usan para recibir una sesión por petición. Importa la configuración de forma diferida, así la app y las pruebas se construyen sin credenciales.
 - `core/orm.py`: base declarativa `Base` compartida por todos los modelos y `utcnow()`.
 - `core/logging_config.py`: formato y nivel de logs (`LOG_LEVEL`).
-- `migrations/`: Alembic (`env.py`, `runner.py` con `DatabaseMigrationService` y las revisiones `0001`–`0011`).
+- `migrations/`: Alembic (`env.py`, `runner.py` con `DatabaseMigrationService` y las revisiones `0001`–`0013`).
 
 ### Servicios del dashboard (`modules/excel/services`)
 
@@ -47,6 +49,8 @@ Módulos actuales: `modules/security` (autenticación, usuarios y roles), `modul
 | `dashboard_service.py` | Punto de entrada que usan las rutas: compone los servicios y comparte la caché. |
 | `dashboard_import_service.py` | Importar, activar, listar y desactivar importaciones. |
 | `dashboard_query_service.py` | Overview, programa, estudiante e importación activa (solo lectura). |
+| `dashboard_results.py` | Resultados de una carga con filtros de programa y semestre y búsqueda por palabras (módulo CORHUILA). |
+| `program_resolution.py` | Cruce de CORHUILA con matriculados y con ESE; programa manual y recálculo. |
 | `dashboard_dataset_loader.py` | Arma el dataset inmutable de una importación desde MySQL o desde la caché. |
 | `dashboard_cache.py` | Caché LRU en memoria (3 importaciones) de datasets. |
 | `dashboard_filters.py`, `dashboard_mappers.py` | Filtros y conversión a DTOs de respuesta. |

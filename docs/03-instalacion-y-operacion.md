@@ -1,6 +1,6 @@
 # Instalación, uso y operación
 
-> Actualizado el 27 de noviembre de 2026 (código en la rama `dev`, commit `a914c58`). Versión paso a paso para personas no técnicas: [Manual de instalación](manuales/02-manual-de-instalacion.md).
+> Actualizado el 27 de noviembre de 2026 (código en la rama `dev`, commit `543d7fb`). Versión paso a paso para personas no técnicas: [Manual de instalación](manuales/02-manual-de-instalacion.md).
 
 
 Esta guía lleva desde un equipo vacío hasta usar el dashboard: instalar, configurar, crear la base, arrancar la API y el frontend, importar el Excel y mantener el sistema actualizado. Todos los comandos son de **PowerShell en Windows**.
@@ -113,7 +113,7 @@ El script pide usuario, correo, nombre completo y contraseña del superadmin (oc
 
 Qué hace:
 
-1. Aplica todas las migraciones (`0001` a `0011`).
+1. Aplica todas las migraciones (`0001` a `0013`).
 2. Crea la cuenta `superadmin`.
 
 Continúa solo si imprime `Cuenta superadmin inicial creada.`. Es un paso **de una sola vez**: si ya existe un superadmin, se cancela sin cambiar nada. Las demás cuentas (instructores y estudiantes) se crean después desde el frontend o con `POST /users`.
@@ -145,9 +145,13 @@ Abre `http://127.0.0.1:8081/front/login.php` e inicia sesión con el superadmin.
 
 | Rol | Puede |
 |---|---|
-| `superadmin` | Todo: cuentas, importar, consultar, estudiantes, cursos; además ver y habilitar cursos eliminados, y desactivar o restaurar importaciones. |
+| `superadmin` | Todo: cuentas, importar, consultar, estudiantes, cursos; además subir y consultar matriculados, ver y habilitar cursos eliminados, y desactivar o restaurar importaciones. |
 | `instructor` | Importar ESE y CORHUILA, consultar el dashboard, ESE y CORHUILA, asignar el programa a los "Sin programa", ver estudiantes por nivel, y crear, llenar y eliminar cursos. |
 | `estudiante` | Ver y editar su perfil. |
+
+### Subir matriculados (superadmin)
+
+Antes de CORHUILA, sube en **Matriculados** el archivo oficial de matriculados del periodo (o `POST /enrollment/import`). De ahí salen el programa, el documento y el semestre de los estudiantes de CORHUILA. Detalle en el [Manual de administrador](manuales/03-manual-de-administrador.md).
 
 ### Importar el Excel académico
 
@@ -171,7 +175,8 @@ La respuesta (y la pantalla) incluye una **auditoría** que compara `TD PROGRAMA
 
 - **Dashboard:** ESE y CORHUILA lado a lado en el último periodo; filtros Año → Periodo → Momento → Programa.
 - **ESE:** histórico, por programa y por estudiante.
-- **CORHUILA:** el periodo y la lista "Sin programa".
+- **Matriculados** (superadmin): el archivo oficial de cada periodo, con filtros.
+- **CORHUILA:** el periodo, con filtros de programa y semestre, búsqueda de estudiantes, detalle por programa y la lista "Sin programa".
 - **Estudiantes:** todos los de los Excel, por nivel.
 - **Cursos:** por nivel y materia.
 
@@ -211,6 +216,8 @@ El servidor nunca crea ni modifica tablas por sí solo. Usa siempre `.\tasks.ps1
 | `0009_courses` | Tablas de cursos e inscripciones. | — |
 | `0010_soft_delete_audit` | Auditoría de eliminar y restaurar (cursos e importaciones). | — |
 | `0011_course_details` | Materia, descripción y metodología de los cursos. | — |
+| `0012_enrollment_records` | Tablas de matriculados (cargas por periodo y filas). | — |
+| `0013_enrollment_matching` | Tipo de documento del estudiante y programas extra de un resultado (doble programa). | Recomendado |
 
 
 > **Pendiente en las bases existentes:** la migración `0004` se publicó el 22/11/2026. Hasta aplicarla, los programas de las importaciones anteriores siguen separados por escritura y la base no impide duplicados nuevos.

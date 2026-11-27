@@ -61,4 +61,6 @@ Cada entrada explica **qué** se cambió, **dónde** y **por qué**, para poder 
 | 032 | 13b | [Cursos por nivel y materia, eliminación lógica con auditoría y restauración del administrador](032-cursos-por-nivel-y-materia-y-eliminacion-logica.md) |
 | 033 | Operación | [Copia diaria solo con cambios y vaciado de la base para empezar desde cero](033-respaldo-diario-y-vaciado.md) |
 | 034 | Interfaz | [Menú lateral con scroll y ventana de confirmación propia](034-menu-con-scroll-y-confirmacion-propia.md) |
+| 035 | 14 | [Matriculados como fuente principal de CORHUILA: programa, documento, semestre y doble programa](035-matriculados-como-fuente-principal.md) |
+| 036 | 15 | [Filtros, búsqueda y detalle por programa en CORHUILA](036-filtros-y-detalle-por-programa-en-corhuila.md) |
 

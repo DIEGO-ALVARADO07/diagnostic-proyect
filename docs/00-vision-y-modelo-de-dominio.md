@@ -104,22 +104,27 @@ Comunicación escrita se sigue importando desde ESE para no perder el dato de or
 ### Identidad del estudiante
 
 - **La identidad es el documento.** Todos los correos del estudiante (institucional y personal) se guardan como alias; se muestra el institucional más reciente.
-- En CORHUILA, el estudiante se busca en ESE por **documento → correo → nombre completo** (este último solo si coincide con una sola persona).
+- En CORHUILA, el estudiante se busca primero en **matriculados** del periodo (por documento, o por nombre completo y uno de sus dos correos). Si no está, se busca en ESE por **documento → nombre completo → correo** (el nombre solo si coincide con una sola persona; si hay varias, el correo desempata).
+- El **tipo de documento** (`C`, `T`, `E`, `P`, `PPT`…) sale de matriculados y queda en el estudiante.
 
 ### Programa de los estudiantes de CORHUILA
 
-1. Se busca el correo del estudiante en los resultados de **ESE Momento 2**. Es el que se aplica en semestre 4, justo antes del semestre 5 de CORHUILA.
-2. 2. Se usa el registro de Momento 2 **más reciente con periodo igual o anterior** al de CORHUILA.
-3. El nombre del programa es el **programa unificado de ESE**.
-4. Si el correo no aparece en ESE Momento 2, el estudiante queda **"Sin programa"**. Se cuenta en la auditoría de la importación y no se descarta.
-5. Si después se carga un archivo ESE con ese correo, el programa se resuelve en ese momento (la vinculación se recalcula).
-6. El programa encontrado **se guarda** en la fila de CORHUILA; el dashboard no repite el cruce en cada consulta. Se recalcula al importar CORHUILA y al activar un ESE nuevo.
+El Excel de CORHUILA no trae el programa. Desde la fase 14 (27/11/2026), la fuente principal es el **archivo de matriculados** del mismo periodo:
+
+1. **Manual:** si se asignó a mano, siempre manda.
+2. **Matriculados:** la fila es de un matriculado si trae su **documento**, o si su **nombre completo** y **uno de sus dos correos** (personal o institucional) coinciden con la **misma** persona. Toma de ahí el programa, el semestre y el documento.
+3. **ESE:** si no está en matriculados, el programa de su registro de ESE **más reciente**, de cualquier momento.
+4. **Sin programa:** si no aparece en ninguno, queda por revisar y se asigna a mano.
+
+- **Doble programa:** si el estudiante está matriculado en dos programas, el **mismo resultado cuenta en los dos**, porque la prueba se presenta por estudiante y no por programa. En las listas individuales aparece dos veces, y los dos registros solo difieren en el programa.
+- El resultado del cruce **se guarda** en la fila de CORHUILA; el dashboard no lo repite en cada consulta. Se recalcula al importar CORHUILA, al subir matriculados, al activar un ESE nuevo, al asignar un programa a mano y con "Recalcular cruce".
+- El orden de carga no importa: si CORHUILA se sube antes que matriculados, el cruce se repite al subir matriculados.
 
 ### Semestre
 
 - ESE: desde 2025 casi no envía `SEMESTRE`. El semestre se trabaja por el **rango del momento** (M1 1–3, M2 4–6, M3 7 en adelante). El semestre exacto solo se muestra al consultar al estudiante, si el archivo lo trae.
 - El **periodo del año** (`2026-1`) se toma de `SIM`; el **momento**, de `SIM`, confirmado con `GRUPO`.
-- CORHUILA no trae semestre: se registra como **semestre 5** (rango medido 5–6).
+- CORHUILA no trae semestre. Se toma de **matriculados** (el semestre en el que está el estudiante en ese periodo). Si la persona no está en matriculados, queda sin semestre; el rango que mide la prueba es 5–6.
 
 ### Promedio general
 
@@ -129,7 +134,7 @@ Comunicación escrita se sigue importando desde ESE para no perder el dato de or
 
 ### 5.1 Carga de archivos
 
-En la pantalla de importación actual hay **dos espacios**: **ESE** y **CORHUILA**.
+En la pantalla de importación actual hay **dos espacios**: **ESE** y **CORHUILA**. El **archivo de matriculados** de cada periodo se sube aparte, en el módulo **Matriculados**, y solo lo sube el superadmin.
 
 - ESE: el periodo se toma del archivo.
 - CORHUILA: el periodo se elige al subir, y se sugiere a partir del nombre del archivo (por ejemplo `2026B` → `2026-2`).
@@ -162,6 +167,8 @@ Al hacer clic en uno de los lados se abre su módulo completo:
 2. Detalle por **programa**.
 3. Lista de **estudiantes** del programa y su historial.
 
+En **CORHUILA** (fase 15) hay además filtros de programa y semestre, búsqueda por nombre, documento, correo o programa, y una tabla con todos los estudiantes del periodo, con su nivel y sus puntajes.
+
 ### 5.4 Módulo de Estudiantes / Niveles
 
 Reemplaza la pantalla actual de "Estudiantes" (que hoy lista cuentas de usuario).
@@ -181,7 +188,7 @@ Reemplaza la pantalla actual de "Estudiantes" (que hoy lista cuentas de usuario)
 
 ## 6. Fuera del alcance actual (futuro)
 
-- Vista del rol **estudiante** con sus cursos asignados.
+- Vista del rol **estudiante** con sus cursos asignados. Las cuentas se crearán a partir del archivo de matriculados.
 - Etapas institucionales posteriores al Reconocimiento: Fortalecimiento, Profundización, Aceleración y Resultados Saber.
 - Promedio general unificado (pendiente de decisión).
 

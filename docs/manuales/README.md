@@ -1,6 +1,6 @@
 # Manuales del sistema
 
-> Diagnóstico académico — comparación ESE + CORHUILA. Versión del 27 de noviembre de 2026 (rama `dev`, commit `a914c58`).
+> Diagnóstico académico — comparación ESE + CORHUILA. Versión del 27 de noviembre de 2026 (rama `dev`, commit `543d7fb`).
 
 | Manual | Para quién | Qué encuentras |
 |---|---|---|

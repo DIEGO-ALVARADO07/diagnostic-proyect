@@ -1,12 +1,12 @@
 # Estado de entrega y continuidad entre sesiones
 
-> Actualizado el 26 de noviembre de 2026. Permite retomar el desarrollo en otra sesión o equipo sin depender del historial de chat. No contiene credenciales ni valores de `.env`.
+> Actualizado el 27 de noviembre de 2026. Permite retomar el desarrollo en otra sesión o equipo sin depender del historial de chat. No contiene credenciales ni valores de `.env`.
 
 ## Ramas del repositorio
 
 | Rama | Contenido |
 |---|---|
-| `dev` | Código: backend en `back/api-reader-excel/` y frontend en `front/`. HEAD: `a914c58` (interfaz: menú con scroll y confirmación propia). |
+| `dev` | Código: backend en `back/api-reader-excel/` y frontend en `front/`. HEAD: `543d7fb` (fase 15: filtros, búsqueda y detalle por programa en CORHUILA). |
 | `docs` | Esta documentación (`docs/`) y la [bitácora de cambios](bitacora/README.md). |
 | `main` | Rama principal; aún no recibe los cambios de las fases 1–5. |
 
@@ -37,7 +37,19 @@ Cada cambio está explicado en orden (qué, dónde y por qué) en la [bitácora]
 | 13b | Cursos por nivel y materia (nombre, descripción, metodología), inscripción en bloque por el nivel en la materia, eliminación lógica con auditoría y restauración solo del superadmin (cursos e importaciones); migraciones `0009`–`0011` | Completada | `e813cb9` |
 | Operación | Copia diaria solo con cambios, tarea programada de Windows (02:30) y `tasks.ps1 reset` para empezar desde cero | Completada | `b445b9a` |
 | Interfaz | Menú lateral con scroll (siempre se ve "Cerrar sesión") y ventana de confirmación propia en lugar de las alertas del navegador | Completada | `a914c58` |
+| 14 | Matriculados (solo superadmin): carga por periodo con todas las columnas y listado con filtros; fuente principal de CORHUILA (programa, documento y semestre por documento, o por nombre completo y uno de los dos correos); doble programa en los dos programas; migraciones `0012`–`0013` | Completada | `ac61c9b` |
+| 15 | Módulo CORHUILA con filtros de programa y semestre, búsqueda por nombre, documento, correo o programa, detalle por programa (indicadores, gráfica y estudiantes) y tabla de estudiantes | Completada | `543d7fb` |
+| 14c | Crear cuentas de estudiantes a partir de matriculados; más roles que puedan subir matriculados | **Pendiente** — más adelante | — |
 | 13c | Exportar los estudiantes (por curso o por nivel) a Excel, o una carga masiva, para crearlos en la plataforma oficial de CORHUILA | **Pendiente** — por definir con el usuario | — |
+Decisiones de negocio tomadas en la fase 14 (27/11/2026):
+
+- El archivo de **matriculados** de cada periodo es la fuente principal de CORHUILA. Se guardan todas sus columnas, pero solo se muestran en el módulo del administrador.
+- Solo el **superadmin** sube matriculados, para evitar que los docentes suban archivos distintos.
+- **Doble programa:** el mismo resultado cuenta en los dos programas. En las listas individuales el estudiante aparece una vez por programa.
+- El semestre de matriculados es el semestre actual del estudiante y completa el que CORHUILA no trae.
+- Sedes y modalidades (`-PITALITO`, Virtual, Híbrida) se toman como vienen.
+- Si una fila de CORHUILA no cumple nombre y correo a la vez, sigue la regla de ESE y, si tampoco, queda por revisar.
+
 Decisiones de negocio tomadas en la fase 5 (22/11/2026):
 
 - Unificar programas que solo difieren en tildes, mayúsculas o espacios.

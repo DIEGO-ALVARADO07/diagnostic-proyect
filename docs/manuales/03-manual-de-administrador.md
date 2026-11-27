@@ -12,11 +12,13 @@ El uso diario (Dashboard, ESE, CORHUILA, Estudiantes, Cursos) está en el [Manua
 
 | Rol | Puede |
 |---|---|
-| **superadmin** | Todo lo del instructor, y además: crear y desactivar cuentas, ver el historial de importaciones, desactivar y restaurar importaciones, ver los cursos eliminados y habilitarlos. |
+| **superadmin** | Todo lo del instructor, y además: subir y consultar el archivo de **matriculados**, crear y desactivar cuentas, ver el historial de importaciones, desactivar y restaurar importaciones, ver los cursos eliminados y habilitarlos. |
 | **instructor** | Importar ESE y CORHUILA; consultar el Dashboard, ESE y CORHUILA; asignar el programa a los "Sin programa"; ver estudiantes por nivel; crear cursos, agregarles estudiantes y eliminarlos (de forma lógica). |
 | **estudiante** | Solo su perfil. El inicio de sesión de estudiantes todavía no forma parte del uso del sistema. |
 
-**Menú del superadmin:** Dashboard, ESE, CORHUILA, Importar Excel, Estudiantes, Cursos, **Cursos eliminados**, **Importaciones**, **Usuarios**, **Crear cuenta** y Mi perfil.
+**Menú del superadmin:** **Matriculados**, Dashboard, ESE, CORHUILA, Importar Excel, Estudiantes, Cursos, **Cursos eliminados**, **Importaciones**, **Usuarios**, **Crear cuenta** y Mi perfil.
+
+Matriculados va primero en el menú porque sin ese archivo los resultados de CORHUILA no tienen programa. Al entrar se abre el Dashboard.
 
 **Principio de auditoría:** en este sistema **nada se borra**. Eliminar o desactivar deja el registro con **quién y cuándo**, y solo el superadmin lo recupera.
 
@@ -79,11 +81,61 @@ Los instructores pueden **eliminar** cursos, pero no recuperarlos. **Cursos elim
 
 Mientras un curso está eliminado, nadie puede crear otro con el mismo nombre en ese nivel y materia: el sistema pide habilitarlo.
 
-## 5. Calidad de los datos
+## 5. Matriculados y calidad de los datos
+
+### Qué es el archivo de matriculados
+
+Es el Excel oficial de la institución con los estudiantes matriculados en un periodo (por ejemplo, `matriculados_20262_pregrado.xlsx`). Es la **fuente principal** de CORHUILA: de ahí salen el **programa**, el **documento** (tipo y número) y el **semestre** de cada estudiante.
+
+- **Solo el superadmin** lo sube, para que no haya archivos distintos del mismo periodo.
+- Se guardan **todas** sus columnas, pero los datos personales (teléfonos, género, estrato, fecha de nacimiento, correo personal) **solo se ven en este módulo**.
+
+### Subir matriculados
+
+1. Entra a **Matriculados**.
+2. Elige el **periodo**: solo aparecen el actual y el anterior (`-1` o `-2`).
+3. Elige el archivo (`.xlsx`, `.xlsm`, `.xls` u `.ods`, de hasta 30 MB) y pulsa **Subir matriculados**.
+
+El archivo necesita las columnas `PROGRAMA`, `IDENTIFICACION`, `NOMBRES` y `APELLIDOS`. También se leen `COD_PERIODO`, `COD_PENSUM`, `SEMESTRE`, `TIP_IDENTIFICACION`, `CODIGO`, `ESTRATO`, `GENERO`, `FNACIMIENTO`, `TELEFONO`, `MOVIL`, `EMAIL_PERSONAL` y `EMAIL_INSTITUCIONAL`.
+
+Al terminar, el aviso dice:
+- cuántos estudiantes y filas se guardaron, y cuántos tienen doble programa;
+- cuántas filas se rechazaron (sin documento o sin programa);
+- si reemplazó a una carga anterior;
+- cuántos resultados de CORHUILA se actualizaron.
+
+| Situación | Qué pasa |
+|---|---|
+| Ya había un archivo de ese periodo | Lo **reemplaza**. Del anterior queda quién y cuándo lo subió, pero no sus filas. |
+| Es el mismo archivo que ya está cargado | No se vuelve a subir. |
+| `COD_PERIODO` no coincide con el periodo elegido | Se rechaza. Revisa el periodo. |
+| Falta una columna obligatoria | Se rechaza y el aviso dice cuál falta. |
+| Un estudiante aparece en dos programas | Se guardan las dos filas (**doble programa**). |
+| Una fila está repetida (mismo documento y programa) | Se guarda una sola vez. |
+
+### Consultar matriculados
+
+Las tarjetas de arriba muestran la carga de cada periodo. La tabla trae a todos, de 50 en 50, con:
+- **filtros:** Periodo, Programa, Semestre, Tipo de documento, Género y Estrato, cada uno con su conteo;
+- **búsqueda** por nombre, documento, código o correo.
+
+Quien tiene doble programa lleva la marca "2 programas".
+
+### Cómo se cruza CORHUILA
+
+Una fila de CORHUILA es de un matriculado **del mismo periodo** si:
+1. trae el mismo **documento**, o
+2. su **nombre completo** y **uno de sus dos correos** (personal o institucional) coinciden con la **misma** persona.
+
+Si coincide solo el nombre o solo el correo, no se cruza.
+
+Cuando se cruza, la fila toma el programa, el semestre y el documento de matriculados. Si el estudiante está en **dos programas**, su resultado **cuenta en los dos** y en las listas aparece una vez por programa.
+
+**El orden de carga no importa:** si subes CORHUILA antes que matriculados, el cruce se rehace solo al subir matriculados.
 
 ### Estudiantes "Sin programa" (CORHUILA)
 
-El Excel de CORHUILA casi nunca trae el documento. El sistema busca a cada estudiante en el histórico de ESE, en este orden:
+Si la fila no está en matriculados, el sistema la busca en el histórico de ESE, en este orden:
 
 1. por documento;
 2. por **nombre completo** único (si hay homónimos, el correo desempata);
@@ -91,8 +143,10 @@ El Excel de CORHUILA casi nunca trae el documento. El sistema busca a cada estud
 
 Con eso toma el programa de su registro de ESE más reciente. Los que no aparecen quedan **"Sin programa"**:
 
-- en el módulo **CORHUILA**, asígnales el programa a mano. Esa asignación **manda sobre ESE**;
+- en el módulo **CORHUILA**, asígnales el programa a mano. Esa asignación **manda sobre matriculados y ESE**;
 - **Recalcular cruce** vuelve a buscar a todos. Hazlo después de subir un ESE nuevo.
+
+Con el archivo de 2026-2, 437 de las 439 filas de CORHUILA se cruzaron con matriculados, 2 tomaron el programa de ESE y ninguna quedó sin programa.
 
 ### Avisos conocidos
 
@@ -107,7 +161,7 @@ Estos comandos se ejecutan en PowerShell desde `back\api-reader-excel`.
 |---|---|
 | `.\tasks.ps1 run` | Arrancar la API. |
 | `.\tasks.ps1 migrate` | Aplicar las migraciones de una versión nueva. Saca antes un respaldo. |
-| `.\tasks.ps1 test` | Comprobar que todo funciona: 146 pruebas, sin tocar la base real. |
+| `.\tasks.ps1 test` | Comprobar que todo funciona: 167 pruebas, sin tocar la base real. |
 | `.\tasks.ps1 backup -Label <nombre>` | Respaldo manual. |
 | `.\tasks.ps1 backup-daily` | Respaldo solo si hubo cambios. |
 | `.\tasks.ps1 schedule-backup -At 02:30` | Programar el respaldo diario. |
@@ -155,7 +209,7 @@ Para mostrar el recorrido completo desde una base vacía:
 
 1. Primero se hace un respaldo `antes-vaciar`. **Si el respaldo falla, no se borra nada.**
 2. Te pide escribir el nombre de la base (`excel_reader`) para confirmar.
-3. Borra todos los datos académicos: importaciones, resultados, estudiantes, programas, cursos e inscripciones.
+3. Borra todos los datos académicos: matriculados, importaciones, resultados, estudiantes, programas, cursos e inscripciones.
 4. **Conserva las cuentas**, para que puedas entrar y empezar por **Importar Excel**.
 5. Reinicia la API (`.\tasks.ps1 run`), porque guarda datos en memoria.
 
@@ -169,13 +223,13 @@ Para volver al estado anterior, restaura la copia `…_antes-vaciar.sql`.
 - **Contraseñas:** al menos 12 caracteres. El sistema nunca muestra ni devuelve las contraseñas.
 - **Sesiones:** duran 8 horas. Al desactivar una cuenta, sus sesiones se cierran.
 - **Pendiente conocido:** "Cerrar sesión" cierra la sesión del navegador, pero el token de la API sigue válido hasta que vence (8 horas). Está planificado en la fase 6, junto con el límite de intentos de login y la limpieza de tokens vencidos.
-- **Datos personales:** la base y los respaldos tienen nombres, documentos y correos de estudiantes. Protégelos según las políticas de la institución.
+- **Datos personales:** la base y los respaldos tienen nombres, documentos y correos de estudiantes y, desde matriculados, teléfonos, género, estrato y fecha de nacimiento. Esos datos solo se muestran en el módulo Matriculados (superadmin). Protégelos según las políticas de la institución y no compartas el archivo de matriculados por chat o correo.
 
 ## 10. Rutina recomendada
 
 | Cuándo | Qué revisar |
 |---|---|
-| Cada periodo | Subir ESE (que trae el histórico) y el CORHUILA del periodo. Revisar "Sin programa" y pulsar "Recalcular cruce". |
+| Cada periodo | Subir primero el archivo de **matriculados** del periodo; luego ESE (que trae el histórico) y el CORHUILA del periodo. Revisar "Sin programa" y pulsar "Recalcular cruce". |
 | Cada semana | Que existan las copias `…_diario.sql` de los días con cambios, y el registro `respaldo-diario.log`. |
 | Antes de actualizar | `.\tasks.ps1 backup -Label antes-actualizar`, luego `git pull`, `install` y `migrate`. |
 | Cuando alguien se va | Desactivar su cuenta en **Usuarios**. |

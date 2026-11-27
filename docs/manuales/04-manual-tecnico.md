@@ -2,7 +2,7 @@
 
 **Sistema:** Diagnóstico académico — comparación ESE + CORHUILA
 **Para:** desarrolladores y responsables técnicos
-**Versión:** 27 de noviembre de 2026 (rama `dev`, commit `a914c58`)
+**Versión:** 27 de noviembre de 2026 (rama `dev`, commit `543d7fb`)
 
 Documentos de referencia:
 - [Arquitectura](../02-arquitectura.md), [API](../04-api.md), [Tecnologías y datos](../05-tecnologias-y-datos.md), [Seguridad y migraciones](../06-seguridad-y-migraciones.md), [Pruebas y desarrollo](../07-pruebas-y-desarrollo.md), [Frontend](../08-frontend.md) y [Flujo del dashboard](../09-flujo-dashboard-academico.md);
@@ -19,6 +19,8 @@ El sistema importa dos fuentes de resultados, las normaliza en MySQL y las expon
 | **ESE** | Libro con todo el histórico de simulacros por momento. | `BD GEN` y `TD PROGRAMAS` |
 | **CORHUILA** | Un libro por periodo. | `Calificaciones` de Moodle |
 
+Además, el superadmin sube por periodo el **archivo oficial de matriculados**, que es la fuente principal del programa, el documento y el semestre de los estudiantes de CORHUILA.
+
 Sobre esos datos, el sistema:
 - compara las dos pruebas en un periodo, con una **escala común de niveles**;
 - asigna **un nivel por estudiante**;
@@ -29,7 +31,7 @@ Navegador ──► front/ (PHP + JS ES) ──► partials/shared/data.php (pro
                                           │  Bearer token (sesión PHP)
                                           ▼
                               FastAPI (back/api-reader-excel)
-                         security · excel · courses (monolito modular)
+                    security · excel · courses · enrollment (monolito modular)
                                           │ SQLAlchemy 2
                                           ▼
                                    MySQL 8 (excel_reader)
@@ -45,7 +47,7 @@ Navegador ──► front/ (PHP + JS ES) ──► partials/shared/data.php (pro
 | Seguridad | Hash PBKDF2-SHA256 para las contraseñas, token opaco con hash en la base, y Fernet (`cryptography`) para las credenciales cifradas de `core/.env` |
 | Frontend | PHP 7.4+ con cURL; JavaScript con módulos ES nativos, sin compilación; gráficas SVG hechas a mano |
 | Operación | PowerShell (`tasks.ps1`), `mysqldump` y el Programador de tareas de Windows |
-| Pruebas | `unittest` sobre SQLite en memoria (146 pruebas) |
+| Pruebas | `unittest` sobre SQLite en memoria (167 pruebas) |
 
 ## 3. Estructura del repositorio
 
@@ -53,13 +55,14 @@ Navegador ──► front/ (PHP + JS ES) ──► partials/shared/data.php (pro
 diagnostic-proyect/
 ├── back/api-reader-excel/
 │   ├── app/            crea la app FastAPI (logging, errores)
-│   ├── api/            ensambla los routers (security, users, excel, courses)
+│   ├── api/            ensambla los routers (security, users, excel, courses, enrollment)
 │   ├── core/           config (.env + Fernet), engine, sesión por petición, Base ORM, errores
-│   ├── migrations/     Alembic: runner.py y versiones 0001–0011
+│   ├── migrations/     Alembic: runner.py y versiones 0001–0013
 │   ├── modules/
 │   │   ├── security/   login, tokens, usuarios, roles y permisos, bootstrap
 │   │   ├── excel/      importación, dashboard, comparación, estudiantes por nivel, revisión
-│   │   └── courses/    cursos por nivel y materia e inscripciones
+│   │   ├── courses/    cursos por nivel y materia e inscripciones
+│   │   └── enrollment/ archivo de matriculados por periodo (solo superadmin)
 │   ├── scripts/        backup_db.py, reset_db.py, bench_dashboard.py
 │   ├── tests/
 │   └── tasks.ps1
@@ -87,9 +90,10 @@ Ramas: **`dev`** (código), **`docs`** (documentación) y `main`.
 | `dashboard_service.py` | Fachada que usan las rutas. Compone los demás servicios y comparte la caché. |
 | `dashboard_import_service.py` | Importar, desactivar y restaurar. Calcula el hash SHA-256 para no duplicar, activa una importación por espacio y deja `FAILED` las cargas con error. |
 | `dashboard_processor.py` y `corhuila_processor.py` | Convierten las hojas de ESE y CORHUILA en registros normalizados. |
-| `program_resolution.py` | Cruce de CORHUILA con ESE (documento → nombre completo → correo), programa actual, asignación manual y recálculo. |
+| `program_resolution.py` | Cruce de CORHUILA: primero con **matriculados** del periodo (documento, o nombre completo y uno de los dos correos de la misma persona), luego con ESE (documento → nombre completo → correo). Programa actual, programas extra (doble programa), semestre, asignación manual y recálculo. |
 | `dashboard_dataset_loader.py` y `dashboard_cache.py` | Cargan la instantánea de una importación y la guardan en memoria; las consultas tardan 5–150 ms. |
-| `dashboard_query_service.py` | Resumen, programa y estudiante del histórico de ESE. |
+| `dashboard_query_service.py` | Resumen, programa y estudiante del histórico de ESE, y resultados con filtros (`get_results`). |
+| `dashboard_results.py` | Resultados de una carga con filtros de programa y semestre, búsqueda por palabras, opciones con conteo, y promedio y nivel por fila (módulo CORHUILA). |
 | `dashboard_compare_service.py` | Dashboard principal: ESE frente a CORHUILA en un periodo. |
 | `student_levels_service.py` | Un nivel por estudiante. `students_in(db, period)` lo usan Estudiantes y Cursos. |
 | `dashboard_metrics.py`, `dashboard_mappers.py` y `dashboard_filters.py` | Métricas, respuestas y opciones de filtros (por ejemplo, `moments_by_period`). |
@@ -106,10 +110,22 @@ Ramas: **`dev`** (código), **`docs`** (documentación) y `main`.
 
 Reutiliza `StudentLevelsService` y la misma caché del dashboard.
 
+### `modules/enrollment`
+
+`EnrollmentService` (`service.py`) carga y lista el archivo de matriculados:
+- reconoce las columnas por su nombre normalizado (`COLUMNS`). Son obligatorias `PROGRAMA`, `IDENTIFICACION`, `NOMBRES` y `APELLIDOS`;
+- valida que `COD_PERIODO` coincida con el periodo elegido;
+- deja una carga `ACTIVE` por periodo; la anterior pasa a `REPLACED` y se borran sus filas;
+- guarda las filas en bloques de 500, con `document_key` (SHA-256 del documento, igual que en `academic_students`);
+- completa `AcademicStudent.document_type`;
+- llama a `refresh_corhuila_programs` y luego a `on_change`, que limpia la caché del dashboard.
+
+Las rutas (`routes.py`, prefijo `/enrollment`) exigen `Role.SUPERADMIN`.
+
 ### Entidades del dominio
 
 - `entities/competency.py`: las 5 competencias, con clave, encabezado, columnas y etiquetas de nivel. `COMPARABLE_COMPETENCIES` son las 4 comunes.
-- `entities/assessment.py`: `Source` (ESE o CORHUILA), periodo, momento y rango de semestres, `active_slot`, `SIN_PROGRAMA_ID`, `ProgramResolution` y `StudentMatch`.
+- `entities/assessment.py`: `Source` (ESE o CORHUILA), periodo, momento y rango de semestres, `active_slot`, `SIN_PROGRAMA_ID`, `ProgramResolution` (`MANUAL`, `MATRICULADOS`, `ESE`, `SIN_PROGRAMA`) y `StudentMatch` (incluye `DOCUMENTO` y `MATRICULADOS`).
 
 ## 5. Modelo de datos
 
@@ -120,11 +136,14 @@ Reutiliza `StudentLevelsService` y la misma caché del dashboard.
 | `excel_imports` | Cada carga: `source`, `period`, `file_sha256`, estado, conteos, `validation_summary` y auditoría (`deleted_at`, `deleted_by_user_id`, `restored_at`, `restored_by_user_id`). |
 | `excel_active_imports` | La activa de cada espacio (`slot`): `ESE` o `CORHUILA:<periodo>`. |
 | `excel_dashboard_state` | Fila única que sirve de bloqueo al activar importaciones. |
-| `academic_students` | Un estudiante por documento, con su programa manual (`assigned_program_*`). |
+| `academic_students` | Un estudiante por documento, con su tipo (`document_type`, de matriculados) y su programa manual (`assigned_program_*`). |
 | `academic_student_emails` | Los correos de cada estudiante, como alias. |
 | `academic_programs` y `academic_program_aliases` | Programas unificados por nombre normalizado, y sus variantes. |
 | `academic_results` | Una fila por intento: puntajes y niveles por competencia, global, periodo, momento, simulacro, programa y cómo se resolvió (estudiante y programa). |
+| `academic_result_programs` | Programas extra de un resultado (doble programa): `result_id` y `program_id`. |
 | `td_programas_reference` | La tabla visible de `TD PROGRAMAS`, para la auditoría. |
+| `enrollment_uploads` | Cada carga de matriculados: periodo, archivo, SHA-256, estado (`ACTIVE` o `REPLACED`), conteos y quién y cuándo. |
+| `enrollment_records` | Una fila por estudiante y programa con todas las columnas del archivo, más `document_key`, los correos normalizados y `search_text`. Única por carga, documento y programa. |
 | `courses` | Nivel, `competency`, nombre (y `name_key`, único por nivel y materia), descripción, metodología, autor y auditoría. |
 | `course_enrollments` | Curso, estudiante, nivel y periodo de la inscripción, y quién y cuándo. Único por curso y estudiante. |
 
@@ -155,9 +174,9 @@ Inglés usa las etiquetas A1, A2, B1 y B2. El nivel se **calcula** con esta esca
 
 **Identidad.**
 - Un estudiante es el estudiante resuelto; si no hay, su documento; si tampoco, su correo.
-- Programa de CORHUILA: el del registro de ESE más reciente, de cualquier momento.
-- La asignación manual manda.
-- Los no encontrados van a `sin-programa`.
+- Programa de CORHUILA, en orden: **manual** → **matriculados** del periodo (documento, o nombre completo y uno de los dos correos de la misma persona) → registro de **ESE** más reciente, de cualquier momento → `sin-programa`.
+- Matriculados da también el semestre (`semester_raw` y `semester_key`) y el tipo y número de documento.
+- **Doble programa:** el primer programa va en `academic_results.program_id` y los demás en `academic_result_programs`. `DashboardDatasetLoader` crea una copia del registro por cada programa extra, así que el resultado cuenta en los dos programas. En Estudiantes sale una vez por programa (la clave lleva el sufijo `-p{program_id}`), con el mismo nivel.
 
 **Periodos de carga.** `periodosDeCarga()`, en `index.php`, solo permite el periodo actual y el anterior; se valida también al recibir el formulario.
 
@@ -167,7 +186,7 @@ Inglés usa las etiquetas A1, A2, B1 y B2. El nivel se **calcula** con esta esca
 2. Crea `excel_imports` en `PROCESSING` y lo confirma; el hash único impide cargas simultáneas del mismo archivo.
 3. Lee y procesa las hojas, guarda los resultados (`persist_snapshot` o `persist_corhuila_snapshot`) y queda `VALIDATED`.
 4. `_activate` bloquea `excel_dashboard_state`. La activa anterior de su espacio pasa a `HISTORICAL` y la nueva queda `ACTIVE`.
-5. Un ESE nuevo recalcula el programa de las filas de CORHUILA en la misma transacción.
+5. Un ESE nuevo recalcula el programa de las filas de CORHUILA en la misma transacción. Subir matriculados (`POST /enrollment/import`) también lo recalcula.
 6. Se limpia la caché de datasets.
 
 Ante cualquier error, la carga queda `FAILED` y no toca a la activa.
@@ -181,7 +200,8 @@ La referencia completa por ruta está en [API y contratos](../04-api.md) y en `/
 | Autenticación | `/auth/login`, `/auth/logout` |
 | Usuarios | `/users`, `/users/me`, `/users/{id}` |
 | Lectura simple | `POST /excel/read` |
-| Importar y consultar | `/excel/dashboard/import`, `/active`, `/{import_id}`, `/{import_id}/programs/{id}`, `/{import_id}/students/{doc}`, `/compare`, `/students`, `/program-lookup` |
+| Importar y consultar | `/excel/dashboard/import`, `/active`, `/{import_id}`, `/{import_id}/programs/{id}`, `/{import_id}/results`, `/{import_id}/students/{doc}`, `/compare`, `/students`, `/program-lookup` |
+| Matriculados (superadmin) | `POST /enrollment/import`, `GET /enrollment/records` |
 | Revisión de CORHUILA | `/excel/dashboard/review/without-program`, `/catalog/programs`, `PUT /review/students/{id}/program`, `POST /corhuila/resolve` |
 | Administración (superadmin) | `/excel/dashboard/imports`, `/admin/imports`, `DELETE /imports/{id}`, `POST /imports/{id}/restore` |
 | Cursos | `/courses`, `/courses/{id}/students`, `/courses/{id}/enroll`, `DELETE /courses/{id}`, `DELETE /courses/{id}/students/{sid}`; solo superadmin: `/courses/deleted` y `/courses/{id}/restore` |
@@ -194,7 +214,8 @@ Detalle en [Frontend PHP](../08-frontend.md).
 - Las pantallas con datos tienen `partials/<módulo>/js/main.js`, que llama al proxy `partials/shared/data.php?resource=…`.
   - Las consultas se hacen con `apiRequest`.
   - Los cambios con `apiPost`, que envía el encabezado `X-CSRF-Token`.
-- El proxy valida los formatos y los roles (por ejemplo, `courses_deleted` y `course_restore` solo para superadmin) y reenvía a la API con el token.
+- El proxy valida los formatos y los roles (por ejemplo, `courses_deleted`, `course_restore` y `enrollment` solo para superadmin) y reenvía a la API con el token.
+- El módulo CORHUILA usa el recurso `results` (`/excel/dashboard/{import_id}/results`, 25 filas por página) para los filtros, el detalle por programa y la tabla de estudiantes.
 - Los filtros se guardan en la URL (`history.replaceState`).
 - Las confirmaciones usan `window.appConfirm` (`dashboard.js`) o `confirmAction` (`shared/js/confirm.js`).
 
@@ -219,7 +240,7 @@ Detalle en [Frontend PHP](../08-frontend.md).
 
 ## 11. Migraciones
 
-`.\tasks.ps1 migrate` (equivale a `python -m migrations`) valida las bases antiguas sin historial y aplica la cadena `0001`–`0011`. La aplicación **nunca** crea tablas por su cuenta.
+`.\tasks.ps1 migrate` (equivale a `python -m migrations`) valida las bases antiguas sin historial y aplica la cadena `0001`–`0013`. La aplicación **nunca** crea tablas por su cuenta.
 
 | Migración | Qué hace |
 |---|---|
@@ -233,6 +254,8 @@ Detalle en [Frontend PHP](../08-frontend.md).
 | `0009` | Cursos. |
 | `0010` | Auditoría de eliminar y restaurar. |
 | `0011` | Materia, descripción y metodología de los cursos. |
+| `0012` | Tablas de matriculados (`enrollment_uploads` y `enrollment_records`). |
+| `0013` | `academic_students.document_type` y `academic_result_programs` (doble programa). |
 
 Antes de cada migración: `.\tasks.ps1 backup -Label antes-<id>`. La prueba `test_security_migrations` aplica y revierte toda la cadena y la compara con los modelos.
 
@@ -242,7 +265,7 @@ Antes de cada migración: `.\tasks.ps1 backup -Label antes-<id>`. La prueba `tes
 .\tasks.ps1 test
 ```
 
-146 pruebas en SQLite en memoria; no tocan la base real. Las principales por archivo:
+167 pruebas en SQLite en memoria; no tocan la base real. Las principales por archivo:
 
 | Archivo | Cubre |
 |---|---|
@@ -250,6 +273,8 @@ Antes de cada migración: `.\tasks.ps1 backup -Label antes-<id>`. La prueba `tes
 | `test_dashboard_compare.py` | Comparación por periodo, momentos y filtros. |
 | `test_corhuila_import.py`, `test_student_identity.py`, `test_document_identity.py` | Cruce y estudiantes. |
 | `test_student_levels.py` | Niveles y periodos. |
+| `test_enrollment.py`, `test_enrollment_matching.py` | Matriculados y su cruce con CORHUILA (doble programa, semestre y tipo de documento). |
+| `test_dashboard_results.py` | Resultados de CORHUILA con filtros, búsqueda, promedio y nivel por fila. |
 | `test_courses.py` | Cursos, inscripción por materia, eliminar y restaurar, y roles. |
 | `test_security_migrations.py` | Cadena de migraciones. |
 | `test_backup_db.py`, `test_reset_db.py` | Respaldos y vaciado. |
@@ -293,6 +318,7 @@ Antes de cada migración: `.\tasks.ps1 backup -Label antes-<id>`. La prueba `tes
 
 | Id | Pendiente |
 |---|---|
+| **14c** | Crear las cuentas de los estudiantes a partir de matriculados, y dar a otros roles permiso para subirlo. |
 | **13c** | Exportar los estudiantes (por curso o por nivel) a Excel, o hacer una carga masiva, para crearlos en la plataforma oficial de CORHUILA. Por definir. |
 | **12c** | Crecimiento por programa (M1 → M2 → CORHUILA → M3); necesita un endpoint nuevo. |
 | **Fase 6** | Seguridad y CI (ver sección 10). |

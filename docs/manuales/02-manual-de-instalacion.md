@@ -2,7 +2,7 @@
 
 **Sistema:** Diagnóstico académico — comparación ESE + CORHUILA
 **Para:** quien instala el sistema en un equipo o servidor Windows
-**Versión:** 27 de noviembre de 2026 (rama `dev`, commit `a914c58`)
+**Versión:** 27 de noviembre de 2026 (rama `dev`, commit `543d7fb`)
 
 Este manual lleva desde un equipo vacío hasta el sistema funcionando. Todos los comandos son de **PowerShell**. La versión técnica, con todos los detalles, está en [Instalación, uso y operación](../03-instalacion-y-operacion.md).
 
@@ -75,7 +75,7 @@ Crea el entorno `venv\` e instala las librerías de `requirements.txt`.
 .\tasks.ps1 bootstrap
 ```
 
-Pide el usuario, el correo, el nombre completo y la contraseña del **superadmin**. La contraseña no se ve al escribirla y debe tener al menos 12 caracteres. El comando aplica todas las migraciones (`0001` a `0011`) y crea la cuenta. Debe terminar con `Cuenta superadmin inicial creada.`
+Pide el usuario, el correo, el nombre completo y la contraseña del **superadmin**. La contraseña no se ve al escribirla y debe tener al menos 12 caracteres. El comando aplica todas las migraciones (`0001` a `0013`) y crea la cuenta. Debe terminar con `Cuenta superadmin inicial creada.`
 
 **Si en cambio traes los datos de otro equipo**, restaura un respaldo `.sql` en HeidiSQL (*Archivo → Ejecutar archivo SQL*) y después ejecuta:
 
@@ -130,9 +130,9 @@ Las copias quedan en `C:\Users\<usuario>\respaldos\excel_reader`. Detalle en el 
 
 | Comprobación | Resultado esperado |
 |---|---|
-| `.\tasks.ps1 test` | `OK` (146 pruebas). |
+| `.\tasks.ps1 test` | `OK` (167 pruebas). |
 | `http://127.0.0.1:8000/health` | `{"status":"ok"}` |
-| Entrar con el superadmin | Se ve el Dashboard y el menú completo. |
+| Entrar con el superadmin | Se ve el Dashboard y el menú completo, que empieza por **Matriculados**. |
 | Subir un Excel de ESE en Importar Excel | El Dashboard muestra la mitad de ESE. |
 
 ## 10. Actualizar a una versión nueva

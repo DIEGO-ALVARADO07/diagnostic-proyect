@@ -1,6 +1,6 @@
 # Documentación del proyecto
 
-> Actualizada el 27 de noviembre de 2026. El código está en la rama `dev` (HEAD `a914c58`); esta rama `docs` solo contiene documentación.
+> Actualizada el 27 de noviembre de 2026. El código está en la rama `dev` (HEAD `543d7fb`); esta rama `docs` solo contiene documentación.
 
 > El proyecto compara dos pruebas, **ESE** (histórico por momentos) y **CORHUILA** (un archivo por periodo), con una escala común de niveles, y arma **cursos por nivel y materia** a partir de los estudiantes de los Excel. Para empezar, lee los [**manuales**](manuales/README.md).
 
@@ -28,10 +28,12 @@ Esta documentación cubre el backend FastAPI de `back/api-reader-excel` y el fro
 
 - **Pruebas:** ESE (libro con `BD GEN` y `TD PROGRAMAS`, todo el histórico, momentos M1–M4) y CORHUILA (hoja `Calificaciones` de Moodle, un archivo por periodo). La carga solo permite el periodo actual y el anterior.
 - **Comparación:** dashboard con ESE y CORHUILA lado a lado en un periodo. Solo se comparan las 4 competencias comunes, con una escala común de niveles 1–4.
-- **Cruce de estudiantes:** el programa de cada estudiante de CORHUILA se busca en ESE (documento, luego nombre completo, luego correo). Los que no aparecen quedan "Sin programa" y se les asigna a mano.
+- **Matriculados:** el archivo oficial de matriculados de cada periodo (solo lo sube el superadmin) es la fuente principal de CORHUILA: de ahí salen el programa, el documento y el semestre. Un estudiante con doble programa cuenta en los dos.
+- **Cruce de estudiantes:** cada fila de CORHUILA se busca en matriculados del periodo (por documento, o por nombre completo y uno de sus dos correos). Si no está, el programa sale de ESE (documento, luego nombre completo, luego correo). Los que no aparecen quedan "Sin programa" y se les asigna a mano.
+- **Módulo CORHUILA:** filtros de programa y semestre, búsqueda por nombre, documento, correo o programa, y detalle de cada programa con su gráfica y sus estudiantes.
 - **Estudiantes por nivel:** todos los de los Excel (sin crearlos a mano), en N1–N4 y Sin resultado, con filtro por periodo.
 - **Cursos:** Nivel → Curso (materia, nombre, descripción y metodología) → Estudiantes, con inscripción en bloque por el nivel en la materia.
 - **Auditoría:** eliminación lógica con quién y cuándo, en cursos e importaciones. Solo el superadmin restaura.
 - **Operación:** `tasks.ps1` (instalar, migrar, crear el superadmin, arrancar, probar, respaldar, respaldo diario programado y vaciar la base).
-- **Base de datos:** migraciones `0001`–`0011`. 146 pruebas automáticas en SQLite.
-- **Pendiente:** exportar los estudiantes para la plataforma oficial de CORHUILA (13c), crecimiento por programa (12c), y seguridad y CI (fase 6).
+- **Base de datos:** migraciones `0001`–`0013`. 167 pruebas automáticas en SQLite.
+- **Pendiente:** crear las cuentas de los estudiantes a partir de matriculados, exportar los estudiantes para la plataforma oficial de CORHUILA (13c), crecimiento por programa (12c), y seguridad y CI (fase 6).
